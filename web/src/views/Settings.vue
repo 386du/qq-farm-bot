@@ -1425,7 +1425,7 @@ async function handleTestOffline() {
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_bad" label="自动捣乱" />
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_help_exp_limit" label="经验满不帮忙" />
               </div>
-              <div class="flex flex-wrap items-center gap-4 border-t border-blue-200/60 pt-3 dark:border-blue-800/40">
+              <div class="flex flex-wrap items-center gap-4 pt-3">
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_auto_accept" label="自动同意好友申请" />
                 <div v-if="localAutomationSettings.automation.friend_auto_accept" class="flex items-center gap-2">
                   <span class="text-xs text-gray-600 dark:text-gray-300">最低等级门槛</span>

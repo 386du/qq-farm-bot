@@ -288,6 +288,8 @@ function normalizeAccountConfig(input: unknown, fallback: AccountConfig = accoun
                 cfg.automation.fertilizer_land_types = normalizeFertilizerLandTypes(v, cfg.automation.fertilizer_land_types);
             } else if (k === 'fertilizer_smart_seconds') {
                 cfg.automation.fertilizer_smart_seconds = Math.max(30, Math.min(3600, Number(v) || 300));
+            } else if (k === 'friend_auto_accept_min_level') {
+                cfg.automation.friend_auto_accept_min_level = Math.max(0, Number.parseInt(v as string, 10) || 0);
             } else {
                 (cfg.automation as any)[k] = !!v;
             }
