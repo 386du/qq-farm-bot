@@ -90,6 +90,8 @@ const events = [
   { label: '好友申请忽略', value: 'friend_application_ignored' },
   { label: '好友申请同意', value: 'friend_application_accepted' },
   { label: '好友申请汇总', value: 'friend_application_summary' },
+  { label: '收到好友申请', value: 'friend_application_received' },
+  { label: '检查好友申请', value: 'friend_application_check' },
 ]
 
 const eventLabelMap: Record<string, string> = Object.fromEntries(

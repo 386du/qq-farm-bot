@@ -415,6 +415,8 @@ async function friendCheckLoop(): Promise<void> {
     if (!friendLoopRunning) return;
     await checkFriends();
     if (!friendLoopRunning) return;
+    await checkAndAcceptApplications();
+    if (!friendLoopRunning) return;
     friendScheduler.setTimeoutTask('friend_check_loop', Math.max(0, CONFIG.friendCheckInterval), () => friendCheckLoop());
 }
 
@@ -512,11 +514,18 @@ function logIgnoredApplication(app: any, minLevel: number, reason: string): void
 }
 
 export function onFriendApplicationReceived(applications: any[]): void {
+    const names: string = applications.map((a: any) => a.name || `GID:${toNum(a.gid)}`).join(', ');
+    log('好友', `收到 ${applications.length} 个好友申请: ${names}`, { event: 'friend_application_received', module: 'friend' });
+
     const config = getFriendAutoAcceptConfig();
+    if (!config.enabled) {
+        log('好友', `自动同意好友申请未开启，忽略 ${applications.length} 个申请`, { event: 'friend_application_ignored', module: 'friend' });
+        return;
+    }
 
     const { accepted, ignored } = filterApplicationsByLevel(applications, config);
     for (const app of ignored) {
-        logIgnoredApplication(app, config.minLevel, config.enabled ? 'level' : 'disabled');
+        logIgnoredApplication(app, config.minLevel, 'level');
     }
 
     const gids: number[] = accepted.map((a: any) => toNum(a.gid));
@@ -530,6 +539,7 @@ async function checkAndAcceptApplications(): Promise<void> {
     try {
         const reply: any = await getApplications();
         const applications: any[] = reply.applications || [];
+        log('好友', `主动检查待处理好友申请: ${applications.length} 个`, { event: 'friend_application_check', module: 'friend' });
         if (applications.length === 0) return;
 
         const config = getFriendAutoAcceptConfig();
@@ -549,8 +559,8 @@ async function checkAndAcceptApplications(): Promise<void> {
 
         const gids: number[] = accepted.map((a: any) => toNum(a.gid));
         await acceptFriendsWithRetry(gids, config.minLevel);
-    } catch {
-        // 静默失败，可能是 QQ 平台不支持
+    } catch (e: any) {
+        logWarn('好友', `主动检查好友申请失败: ${e.message}`, { event: 'friend_application_check_failed', module: 'friend' });
     }
 }
 
