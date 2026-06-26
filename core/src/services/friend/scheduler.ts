@@ -415,7 +415,7 @@ async function friendCheckLoop(): Promise<void> {
     if (!friendLoopRunning) return;
     await checkFriends();
     if (!friendLoopRunning) return;
-    await checkAndAcceptApplications();
+    await checkAndAcceptApplicationsOnce();
     if (!friendLoopRunning) return;
     friendScheduler.setTimeoutTask('friend_check_loop', Math.max(0, CONFIG.friendCheckInterval), () => friendCheckLoop());
 }
@@ -441,7 +441,7 @@ export function startFriendCheckLoop(options: StartOptions = {}): void {
     }
 
     // 启动时检查一次待处理的好友申请
-    friendScheduler.setTimeoutTask('friend_check_bootstrap_applications', 3000, () => checkAndAcceptApplications());
+    friendScheduler.setTimeoutTask('friend_check_bootstrap_applications', 3000, () => checkAndAcceptApplicationsOnce());
 }
 
 export function stopFriendCheckLoop(): void {
@@ -514,28 +514,38 @@ function logIgnoredApplication(app: any, minLevel: number, reason: string): void
 }
 
 export function onFriendApplicationReceived(applications: any[]): void {
-    const names: string = applications.map((a: any) => a.name || `GID:${toNum(a.gid)}`).join(', ');
-    log('好友', `收到 ${applications.length} 个好友申请: ${names}`, { event: 'friend_application_received', module: 'friend' });
+    try {
+        const names: string = applications.map((a: any) => a.name || `GID:${toNum(a.gid)}`).join(', ');
+        log('好友', `收到 ${applications.length} 个好友申请: ${names}`, { event: 'friend_application_received', module: 'friend' });
 
-    const config = getFriendAutoAcceptConfig();
-    if (!config.enabled) {
-        log('好友', `自动同意好友申请未开启，忽略 ${applications.length} 个申请`, { event: 'friend_application_ignored', module: 'friend' });
-        return;
+        const config = getFriendAutoAcceptConfig();
+        if (!config.enabled) {
+            log('好友', `自动同意好友申请未开启，忽略 ${applications.length} 个申请`, { event: 'friend_application_ignored', module: 'friend' });
+            return;
+        }
+
+        const { accepted, ignored } = filterApplicationsByLevel(applications, config);
+        log('好友', `好友申请筛选结果: 共 ${applications.length} 个，符合等级门槛 ${accepted.length} 个，忽略 ${ignored.length} 个`, {
+            event: 'friend_application_filter_result',
+            module: 'friend',
+            meta: { total: applications.length, accepted: accepted.length, ignored: ignored.length, minLevel: config.minLevel },
+        });
+
+        for (const app of ignored) {
+            logIgnoredApplication(app, config.minLevel, 'level');
+        }
+
+        const gids: number[] = accepted.map((a: any) => toNum(a.gid));
+        acceptFriendsWithRetry(gids, config.minLevel);
+    } catch (e: any) {
+        logWarn('好友', `处理好友申请推送失败: ${e.message}`, { event: 'friend_application_push_failed', module: 'friend', meta: { error: e.message } });
     }
-
-    const { accepted, ignored } = filterApplicationsByLevel(applications, config);
-    for (const app of ignored) {
-        logIgnoredApplication(app, config.minLevel, 'level');
-    }
-
-    const gids: number[] = accepted.map((a: any) => toNum(a.gid));
-    acceptFriendsWithRetry(gids, config.minLevel);
 }
 
 /**
  * 检查并同意所有待处理的好友申请
  */
-async function checkAndAcceptApplications(): Promise<void> {
+export async function checkAndAcceptApplicationsOnce(): Promise<void> {
     try {
         const reply: any = await getApplications();
         const applications: any[] = reply.applications || [];
@@ -569,8 +579,18 @@ async function checkAndAcceptApplications(): Promise<void> {
  */
 async function acceptFriendsWithRetry(gids: number[], minLevel?: number): Promise<void> {
     if (gids.length === 0) return;
+    log('好友', `准备同意 ${gids.length} 个好友申请 (门槛: ${minLevel ?? 0})`, {
+        event: 'friend_application_accept_start',
+        module: 'friend',
+        meta: { gids, minLevel: minLevel ?? 0 },
+    });
     try {
         const reply: any = await acceptFriends(gids);
+        log('好友', `同意好友申请接口返回: ret=${reply.ret ?? 'none'}, friends=${(reply.friends || []).length}`, {
+            event: 'friend_application_accept_reply',
+            module: 'friend',
+            meta: { ret: reply.ret, gids, friendCount: (reply.friends || []).length },
+        });
         const friends: any[] = reply.friends || [];
         if (friends.length > 0) {
             for (const f of friends) {
@@ -580,9 +600,11 @@ async function acceptFriendsWithRetry(gids: number[], minLevel?: number): Promis
                     meta: { gid: toNum(f.gid), level: toNum(f.level), minLevel },
                 });
             }
+        } else if (reply.ret !== undefined && reply.ret !== 0) {
+            logWarn('好友', `同意好友申请服务端返回错误: ret=${reply.ret}`, { event: 'friend_application_accept_error', module: 'friend', meta: { ret: reply.ret, gids } });
         }
     } catch (e: any) {
-        logWarn('申请', `同意失败: ${e.message}`);
+        logWarn('好友', `同意好友申请失败: ${e.message}`, { event: 'friend_application_accept_failed', module: 'friend', meta: { gids, error: e.message } });
     }
 }
 

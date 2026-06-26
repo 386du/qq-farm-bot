@@ -10,7 +10,7 @@ const { getAutomation, getPreferredSeed, getConfigSnapshot, applyConfigSnapshot,
 const { checkAndClaimEmails } = require('../services/email');
 const { getEmailDailyState } = require('../services/email');
 const { checkFarm, startFarmCheckLoop, stopFarmCheckLoop, refreshFarmCheckLoop, getLandsDetail, getAvailableSeeds, runFarmOperation, runFertilizerByConfig } = require('../services/farm');
-const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation } = require('../services/friend');
+const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation, checkAndAcceptApplicationsOnce } = require('../services/friend');
 const { getInteractRecords } = require('../services/interact');
 const { processInviteCodes } = require('../services/invite');
 const { autoBuyOrganicFertilizer, autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState } = require('../services/mall');
@@ -225,6 +225,7 @@ function resetUnifiedSchedule(): void {
     nextFarmRunAt = now + farmMs;
     nextHelpRunAt = now + helpMs;
     nextStealRunAt = now + stealMs;
+    nextFriendAppCheckAt = now + FRIEND_APP_CHECK_INTERVAL_MS;
 }
 
 async function runFarmTick(auto: any): Promise<void> {
@@ -290,6 +291,24 @@ async function runHelpTick(auto: any): Promise<void> {
 let stealTaskRunning: boolean = false;
 let nextStealRunAt: number = 0;
 
+// ============ 好友申请检查（独立调度） ============
+let friendAppCheckTaskRunning: boolean = false;
+let nextFriendAppCheckAt: number = 0;
+const FRIEND_APP_CHECK_INTERVAL_MS: number = 30 * 1000;
+
+async function runFriendAppCheckTick(): Promise<void> {
+    if (friendAppCheckTaskRunning) return;
+    friendAppCheckTaskRunning = true;
+    try {
+        await checkAndAcceptApplicationsOnce();
+    } catch (e: any) {
+        log('好友', `定时检查好友申请失败: ${e.message}`, { module: 'friend', event: 'friend_app_check_tick_failed', error: e.message });
+    } finally {
+        nextFriendAppCheckAt = Date.now() + FRIEND_APP_CHECK_INTERVAL_MS;
+        friendAppCheckTaskRunning = false;
+    }
+}
+
 async function runStealTick(auto: any): Promise<void> {
     if (stealTaskRunning) {
         //log('系统', '偷菜巡查跳过：正在执行中', { module: 'system', event: '偷菜巡查', result: 'skipped', reason: 'running' });
@@ -320,13 +339,15 @@ async function runUnifiedTick(): Promise<void> {
     const dueFarm = now >= nextFarmRunAt;
     const dueHelp = now >= nextHelpRunAt;
     const dueSteal = now >= nextStealRunAt;
-    if (!dueFarm && !dueHelp && !dueSteal) return;
+    const dueFriendApp = now >= nextFriendAppCheckAt;
+    if (!dueFarm && !dueHelp && !dueSteal && !dueFriendApp) return;
 
     const auto = getAutomation();
     // 串行执行而非并行，避免并发请求过多导致超时
     if (dueFarm) await runFarmTick(auto);
     if (dueHelp) await runHelpTick(auto);
     if (dueSteal) await runStealTick(auto);
+    if (dueFriendApp) await runFriendAppCheckTick();
 }
 
 function scheduleUnifiedNextTick(): void {
@@ -338,7 +359,8 @@ function scheduleUnifiedNextTick(): void {
     const nextAt = Math.min(
         Number(nextFarmRunAt) || (now + 1000),
         Number(nextHelpRunAt) || (now + 1000),
-        Number(nextStealRunAt) || (now + 1000)
+        Number(nextStealRunAt) || (now + 1000),
+        Number(nextFriendAppCheckAt) || (now + 1000)
     );
     const delayMs = Math.max(1000, nextAt - now); // 最低 1 秒
 
@@ -363,6 +385,8 @@ function stopUnifiedScheduler(): void {
     farmTaskRunning = false;
     helpTaskRunning = false;
     stealTaskRunning = false;
+    friendAppCheckTaskRunning = false;
+    nextFriendAppCheckAt = 0;
     workerScheduler.clear('unified_next_tick');
 }
 
