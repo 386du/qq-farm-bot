@@ -294,7 +294,7 @@ let nextStealRunAt: number = 0;
 // ============ 好友申请检查（独立调度） ============
 let friendAppCheckTaskRunning: boolean = false;
 let nextFriendAppCheckAt: number = 0;
-const FRIEND_APP_CHECK_INTERVAL_MS: number = 5 * 60 * 1000;
+const FRIEND_APP_CHECK_INTERVAL_MS: number = 30 * 60 * 1000;
 
 async function runFriendAppCheckTick(): Promise<void> {
     if (friendAppCheckTaskRunning) return;
