@@ -14,6 +14,21 @@ export interface KnownFriendSettings {
   friendsListCacheTtlSec: number
 }
 
+export interface FriendDogInfo {
+  gid: number
+  name: string
+  dogs: Array<{ id: number; name: string; level: number; status: number }>
+  hasGuardDog: boolean
+  protectDuration: number
+}
+
+export const DOG_IDS: Record<number, string> = {
+  90021: '护主犬',
+  90002: '牧羊犬',
+  90001: '田园犬',
+  90011: '柯基',
+}
+
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<any[]>([])
   const loading = ref(false)
@@ -29,6 +44,10 @@ export const useFriendStore = defineStore('friend', () => {
   const friendsListCacheTtlSec = ref(60)
   const knownFriendSettingsLoading = ref(false)
   const knownFriendSettingsSaving = ref(false)
+
+  const friendsDogInfo = ref<FriendDogInfo[]>([])
+  const dogInfoLoading = ref(false)
+  const dogInfoLoaded = ref(false)
 
   function buildPlantSummaryFromDetail(lands: any[], summary: any) {
     let stealNum = 0
@@ -319,6 +338,30 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  async function fetchFriendsDogInfo(accountId: string) {
+    if (!accountId)
+      return
+    dogInfoLoading.value = true
+    dogInfoLoaded.value = false
+    try {
+      const res = await api.post('/api/friends/dog-info', { friends: friends.value }, {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data.ok) {
+        friendsDogInfo.value = Array.isArray(res.data.data) ? res.data.data : []
+        dogInfoLoaded.value = true
+      }
+    }
+    finally {
+      dogInfoLoading.value = false
+    }
+  }
+
+  function clearDogInfo() {
+    friendsDogInfo.value = []
+    dogInfoLoaded.value = false
+  }
+
   return {
     friends,
     loading,
@@ -333,6 +376,9 @@ export const useFriendStore = defineStore('friend', () => {
     friendsListCacheTtlSec,
     knownFriendSettingsLoading,
     knownFriendSettingsSaving,
+    friendsDogInfo,
+    dogInfoLoading,
+    dogInfoLoaded,
     fetchFriends,
     fetchBlacklist,
     toggleBlacklist,
@@ -346,5 +392,7 @@ export const useFriendStore = defineStore('friend', () => {
     removeKnownFriendGid,
     batchAddKnownFriendGids,
     removeUnsyncedKnownFriendGids,
+    fetchFriendsDogInfo,
+    clearDogInfo,
   }
 })

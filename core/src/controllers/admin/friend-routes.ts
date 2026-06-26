@@ -87,6 +87,43 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // API: 获取单个好友狗信息
+    app.get('/api/friend/:gid/dog', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+
+        try {
+            const gid = Number(req.params.gid);
+            const name = String(req.query.name || '');
+            const data = await ctx.provider.getFriendDogInfo(id, gid, name);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // API: 批量获取好友狗信息
+    app.post('/api/friends/dog-info', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+
+        try {
+            const friends = Array.isArray(req.body?.friends) ? req.body.friends : [];
+            const data = await ctx.provider.getFriendsDogInfoBatch(id, friends);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // API: 对指定好友执行单次操作（偷菜/浇水/除草/捣乱）
     app.post('/api/friend/:gid/op', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);

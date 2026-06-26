@@ -448,12 +448,15 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
             });
         }
 
+        const dogInfo = enterReply.dog_info || null;
+
         return {
             lands: landsList,
             summary: analyzed,
+            dogInfo,
         };
     } catch {
-        return { lands: [], summary: {} };
+        return { lands: [], summary: {}, dogInfo: null };
     }
 }
 
@@ -923,6 +926,79 @@ export async function visitFriendForHelp(friend: any, totalActions: any, myGid: 
 
     await leaveFriendFarm(gid);
     return { acted: actions.length > 0, entered: true };
+}
+
+// ============ 狗信息管理 ============
+
+const GUARD_DOG_ID = 90021;
+const SHEPHERD_DOG_ID = 90002;
+const VILLAGE_DOG_ID = 90001;
+const CORGI_DOG_ID = 90011;
+
+export const DOG_IDS: Record<number, string> = {
+    [GUARD_DOG_ID]: '护主犬',
+    [SHEPHERD_DOG_ID]: '牧羊犬',
+    [VILLAGE_DOG_ID]: '田园犬',
+    [CORGI_DOG_ID]: '柯基',
+};
+
+export interface FriendDogInfo {
+    gid: number;
+    name: string;
+    dogs: Array<{ id: number; name: string; level: number; status: number }>;
+    hasGuardDog: boolean;
+    protectDuration: number;
+}
+
+export async function getFriendDogInfo(friendGid: number, friendName: string): Promise<FriendDogInfo | null> {
+    try {
+        const enterReply: any = await enterFriendFarm(friendGid);
+        const dogInfo = enterReply.dog_info || null;
+        await leaveFriendFarm(friendGid);
+
+        if (!dogInfo) {
+            return {
+                gid: friendGid,
+                name: friendName,
+                dogs: [],
+                hasGuardDog: false,
+                protectDuration: 0,
+            };
+        }
+
+        const dogs = (dogInfo.dogs || []).map((d: any) => ({
+            id: toNum(d.id),
+            name: d.name || DOG_IDS[toNum(d.id)] || '未知',
+            level: toNum(d.level),
+            status: toNum(d.status),
+        }));
+
+        const hasGuardDog = dogs.some((d: any) => d.id === GUARD_DOG_ID && d.status === 1);
+
+        return {
+            gid: friendGid,
+            name: friendName,
+            dogs,
+            hasGuardDog,
+            protectDuration: toNum(dogInfo.protect_duration || 0),
+        };
+    } catch {
+        return null;
+    }
+}
+
+export async function getFriendsDogInfoBatch(friends: any[]): Promise<FriendDogInfo[]> {
+    const results: FriendDogInfo[] = [];
+    for (const friend of friends) {
+        const gid = toNum(friend.gid);
+        const name = friend.name || `GID:${gid}`;
+        const dogInfo = await getFriendDogInfo(gid, name);
+        if (dogInfo) {
+            results.push(dogInfo);
+        }
+        await sleep(100);
+    }
+    return results;
 }
 
 // ============ 缓存管理 ============

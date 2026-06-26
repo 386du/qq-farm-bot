@@ -116,6 +116,8 @@ function createDataProvider(options: DataProviderOptions) {
         getInteractRecords: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getInteractRecords'),
         getFriendLands: (accountRef: string, gid: number) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendLands', gid),
         doFriendOp: (accountRef: string, gid: number, opType: string) => callWorkerApi(resolveAccountRefId(accountRef), 'doFriendOp', gid, opType),
+        getFriendDogInfo: (accountRef: string, gid: number, name: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendDogInfo', gid, name),
+        getFriendsDogInfoBatch: (accountRef: string, friends: any[]) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendsDogInfoBatch', friends),
         getBag: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getBag'),
         getBagSeeds: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getBagSeeds'),
         useItem: (accountRef: string, itemId: number, count: number) => callWorkerApi(resolveAccountRefId(accountRef), 'useItem', itemId, count),

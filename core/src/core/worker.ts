@@ -745,6 +745,16 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = types.GetSeasonInfoReply.decode(replyBody);
                 break;
             }
+            case 'getFriendDogInfo': {
+                const { getFriendDogInfo } = require('../services/friend');
+                result = await getFriendDogInfo(args[0], args[1]);
+                break;
+            }
+            case 'getFriendsDogInfoBatch': {
+                const { getFriendsDogInfoBatch } = require('../services/friend');
+                result = await getFriendsDogInfoBatch(args[0]);
+                break;
+            }
             default:
                 error = 'Unknown method';
         }

@@ -18,6 +18,9 @@ export {
     getFriendLandsDetail,
     doFriendOperation,
     clearFriendsListCache,
+    getFriendDogInfo,
+    getFriendsDogInfoBatch,
+    DOG_IDS,
 } from './visit-strategy';
 
 export {

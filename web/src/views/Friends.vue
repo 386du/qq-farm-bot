@@ -6,7 +6,7 @@ import api from '@/api'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import LandCard from '@/components/LandCard.vue'
 import { useAccountStore } from '@/stores/account'
-import { useFriendStore } from '@/stores/friend'
+import { useFriendStore, DOG_IDS } from '@/stores/friend'
 import { useStatusStore } from '@/stores/status'
 import { useToastStore } from '@/stores/toast'
 
@@ -29,6 +29,9 @@ const {
   friendsListCacheTtlSec,
   knownFriendSettingsLoading,
   knownFriendSettingsSaving,
+  friendsDogInfo,
+  dogInfoLoading,
+  dogInfoLoaded,
 } = storeToRefs(friendStore)
 const { status, loading: statusLoading, realtimeConnected } = storeToRefs(statusStore)
 
@@ -103,9 +106,32 @@ const searchKeyword = ref('')
 const localKnownFriendGidSyncCooldownSec = ref(300)
 const localFriendsListCacheTtlSec = ref(60)
 const showBatchAddGidModal = ref(false)
-const batchGidInput = ref('')
-const showGidListModal = ref(false)
-const gidSearchKeyword = ref('')
+  const batchGidInput = ref('')
+  const showGidListModal = ref(false)
+  const gidSearchKeyword = ref('')
+
+  const dogFilter = ref<'all' | 'hasGuard' | 'noGuard'>('all')
+
+  const friendsWithDogInfo = computed(() => {
+    const dogMap = new Map(friendsDogInfo.value.map(d => [d.gid, d]))
+    return filteredFriends.value.map(friend => {
+      const dogInfo = dogMap.get(Number(friend.gid))
+      return {
+        ...friend,
+        dogInfo,
+        hasGuardDog: !!dogInfo?.hasGuardDog,
+      }
+    })
+  })
+
+  const filteredFriendsByDog = computed(() => {
+    if (dogFilter.value === 'all') return friendsWithDogInfo.value
+    if (dogFilter.value === 'hasGuard') return friendsWithDogInfo.value.filter(f => f.hasGuardDog)
+    return friendsWithDogInfo.value.filter(f => !f.hasGuardDog)
+  })
+
+  const hasGuardDogCount = computed(() => friendsWithDogInfo.value.filter(f => f.hasGuardDog).length)
+  const noGuardDogCount = computed(() => friendsWithDogInfo.value.filter(f => !f.hasGuardDog).length)
 
 const interactFilter = ref('all')
 const interactFilters = [
@@ -203,12 +229,12 @@ const filteredFriends = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.ceil(filteredFriends.value.length / pageSize) || 1)
+const totalPages = computed(() => Math.ceil(filteredFriendsByDog.value.length / pageSize) || 1)
 
 const paginatedFriends = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   const end = start + pageSize
-  return filteredFriends.value.slice(start, end)
+  return filteredFriendsByDog.value.slice(start, end)
 })
 
 function goToPage(page: number) {
@@ -287,6 +313,24 @@ async function handleRefreshFriends() {
     // ignore
   }
   await friendStore.fetchFriends(currentAccountId.value, true)
+  friendStore.clearDogInfo()
+  dogFilter.value = 'all'
+}
+
+async function handleFetchDogInfo() {
+  if (!currentAccountId.value)
+    return
+  if (friends.value.length === 0) {
+    toast.info('暂无好友数据')
+    return
+  }
+  try {
+    await friendStore.fetchFriendsDogInfo(currentAccountId.value)
+    toast.success(`已获取 ${friendsDogInfo.value.length} 位好友的狗信息`)
+  }
+  catch (e: any) {
+    toast.error(e?.message || '获取狗信息失败')
+  }
 }
 
 function toggleFriend(friendId: string) {
@@ -735,34 +779,73 @@ async function handleBatchAddKnownFriendGids() {
         </div>
 
         <template v-else>
-          <div class="flex flex-wrap farm-card items-center gap-2 rounded-2xl bg-white p-3 shadow-md dark:bg-gray-800">
-            <div class="flex-1" />
-            <button
-              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-              :disabled="loading"
-              @click="handleBatchBlacklist"
-            >
-              一键拉黑
-            </button>
-            <button
-              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-              :disabled="loading"
-              @click="handleBatchWhitelist"
-            >
-              一键拉白
-            </button>
-            <button
-              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-              :disabled="loading"
-              @click="handleRefreshFriends"
-            >
-              <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-              刷新列表
-            </button>
+          <div class="farm-card rounded-2xl bg-white p-3 shadow-md dark:bg-gray-800">
+            <div v-if="dogInfoLoaded" class="mb-3 flex flex-wrap gap-2">
+              <button
+                class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+                :class="dogFilter === 'all'
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
+                @click="dogFilter = 'all'"
+              >
+                全部 ({{ friendsWithDogInfo.length }})
+              </button>
+              <button
+                class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+                :class="dogFilter === 'hasGuard'
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
+                @click="dogFilter = 'hasGuard'"
+              >
+                有护主犬 ({{ hasGuardDogCount }})
+              </button>
+              <button
+                class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+                :class="dogFilter === 'noGuard'
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
+                @click="dogFilter = 'noGuard'"
+              >
+                无护主犬 ({{ noGuardDogCount }})
+              </button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex-1" />
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+                :disabled="loading"
+                @click="handleBatchBlacklist"
+              >
+                一键拉黑
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+                :disabled="loading"
+                @click="handleBatchWhitelist"
+              >
+                一键拉白
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+                :disabled="loading"
+                @click="handleRefreshFriends"
+              >
+                <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+                刷新列表
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-blue-100 px-3 py-1.5 text-sm text-blue-700 transition hover:bg-blue-200 disabled:opacity-50"
+                :disabled="dogInfoLoading || !friends.length"
+                @click="handleFetchDogInfo"
+              >
+                <div v-if="dogInfoLoading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+                获取狗信息
+              </button>
+            </div>
           </div>
 
           <div
-            v-for="friend in paginatedFriends"
+            v-for="friend in filteredFriendsByDog"
             :key="friend.gid"
             class="cartoon-card overflow-hidden rounded-2xl bg-white shadow-md dark:bg-gray-800"
           >
@@ -800,6 +883,18 @@ async function handleBatchAddKnownFriendGids() {
                       class="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
                     >
                       金币 {{ formatFriendGold(friend.gold) }}
+                    </span>
+                    <span
+                      v-if="friend.hasGuardDog"
+                      class="rounded bg-red-50 px-1.5 py-0.5 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                    >
+                      🐕 护主犬
+                    </span>
+                    <span
+                      v-else-if="friend.dogInfo && friend.dogInfo.dogs.length > 0"
+                      class="rounded bg-blue-50 px-1.5 py-0.5 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                    >
+                      🐕 {{ friend.dogInfo.dogs.map(d => d.name).join('/') }}
                     </span>
                   </div>
                   <div class="text-sm" :class="getFriendStatusText(friend) !== '无操作' ? 'text-green-500 font-medium' : 'text-gray-400'">
@@ -867,7 +962,7 @@ async function handleBatchAddKnownFriendGids() {
           </div>
 
           <!-- 分页控件 -->
-          <div v-if="filteredFriends.length > pageSize" class="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <div v-if="filteredFriendsByDog.length > pageSize" class="mt-4 flex flex-wrap items-center justify-center gap-2">
             <button
               class="cartoon-btn border border-gray-200 rounded-xl bg-white px-3 py-1.5 text-sm text-gray-600 transition dark:border-gray-600 dark:bg-gray-800 hover:bg-gray-50 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-700"
               :disabled="currentPage === 1"
@@ -916,7 +1011,7 @@ async function handleBatchAddKnownFriendGids() {
               末页
             </button>
             <span class="text-sm text-gray-500 dark:text-gray-400">
-              共 {{ filteredFriends.length }} 位好友
+              共 {{ filteredFriendsByDog.length }} 位好友
             </span>
           </div>
         </template>
