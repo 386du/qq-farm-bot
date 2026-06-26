@@ -6,6 +6,8 @@ import { useRouter } from 'vue-router'
 import api from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import YybConfigModal from '@/components/YybConfigModal.vue'
+import YybLoginModal from '@/components/YybLoginModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -14,12 +16,17 @@ import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/ac
 import { useFarmStore } from '@/stores/farm'
 import { useSettingStore } from '@/stores/setting'
 import { useUserStore } from '@/stores/user'
+import { useYybLoginStore } from '@/stores/yyb-login'
 
 const router = useRouter()
 const accountStore = useAccountStore()
 const userStore = useUserStore()
 const settingStore = useSettingStore()
 const farmStore = useFarmStore()
+const yybStore = useYybLoginStore()
+
+const showYybConfig = ref(false)
+const showYybLogin = ref(false)
 
 const activeTab = ref<'account' | 'strategy' | 'automation' | 'user'>(
   (localStorage.getItem('settings-active-tab') as 'account' | 'strategy' | 'automation' | 'user') || 'account'
@@ -872,6 +879,23 @@ async function handleTestOffline() {
             </h3>
             <div class="flex flex-wrap gap-2">
               <BaseButton
+                variant="secondary"
+                size="sm"
+                @click="showYybConfig = true"
+              >
+                <span class="mr-2">⚙️</span>
+                应用宝配置
+              </BaseButton>
+              <BaseButton
+                variant="secondary"
+                size="sm"
+                :disabled="yybStore.config.openIds.length === 0"
+                @click="showYybLogin = true"
+              >
+                <span class="mr-2">🔑</span>
+                一键登录
+              </BaseButton>
+              <BaseButton
                 v-if="userStore.isAdmin"
                 variant="secondary"
                 size="sm"
@@ -1041,6 +1065,17 @@ async function handleTestOffline() {
             @close="!clearStoppedLoading && (showClearStoppedConfirm = false)"
             @cancel="!clearStoppedLoading && (showClearStoppedConfirm = false)"
             @confirm="confirmClearStopped"
+          />
+
+          <YybConfigModal
+            :show="showYybConfig"
+            @close="showYybConfig = false"
+          />
+
+          <YybLoginModal
+            :show="showYybLogin"
+            @close="showYybLogin = false"
+            @saved="accountStore.fetchAccounts()"
           />
         </div>
 

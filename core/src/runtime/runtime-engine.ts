@@ -10,6 +10,7 @@ const { createDataProvider } = require('./data-provider');
 const { createReloginReminderService } = require('./relogin-reminder');
 const { createRuntimeState } = require('./runtime-state');
 const { createWorkerManager } = require('./worker-manager');
+const { createYybReloginService } = require('./yyb-relogin');
 
 const OPERATION_KEYS = ['harvest', 'farming', 'fertilize', 'plant', 'steal', 'helpFarming', 'taskClaim', 'sell', 'upgrade'];
 
@@ -72,6 +73,8 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
         triggerOfflineReminder,
     } = reloginReminder;
 
+    let yybReloginService: any = null;
+
     const { startWorker, stopWorker, restartWorker, callWorkerApi } = createWorkerManager({
         fork,
         WorkerThread: Worker,
@@ -97,9 +100,27 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
             runtimeEvents.emit('worker_log', { entry, accountId, accountName });
             if (onLog) onLog(entry, accountId, accountName);
         },
+        onAccountNeedsRelogin: (accountId: string, reason: string) => {
+            if (yybReloginService) {
+                yybReloginService.handleAccountRelogin(accountId, reason).catch((e: any) => {
+                    log('错误', `应用宝重连处理异常: ${e && e.message ? e.message : String(e)}`, { accountId });
+                });
+            }
+        },
     });
     workerControls.startWorker = startWorker;
     workerControls.restartWorker = restartWorker;
+
+    yybReloginService = createYybReloginService({
+        store,
+        log,
+        addAccountLog,
+        getAccounts: store.getAccounts,
+        addOrUpdateAccount: store.addOrUpdateAccount,
+        isAccountRunning: (accountId: string) => !!workers[accountId],
+        restartWorker,
+        startWorker,
+    });
 
     const dataProvider = createDataProvider({
         workers,
@@ -176,6 +197,10 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
 
         if (shouldAutoStartAccounts) {
             startAllAccounts();
+        }
+
+        if (yybReloginService) {
+            yybReloginService.start();
         }
     }
 

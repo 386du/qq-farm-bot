@@ -13,6 +13,7 @@ const { getRuntimeConfig } = require('../../config/config');
 const { getSchedulerRegistrySnapshot } = require('../../services/scheduler');
 const { createModuleLogger } = require('../../services/logger');
 const { MiniProgramLoginSession } = require('../../services/qrlogin');
+const { fetchFarmCode } = require('../../services/yyb-login');
 const store = require('../../models/store');
 const userStore = require('../../models/user-store');
 
@@ -370,6 +371,64 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // ============ 应用宝一键登录配置 ============
+    app.get('/api/user/yyb-config', authRequired, (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            res.json({ ok: true, config: cfg || {} });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    app.post('/api/user/yyb-config', authRequired, (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const cfg = store.setYybConfig
+                ? store.setYybConfig(body, username)
+                : {};
+            res.json({ ok: true, config: cfg || {} });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    app.post('/api/yyb/code', authRequired, async (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const openid = String(body.openid || '').trim();
+            if (!openid) {
+                return res.status(400).json({ ok: false, error: '缺少 openid' });
+            }
+
+            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            if (!cfg || !cfg.enabled) {
+                return res.status(400).json({ ok: false, error: '应用宝配置未启用' });
+            }
+            if (!cfg.apiToken) {
+                return res.status(400).json({ ok: false, error: '未配置 API Token' });
+            }
+            if (!cfg.endpoint) {
+                return res.status(400).json({ ok: false, error: '未配置接口地址' });
+            }
+
+            const result = await fetchFarmCode({
+                endpoint: cfg.endpoint,
+                apiToken: cfg.apiToken,
+                openid,
+            });
+
+            if (result.ok && result.code) {
+                return res.json({ ok: true, code: result.code });
+            }
+            return res.status(400).json({ ok: false, error: result.error || '获取 Code 失败' });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
 }
 
 module.exports = { mountAuthRoutes };

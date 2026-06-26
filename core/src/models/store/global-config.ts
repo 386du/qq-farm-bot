@@ -1,5 +1,5 @@
 export {};
-import type { AccountConfig, OfflineReminder, UIConfig, SystemConfig, Announcement, GlobalConfig } from '../../types/config';
+import type { AccountConfig, OfflineReminder, UIConfig, SystemConfig, Announcement, GlobalConfig, YybConfig } from '../../types/config';
 
 const fs = require('node:fs');
 const { readTextFile, writeJsonFileAtomic } = require('../../services/json-db');
@@ -11,8 +11,10 @@ const {
     STORE_FILE,
     PUSHOO_CHANNELS,
     DEFAULT_OFFLINE_REMINDER,
+    DEFAULT_YYB_CONFIG,
     globalConfig,
     normalizeAccountConfig,
+    normalizeYybConfig,
     cloneAccountConfig,
     DEFAULT_ACCOUNT_CONFIG,
 } = sharedState;
@@ -87,6 +89,17 @@ function sanitizeGlobalConfigBeforeSave(): void {
         nextReminders[u] = normalizeOfflineReminder(cfg);
     }
     globalConfig.userOfflineReminders = nextReminders;
+
+    const userYybConfigs = (globalConfig.userYybConfigs && typeof globalConfig.userYybConfigs === 'object')
+        ? globalConfig.userYybConfigs
+        : {};
+    const nextYybConfigs: Record<string, YybConfig> = {};
+    for (const [username, cfg] of Object.entries(userYybConfigs)) {
+        const u = String(username || '').trim();
+        if (!u) continue;
+        nextYybConfigs[u] = normalizeYybConfig(cfg);
+    }
+    globalConfig.userYybConfigs = nextYybConfigs;
 }
 
 function saveGlobalConfig(): void {
@@ -162,6 +175,41 @@ function setOfflineReminder(cfg: Partial<OfflineReminder> | undefined, username?
 function deleteUserOfflineReminder(username: string): void {
     if (globalConfig.userOfflineReminders && globalConfig.userOfflineReminders[username]) {
         delete globalConfig.userOfflineReminders[username];
+        saveGlobalConfig();
+    }
+}
+
+function getYybConfig(username?: string): YybConfig {
+    if (!username) {
+        return normalizeYybConfig(globalConfig.userYybConfigs?.[''] || DEFAULT_YYB_CONFIG);
+    }
+    const userCfg = globalConfig.userYybConfigs && globalConfig.userYybConfigs[username];
+    if (userCfg) {
+        return normalizeYybConfig(userCfg);
+    }
+    return normalizeYybConfig(DEFAULT_YYB_CONFIG);
+}
+
+function setYybConfig(cfg: Partial<YybConfig> | undefined, username?: string): YybConfig {
+    if (!username) {
+        const current = normalizeYybConfig(globalConfig.userYybConfigs?.[''] || DEFAULT_YYB_CONFIG);
+        globalConfig.userYybConfigs = globalConfig.userYybConfigs || {};
+        globalConfig.userYybConfigs[''] = normalizeYybConfig({ ...current, ...(cfg || {}) });
+        saveGlobalConfig();
+        return getYybConfig();
+    }
+    if (!globalConfig.userYybConfigs) {
+        globalConfig.userYybConfigs = {};
+    }
+    const current = normalizeYybConfig(globalConfig.userYybConfigs[username] || DEFAULT_YYB_CONFIG);
+    globalConfig.userYybConfigs[username] = normalizeYybConfig({ ...current, ...(cfg || {}) });
+    saveGlobalConfig();
+    return getYybConfig(username);
+}
+
+function deleteUserYybConfig(username: string): void {
+    if (globalConfig.userYybConfigs && globalConfig.userYybConfigs[username]) {
+        delete globalConfig.userYybConfigs[username];
         saveGlobalConfig();
     }
 }
@@ -261,6 +309,9 @@ module.exports = {
     getOfflineReminder,
     setOfflineReminder,
     deleteUserOfflineReminder,
+    getYybConfig,
+    setYybConfig,
+    deleteUserYybConfig,
     getAnnouncement,
     setAnnouncement,
     getAnnouncementReadRecord,

@@ -8,6 +8,8 @@ export interface Account {
   qq: string;
   avatar: string;
   username: string;
+  loginType?: string;
+  openid?: string;
   createdAt: number;
   updatedAt: number;
 }

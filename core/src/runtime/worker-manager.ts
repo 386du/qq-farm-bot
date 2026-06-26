@@ -20,6 +20,7 @@ interface WorkerManagerOptions {
     deleteAccount: (id: string) => void;
     onStatusSync?: (accountId: string, status: any, accountName?: string) => void;
     onWorkerLog?: (entry: any, accountId: string, accountName?: string) => void;
+    onAccountNeedsRelogin?: (accountId: string, reason: string) => void;
 }
 
 function createWorkerManager(options: WorkerManagerOptions) {
@@ -42,6 +43,7 @@ function createWorkerManager(options: WorkerManagerOptions) {
         deleteAccount,
         onStatusSync,
         onWorkerLog,
+        onAccountNeedsRelogin,
     } = options;
     const managerScheduler = createScheduler('worker_manager');
     const useThreadRuntime = runtimeMode === 'thread' && !(processRef as any).pkg && typeof WorkerThread === 'function';
@@ -309,6 +311,9 @@ function createWorkerManager(options: WorkerManagerOptions) {
                     accountId,
                     worker.name,
                 );
+                if (typeof onAccountNeedsRelogin === 'function') {
+                    onAccountNeedsRelogin(accountId, 'ws_400');
+                }
             }
         } else if (msg.type === 'account_kicked') {
             const reason = msg.reason || '未知';
@@ -321,6 +326,9 @@ function createWorkerManager(options: WorkerManagerOptions) {
             });
             addAccountLog('kickout_stop', `账号 ${worker.name} 被踢下线，已自动停止`, accountId, worker.name, { reason });
             stopWorker(accountId);
+            if (typeof onAccountNeedsRelogin === 'function') {
+                onAccountNeedsRelogin(accountId, `kickout:${reason}`);
+            }
         } else if (msg.type === 'api_response') {
             const { id, result, error } = msg;
             managerScheduler.clear(`api_timeout_${accountId}_${id}`);

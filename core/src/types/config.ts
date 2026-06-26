@@ -113,12 +113,22 @@ export interface Announcement {
   updatedAt: number;
 }
 
+export interface YybConfig {
+  enabled: boolean;
+  apiToken: string;
+  endpoint: string;
+  reconnectIntervalMinutes: number;
+  autoReconnect: boolean;
+  openIds: string[];
+}
+
 export interface GlobalConfig {
   accountConfigs: Record<string, AccountConfig>;
   defaultAccountConfig: AccountConfig;
   ui: UIConfig;
   offlineReminder: OfflineReminder;
   userOfflineReminders: Record<string, OfflineReminder>;
+  userYybConfigs: Record<string, YybConfig>;
   adminPasswordHash: string;
   announcement: Announcement;
   announcementReadRecords: Record<string, number>;

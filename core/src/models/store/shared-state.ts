@@ -1,5 +1,5 @@
 export {};
-import type { AccountConfig, PlantingStrategy, BagSeedFallbackStrategy, FertilizerLandType, IntervalConfig, OfflineReminder, AutomationConfig, QuietHoursConfig, GlobalConfig } from '../../types/config';
+import type { AccountConfig, PlantingStrategy, BagSeedFallbackStrategy, FertilizerLandType, IntervalConfig, OfflineReminder, AutomationConfig, QuietHoursConfig, GlobalConfig, YybConfig } from '../../types/config';
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -34,6 +34,15 @@ const DEFAULT_OFFLINE_REMINDER: OfflineReminder = {
     title: '账号下线提醒',
     msg: '账号下线',
     offlineDeleteSec: 0,
+};
+
+const DEFAULT_YYB_CONFIG: YybConfig = {
+    enabled: false,
+    apiToken: '',
+    endpoint: 'http://211.154.25.123:28999/api/open/v1/farm/code',
+    reconnectIntervalMinutes: 0,
+    autoReconnect: true,
+    openIds: [],
 };
 
 const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
@@ -154,6 +163,26 @@ function normalizeFertilizerLandTypes(input: unknown, fallback: FertilizerLandTy
         normalized.push(value as FertilizerLandType);
     }
     return normalized;
+}
+
+function normalizeYybConfig(input: unknown): YybConfig {
+    const src: Record<string, any> = (input && typeof input === 'object') ? input as Record<string, any> : {};
+    const openIds: string[] = [];
+    if (Array.isArray(src.openIds)) {
+        for (const item of src.openIds) {
+            const value = String(item || '').trim();
+            if (value && !openIds.includes(value)) openIds.push(value);
+        }
+    }
+    const reconnectIntervalMinutes = Math.max(0, Number.parseInt(src.reconnectIntervalMinutes, 10) || 0);
+    return {
+        enabled: !!src.enabled,
+        apiToken: String(src.apiToken !== undefined ? src.apiToken : DEFAULT_YYB_CONFIG.apiToken).trim(),
+        endpoint: String(src.endpoint !== undefined ? src.endpoint : DEFAULT_YYB_CONFIG.endpoint).trim() || DEFAULT_YYB_CONFIG.endpoint,
+        reconnectIntervalMinutes: Number.isFinite(reconnectIntervalMinutes) ? reconnectIntervalMinutes : 0,
+        autoReconnect: src.autoReconnect !== undefined ? !!src.autoReconnect : DEFAULT_YYB_CONFIG.autoReconnect,
+        openIds,
+    };
 }
 
 function normalizeTimeString(v: unknown, fallback: string): string {
@@ -379,6 +408,7 @@ const globalConfig: GlobalConfig = {
     },
     offlineReminder: { ...DEFAULT_OFFLINE_REMINDER },
     userOfflineReminders: {},
+    userYybConfigs: {},
     adminPasswordHash: '',
     announcement: {
         content: '',
@@ -430,6 +460,15 @@ function loadGlobalConfig(): void {
                 for (const [username, cfg] of Object.entries(data.userOfflineReminders)) {
                     if (username && cfg) {
                         globalConfig.userOfflineReminders[username] = cfg as OfflineReminder;
+                    }
+                }
+            }
+
+            if (data.userYybConfigs && typeof data.userYybConfigs === 'object') {
+                globalConfig.userYybConfigs = {};
+                for (const [username, cfg] of Object.entries(data.userYybConfigs)) {
+                    if (username && cfg) {
+                        globalConfig.userYybConfigs[username] = cfg as YybConfig;
                     }
                 }
             }
@@ -491,6 +530,7 @@ module.exports = {
     DEFAULT_KNOWN_FRIEND_GID_SYNC_COOLDOWN_SEC,
     DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
     DEFAULT_OFFLINE_REMINDER,
+    DEFAULT_YYB_CONFIG,
     DEFAULT_ACCOUNT_CONFIG,
     ALLOWED_AUTOMATION_KEYS,
     // Mutable shared state (by reference)
@@ -507,6 +547,7 @@ module.exports = {
     normalizeTimeString,
     normalizeIntervals,
     normalizeAccountConfig,
+    normalizeYybConfig,
     cloneAccountConfig,
     resolveAccountId,
     loadGlobalConfig,

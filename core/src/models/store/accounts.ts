@@ -55,6 +55,8 @@ function addOrUpdateAccount(acc: Partial<Account> & { avatarUrl?: string }): Acc
             qq: acc.qq ? String(acc.qq) : (acc.uin ? String(acc.uin) : ''),
             avatar: acc.avatar || acc.avatarUrl || '',
             username: acc.username || '',
+            loginType: acc.loginType || '',
+            openid: acc.openid ? String(acc.openid) : '',
             createdAt: Date.now(),
             updatedAt: Date.now(),
         });

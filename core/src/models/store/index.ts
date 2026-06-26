@@ -44,6 +44,9 @@ module.exports = {
     getOfflineReminder: globalConfig.getOfflineReminder,
     setOfflineReminder: globalConfig.setOfflineReminder,
     deleteUserOfflineReminder: globalConfig.deleteUserOfflineReminder,
+    getYybConfig: globalConfig.getYybConfig,
+    setYybConfig: globalConfig.setYybConfig,
+    deleteUserYybConfig: globalConfig.deleteUserYybConfig,
     getAdminPasswordHash: globalConfig.getAdminPasswordHash,
     setAdminPasswordHash: globalConfig.setAdminPasswordHash,
 
