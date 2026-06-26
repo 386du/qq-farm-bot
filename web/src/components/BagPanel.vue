@@ -344,7 +344,7 @@ useIntervalFn(loadBag, 60000)
     </div>
 
     <div v-if="bagLoading || statusLoading" class="flex justify-center py-12">
-      <span class="text-4xl animate-spin">⏳</span>
+      <span class="animate-spin text-4xl">⏳</span>
     </div>
 
     <div v-else-if="!currentAccountId" class="farm-card rounded-xl p-8 text-center text-gray-500">
@@ -360,8 +360,10 @@ useIntervalFn(loadBag, 60000)
       </div>
     </div>
 
-    <div v-else-if="!status?.connection?.connected" class="farm-card flex flex-col items-center justify-center gap-4 rounded-xl p-12 text-center text-gray-500">
-      <div class="text-4xl" style="opacity: 0.5">📡</div>
+    <div v-else-if="!status?.connection?.connected" class="flex flex-col farm-card items-center justify-center gap-4 rounded-xl p-12 text-center text-gray-500">
+      <div class="text-4xl" style="opacity: 0.5">
+        📡
+      </div>
       <div>
         <div class="text-lg font-medium" style="color: var(--theme-text, #374151)">
           账号未登录
@@ -430,7 +432,7 @@ useIntervalFn(loadBag, 60000)
         <div
           v-for="item in filteredItems"
           :key="item.id"
-          class="farm-card group relative flex flex-col items-center rounded-xl p-3 transition"
+          class="group relative flex flex-col farm-card items-center rounded-xl p-3 transition"
           :class="{
             'ring-2 ring-orange-500 dark:ring-orange-400': batchMode && selectedForBatch.has(Number(item.id)),
             'opacity-50': batchMode && canBatchSell(item) && !selectedForBatch.has(Number(item.id)),
@@ -500,8 +502,8 @@ useIntervalFn(loadBag, 60000)
                 class="inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold"
                 :class="getItemCategory(item) === 'fruit' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                   : getItemCategory(item) === 'seed' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-                  : getItemCategory(item) === 'tool' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
+                    : getItemCategory(item) === 'tool' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'"
               >
                 {{ getItemCategory(item) === 'fruit' ? '🍎' : getItemCategory(item) === 'seed' ? '🌱' : getItemCategory(item) === 'tool' ? '🔧' : '📦' }}
                 {{ item.itemType || 0 }}

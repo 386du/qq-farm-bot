@@ -54,7 +54,7 @@ export const useYybLoginStore = defineStore('yyb-login', () => {
     return res.data
   }
 
-  async function fetchCode(openid: string): Promise<{ ok: boolean; code?: string; error?: string }> {
+  async function fetchCode(openid: string): Promise<{ ok: boolean, code?: string, error?: string }> {
     fetchingCode.value = true
     try {
       const res = await api.post('/api/yyb/code', { openid }, { skipErrorToast: true } as any)

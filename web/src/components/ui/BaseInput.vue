@@ -32,7 +32,7 @@ const inputType = computed(() => {
         :type="inputType"
         :placeholder="placeholder"
         :disabled="disabled"
-        class="base-input w-full border-3 border-black/10 rounded-xl bg-white px-4 py-2.5 outline-none transition-all duration-200 dark:border-gray-600 focus:border-[#4a8c3f] focus:ring-2 focus:ring-[#4a8c3f]/30 focus:scale-[1.01] dark:bg-gray-800 disabled:bg-gray-50 dark:text-white disabled:text-gray-400 dark:focus:border-[#6dbf5b] dark:disabled:bg-gray-800/50"
+        class="base-input w-full border-3 border-black/10 rounded-xl bg-white px-4 py-2.5 outline-none transition-all duration-200 focus:scale-[1.01] dark:border-gray-600 focus:border-[#4a8c3f] dark:bg-gray-800 disabled:bg-gray-50 dark:text-white disabled:text-gray-400 focus:ring-2 focus:ring-[#4a8c3f]/30 dark:focus:border-[#6dbf5b] dark:disabled:bg-gray-800/50"
         :class="{ 'pr-10': type === 'password' || (clearable && model) }"
       >
       <button

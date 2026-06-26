@@ -97,7 +97,7 @@ function formatGiftProgress(gift: any) {
         <div
           v-for="gift in gifts"
           :key="gift.key"
-          class="farm-card flex flex-col justify-between rounded-xl p-3 2xl:p-4"
+          class="flex flex-col farm-card justify-between rounded-xl p-3 2xl:p-4"
         >
           <div class="mb-2 flex items-center gap-2">
             <div

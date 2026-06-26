@@ -99,7 +99,8 @@ const preferredSeedId = computed(() => settings.value?.preferredSeedId || 0)
 const currentStrategyBestPlant = computed(() => {
   if (currentStrategy.value === 'preferred' && preferredSeedId.value > 0) {
     const found = list.value.find((item: any) => item.seedId === preferredSeedId.value)
-    if (found) return found
+    if (found)
+      return found
   }
   if (currentStrategy.value === 'bag_priority') {
     return null
@@ -189,7 +190,6 @@ function getColorClass(color: string, type: 'bg' | 'text' | 'border' | 'gradient
   return colorMap[color]?.[type] || ''
 }
 
-
 async function loadAnalytics() {
   if (!currentAccountId.value)
     return
@@ -268,7 +268,6 @@ function getSeedNameById(seedId: number) {
   const item = list.value.find((i: any) => i.seedId === seedId)
   return item?.name || `蔬菜ID:${seedId}`
 }
-
 </script>
 
 <template>
@@ -305,7 +304,7 @@ function getSeedNameById(seedId: number) {
 
     <div>
       <div v-if="activeTab === 'strategy'" class="space-y-4">
-        <div class="farm-card overflow-hidden border border-blue-200 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 shadow-md dark:border-blue-800 dark:from-blue-900/20 dark:to-indigo-900/20">
+        <div class="farm-card overflow-hidden border border-blue-200 rounded-2xl from-blue-50 to-indigo-50 bg-gradient-to-r shadow-md dark:border-blue-800 dark:from-blue-900/20 dark:to-indigo-900/20">
           <div class="p-4">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
@@ -376,7 +375,7 @@ function getSeedNameById(seedId: number) {
                   type="number"
                   min="1"
                   max="100"
-                  class="farm-input w-16 border border-gray-300 rounded-xl bg-white px-3 py-1.5 text-center text-sm outline-none dark:border-gray-600 focus:border-blue-400 dark:bg-gray-700 dark:text-gray-200"
+                  class="w-16 border farm-input border-gray-300 rounded-xl bg-white px-3 py-1.5 text-center text-sm outline-none dark:border-gray-600 focus:border-blue-400 dark:bg-gray-700 dark:text-gray-200"
                 >
               </div>
             </div>
@@ -472,7 +471,7 @@ function getSeedNameById(seedId: number) {
             </div>
             <div class="flex items-center gap-2">
               <button
-                class="cartoon-btn flex items-center gap-1 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-600 transition dark:bg-orange-900/20 hover:bg-orange-100 dark:text-orange-400 disabled:opacity-50 dark:hover:bg-orange-900/30"
+                class="flex cartoon-btn items-center gap-1 rounded-xl bg-orange-50 px-3 py-2 text-sm text-orange-600 transition dark:bg-orange-900/20 hover:bg-orange-100 dark:text-orange-400 disabled:opacity-50 dark:hover:bg-orange-900/30"
                 :disabled="batchLoading || list.length === 0"
                 @click="handleAddAllToBlacklist"
               >
@@ -482,7 +481,7 @@ function getSeedNameById(seedId: number) {
               </button>
               <button
                 v-if="blacklist.length > 0"
-                class="cartoon-btn flex items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 transition dark:bg-red-900/20 hover:bg-red-100 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/30"
+                class="flex cartoon-btn items-center gap-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600 transition dark:bg-red-900/20 hover:bg-red-100 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/30"
                 :disabled="batchLoading"
                 @click="handleClearBlacklist"
               >

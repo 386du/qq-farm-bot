@@ -104,7 +104,7 @@ function close() {
 
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-    <div class="max-h-[90vh] w-full max-w-md overflow-hidden rounded-2xl" :style="{ background: 'var(--theme-bg)', boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))' }">
+    <div class="max-h-[90vh] max-w-md w-full overflow-hidden rounded-2xl" :style="{ background: 'var(--theme-bg)', boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))' }">
       <div class="flex items-center justify-between p-4" style="border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent)">
         <div>
           <h3 class="text-lg font-semibold" style="color: var(--theme-primary, var(--theme-text))">
@@ -139,7 +139,7 @@ function close() {
           <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
             运行中定时重连间隔（分钟）
           </label>
-          <div class="flex items-center overflow-hidden rounded-xl border-3 border-black/10 bg-white dark:border-gray-600 dark:bg-gray-800">
+          <div class="flex items-center overflow-hidden border-3 border-black/10 rounded-xl bg-white dark:border-gray-600 dark:bg-gray-800">
             <button
               type="button"
               class="h-11 w-12 flex items-center justify-center text-lg font-bold transition hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -183,7 +183,7 @@ function close() {
             <div
               v-for="(openid, index) in form.openIds"
               :key="openid"
-              class="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-800/50"
+              class="flex items-center justify-between gap-2 border border-gray-200 rounded-xl bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-800/50"
             >
               <span class="min-w-0 flex-1 truncate text-sm" :style="{ color: 'var(--theme-text)' }">
                 {{ openid }}
@@ -200,7 +200,7 @@ function close() {
               <BaseInput
                 v-model="newOpenId"
                 placeholder="输入新 OpenID"
-                class="farm-input flex-1"
+                class="flex-1 farm-input"
                 @keydown="handleKeydown"
               />
               <BaseButton variant="secondary" size="sm" class="shrink-0" @click="addOpenId">

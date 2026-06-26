@@ -455,7 +455,7 @@ useIntervalFn(updateCountdowns, 1000)
     <!-- Status Cards -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 sm:grid-cols-2">
       <!-- Account & Exp -->
-      <div class="farm-card flex flex-col rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
+      <div class="flex flex-col farm-card rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
         <div class="mb-2 flex items-start justify-between">
           <div class="flex items-center gap-1.5 text-sm text-gray-500">
             <div class="i-fas-user-circle" />
@@ -492,7 +492,7 @@ useIntervalFn(updateCountdowns, 1000)
       </div>
 
       <!-- Assets & Status -->
-      <div class="farm-card flex flex-col justify-between rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
+      <div class="flex flex-col farm-card justify-between rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
         <div class="flex justify-between">
           <div>
             <div class="flex items-center gap-1.5 text-xs text-gray-500">
@@ -551,7 +551,7 @@ useIntervalFn(updateCountdowns, 1000)
       </div>
 
       <!-- Items (Fertilizer & Collection) -->
-      <div class="farm-card flex flex-col justify-between rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
+      <div class="flex flex-col farm-card justify-between rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
         <div class="mb-2 flex items-center gap-1.5 text-sm text-gray-500">
           <div class="i-fas-flask text-emerald-400" />
           化肥容器
@@ -609,7 +609,7 @@ useIntervalFn(updateCountdowns, 1000)
       <!-- Logs (Left Column) -->
       <div class="flex flex-1 flex-col gap-6 md:w-3/4">
         <!-- Logs -->
-        <div class="farm-card flex flex-1 flex-col rounded-2xl bg-white p-6 shadow-md md:overflow-hidden dark:bg-gray-800">
+        <div class="flex flex-1 flex-col farm-card rounded-2xl bg-white p-6 shadow-md md:overflow-hidden dark:bg-gray-800">
           <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 class="flex items-center gap-2 text-lg font-medium font-display">
               📋 <span>运行日志</span>
@@ -682,7 +682,7 @@ useIntervalFn(updateCountdowns, 1000)
       <!-- Right Column Stack -->
       <div class="flex flex-col gap-6 md:w-1/4">
         <!-- Next Checks -->
-        <div class="farm-card flex flex-col rounded-2xl bg-white p-6 shadow-md dark:bg-gray-800">
+        <div class="flex flex-col farm-card rounded-2xl bg-white p-6 shadow-md dark:bg-gray-800">
           <h3 class="mb-4 flex items-center gap-2 text-lg font-medium font-display">
             ⏳ <span>下次巡查倒计时</span>
           </h3>
@@ -718,11 +718,11 @@ useIntervalFn(updateCountdowns, 1000)
         </div>
 
         <!-- Operations Grid -->
-        <div class="farm-card flex-1 rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
+        <div class="flex-1 farm-card rounded-2xl bg-white p-5 shadow-md dark:bg-gray-800">
           <h3 class="mb-3 flex items-center gap-2 text-lg font-medium font-display">
             📊 <span>今日统计</span>
           </h3>
-          <div v-if="!status?.connection?.connected" class="farm-card flex flex-col items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
+          <div v-if="!status?.connection?.connected" class="flex flex-col farm-card items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
             <span class="text-4xl text-gray-400">📡</span>
             <div class="flex flex-col">
               <div class="text-lg text-gray-700 font-medium dark:text-gray-300">
@@ -740,7 +740,7 @@ useIntervalFn(updateCountdowns, 1000)
               class="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 transition-transform hover:scale-105 dark:bg-gray-700/30"
             >
               <div class="flex items-center gap-2">
-                <span class="text-base 2xl:text-lg select-none">{{ getOpIcon(key) }}</span>
+                <span class="select-none text-base 2xl:text-lg">{{ getOpIcon(key) }}</span>
                 <div class="text-xs text-gray-500 2xl:text-sm">
                   {{ getOpName(key) }}
                 </div>

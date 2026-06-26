@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '@/api'
 import { useToastStore } from '@/stores/toast'
 
@@ -38,15 +38,19 @@ function qualityLabel(q: number): string {
 
 // 格式化日期
 function formatDate(ts: number): string {
-  if (!ts) return ''
+  if (!ts)
+    return ''
   return new Date(ts * 1000).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 
 // 解析 extra JSON
 function parseExtra(extra: any): any {
-  if (!extra) return null
-  if (typeof extra === 'object') return extra
-  try { return JSON.parse(extra) } catch { return null }
+  if (!extra)
+    return null
+  if (typeof extra === 'object')
+    return extra
+  try { return JSON.parse(extra) }
+  catch { return null }
 }
 
 // 获取 accountId
@@ -69,7 +73,8 @@ async function fetchActivityGroup() {
         drawInfo.value = lottery.drawInfo
       }
     }
-  } catch {}
+  }
+  catch {}
   loading.value = false
 }
 
@@ -82,7 +87,8 @@ async function fetchSeasonInfo() {
     if (data.ok) {
       seasonInfo.value = data.data
     }
-  } catch {}
+  }
+  catch {}
 }
 
 // 获取节令活动
@@ -94,7 +100,8 @@ async function fetchSolarTerms() {
     if (data.ok) {
       solarTerms.value = data.data?.terms || []
     }
-  } catch {}
+  }
+  catch {}
 }
 
 // 抽奖按钮点击
@@ -118,8 +125,10 @@ function confirmPaidDraw() {
 
 // 付费次数
 function paidDrawCount(operateType: number): number {
-  if (operateType === 7) return 1
-  if (operateType === 9) return Math.min(drawInfo.value?.paidRemaining || 0, 4)
+  if (operateType === 7)
+    return 1
+  if (operateType === 9)
+    return Math.min(drawInfo.value?.paidRemaining || 0, 4)
   return 1
 }
 
@@ -140,10 +149,12 @@ async function doOperate(activityId: number, operateType: number) {
       if (data.data?.drawInfo) {
         drawInfo.value = data.data.drawInfo
       }
-    } else {
+    }
+    else {
       toast.error(data.error || '操作失败')
     }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     const errData = e.response?.data
     toast.error(errData?.error || e.message || '网络错误')
   }
@@ -152,30 +163,32 @@ async function doOperate(activityId: number, operateType: number) {
 
 // 按类型筛选活动
 const lotteryActivities = computed(() =>
-  activities.value.filter(a => a.type === 8)
+  activities.value.filter(a => a.type === 8),
 )
 const shopActivities = computed(() =>
-  activities.value.filter(a => a.type === 3)
+  activities.value.filter(a => a.type === 3),
 )
 
 // 总剩余次数
 const totalRemaining = computed(() => {
-  if (!drawInfo.value) return '-'
+  if (!drawInfo.value)
+    return '-'
   return freeRemain.value + paidRemain.value
 })
 
 // 免费剩余 (只用 freeRemaining，不回退到 freeLimit)
 const freeRemain = computed(() => {
-  if (!drawInfo.value) return 0
+  if (!drawInfo.value)
+    return 0
   return drawInfo.value.freeRemaining ?? 0
 })
 
 // 付费剩余 (只用 paidRemaining，不回退到 paidLimit)
 const paidRemain = computed(() => {
-  if (!drawInfo.value) return 0
+  if (!drawInfo.value)
+    return 0
   return drawInfo.value.paidRemaining ?? 0
 })
-
 
 onMounted(() => {
   fetchActivityGroup()
@@ -209,12 +222,18 @@ onMounted(() => {
     <div class="content">
       <!-- 奇遇礼莲 (抽奖) -->
       <div v-if="activeTab === 'lottery'" class="tab-content">
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="lotteryActivities.length === 0" class="empty">暂无抽奖活动</div>
+        <div v-if="loading" class="loading">
+          加载中...
+        </div>
+        <div v-else-if="lotteryActivities.length === 0" class="empty">
+          暂无抽奖活动
+        </div>
         <div v-else>
           <div v-for="act in lotteryActivities" :key="act.activityId" class="lottery-card">
             <div class="card-header">
-              <div class="card-title">{{ act.name }}</div>
+              <div class="card-title">
+                {{ act.name }}
+              </div>
               <div v-if="act.beginTime" class="card-time">
                 {{ formatDate(act.beginTime) }} ~ {{ formatDate(act.endTime) }}
               </div>
@@ -230,7 +249,9 @@ onMounted(() => {
                 <span class="limit-label">付费</span>
                 <span class="limit-value" :class="paidRemain > 0 ? 'paid' : 'used'">{{ paidRemain }} / {{ drawInfo?.paidLimit ?? '-' }}</span>
               </div>
-              <div class="limit-hint">付费抽奖每次需要30点券</div>
+              <div class="limit-hint">
+                付费抽奖每次需要30点券
+              </div>
             </div>
 
             <!-- 活动说明 -->
@@ -239,7 +260,7 @@ onMounted(() => {
             </div>
 
             <!-- 抽奖按钮 -->
-            <div class="card-actions" v-if="totalRemaining > 0">
+            <div v-if="totalRemaining > 0" class="card-actions">
               <button
                 class="btn btn-primary"
                 :disabled="operateLoading"
@@ -255,21 +276,29 @@ onMounted(() => {
                 {{ operateLoading ? '抽奖中...' : '连抽' }}
               </button>
             </div>
-            <div v-else class="draw-empty">今日次数已用完</div>
+            <div v-else class="draw-empty">
+              今日次数已用完
+            </div>
 
             <!-- 付费确认弹窗 -->
             <Teleport to="body">
               <div v-if="showPaidConfirm" class="modal-overlay" @click.self="showPaidConfirm = false">
                 <div class="modal-box">
-                  <div class="modal-title">确认抽奖</div>
+                  <div class="modal-title">
+                    确认抽奖
+                  </div>
                   <div class="modal-body">
                     当前免费次数已用完，将消耗付费次数。
-                    <br/><br/>
+                    <br><br>
                     本次抽奖将花费 <b>{{ paidDrawCount(pendingDrawType) * 30 }}</b> 点券
                   </div>
                   <div class="modal-actions">
-                    <button class="btn btn-secondary" @click="showPaidConfirm = false">取消</button>
-                    <button class="btn btn-primary" @click="confirmPaidDraw">确认</button>
+                    <button class="btn btn-secondary" @click="showPaidConfirm = false">
+                      取消
+                    </button>
+                    <button class="btn btn-primary" @click="confirmPaidDraw">
+                      确认
+                    </button>
                   </div>
                 </div>
               </div>
@@ -277,15 +306,19 @@ onMounted(() => {
 
             <!-- 奖品池 -->
             <div v-if="drawInfo?.prizes?.length" class="prize-pool">
-              <div class="prize-title">奖品池</div>
+              <div class="prize-title">
+                奖品池
+              </div>
               <div class="prize-list">
                 <div
                   v-for="(prize, i) in drawInfo.prizes"
                   :key="i"
                   class="prize-item"
-                  :class="'quality-' + prize.quality"
+                  :class="`quality-${prize.quality}`"
                 >
-                  <div class="prize-name">{{ prize.seedName || `种子#${prize.seedId}` }}</div>
+                  <div class="prize-name">
+                    {{ prize.seedName || `种子#${prize.seedId}` }}
+                  </div>
                   <div class="prize-meta">
                     <span class="prize-quality">{{ qualityLabel(prize.quality) }}</span>
                     <span class="prize-prob">{{ prize.probability }}</span>
@@ -297,7 +330,9 @@ onMounted(() => {
 
           <!-- 抽奖结果 -->
           <div v-if="operateResult" class="result-card">
-            <div class="result-title">抽奖结果</div>
+            <div class="result-title">
+              抽奖结果
+            </div>
             <div class="result-data">
               <template v-if="operateResult.rewards?.length">
                 获得: {{ operateResult.rewards.map((p: any) => (p.seedName || `#${p.seedId}`) + (p.count > 1 ? ` x${p.count}` : '')).join(', ') }}
@@ -312,9 +347,13 @@ onMounted(() => {
 
       <!-- 荷风游记 (战令) -->
       <div v-if="activeTab === 'battlepass'" class="tab-content">
-        <div v-if="!seasonInfo" class="loading">加载中...</div>
+        <div v-if="!seasonInfo" class="loading">
+          加载中...
+        </div>
         <div v-else class="season-card">
-          <div class="card-title">{{ seasonInfo.name }}</div>
+          <div class="card-title">
+            {{ seasonInfo.name }}
+          </div>
           <div class="season-info">
             <div>状态: {{ seasonInfo.status }}</div>
             <div>开始: {{ new Date(seasonInfo.start_time * 1000).toLocaleDateString() }}</div>
@@ -328,11 +367,17 @@ onMounted(() => {
 
       <!-- 荷露商店 (兑换) -->
       <div v-if="activeTab === 'shop'" class="tab-content">
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="shopActivities.length === 0" class="empty">暂无商店活动</div>
+        <div v-if="loading" class="loading">
+          加载中...
+        </div>
+        <div v-else-if="shopActivities.length === 0" class="empty">
+          暂无商店活动
+        </div>
         <div v-else>
           <div v-for="act in shopActivities" :key="act.activityId" class="shop-card">
-            <div class="card-title">{{ act.name }}</div>
+            <div class="card-title">
+              {{ act.name }}
+            </div>
             <div class="activity-info">
               <div v-if="act.beginTime" class="info-row">
                 <span class="info-label">活动时间</span>
@@ -354,17 +399,23 @@ onMounted(() => {
 
       <!-- 节令小礼 -->
       <div v-if="activeTab === 'solar'" class="tab-content">
-        <div v-if="solarTerms.length === 0" class="empty">暂无节令活动</div>
+        <div v-if="solarTerms.length === 0" class="empty">
+          暂无节令活动
+        </div>
         <div v-else>
           <div v-for="term in solarTerms" :key="term.term_id" class="solar-card">
-            <div class="card-title">{{ term.name }}</div>
+            <div class="card-title">
+              {{ term.name }}
+            </div>
             <div class="solar-info">
               <div>状态: {{ term.status === 1 ? '进行中' : '已结束' }}</div>
               <div>开始: {{ new Date(term.start_time * 1000).toLocaleDateString() }}</div>
               <div>结束: {{ new Date(term.end_time * 1000).toLocaleDateString() }}</div>
             </div>
             <div v-if="term.rewards?.length" class="solar-rewards">
-              <div class="rewards-title">节令奖励</div>
+              <div class="rewards-title">
+                节令奖励
+              </div>
               <div v-for="(r, i) in term.rewards" :key="i" class="reward-item">
                 物品 #{{ r.item_id }} x{{ r.count }}
               </div>
@@ -431,13 +482,18 @@ onMounted(() => {
   gap: 16px;
 }
 
-.loading, .empty {
+.loading,
+.empty {
   text-align: center;
   padding: 40px;
   color: var(--text-secondary, #9ca3af);
 }
 
-.lottery-card, .shop-card, .season-card, .solar-card, .result-card {
+.lottery-card,
+.shop-card,
+.season-card,
+.solar-card,
+.result-card {
   background: var(--bg-primary, #fff);
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 12px;
@@ -518,7 +574,8 @@ onMounted(() => {
   background: #7c3aed;
 }
 
-.season-info, .solar-info {
+.season-info,
+.solar-info {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -733,5 +790,4 @@ onMounted(() => {
   font-size: 14px;
   color: #15803d;
 }
-
 </style>

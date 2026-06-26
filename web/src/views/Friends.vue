@@ -153,7 +153,8 @@ function handleBatchBlacklist() {
   }
   confirmAction(`确定将 ${gids.length} 名好友全部加入黑名单？`, async () => {
     const result = await friendStore.batchAddBlacklist(currentAccountId.value!, gids)
-    if (result.ok) toast.success(`已拉黑 ${gids.length} 名好友`)
+    if (result.ok)
+      toast.success(`已拉黑 ${gids.length} 名好友`)
     else toast.error(result.error || '批量拉黑失败')
   })
 }
@@ -170,7 +171,8 @@ function handleBatchWhitelist() {
   }
   confirmAction(`确定将 ${gids.length} 名黑名单好友全部移出？`, async () => {
     const result = await friendStore.batchRemoveBlacklist(currentAccountId.value!, gids)
-    if (result.ok) toast.success(`已移出 ${gids.length} 名黑名单好友`)
+    if (result.ok)
+      toast.success(`已移出 ${gids.length} 名黑名单好友`)
     else toast.error(result.error || '批量拉白失败')
   })
 }
@@ -596,23 +598,11 @@ async function handleBatchAddKnownFriendGids() {
             v-model="searchKeyword"
             type="text"
             placeholder="搜索好友..."
-            class="farm-input w-full border border-gray-300 rounded-xl bg-white py-2 pl-10 pr-4 text-sm sm:w-64 dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="w-full border farm-input border-gray-300 rounded-xl bg-white py-2 pl-10 pr-4 text-sm sm:w-64 dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
         </div>
-        <div v-if="activeTab === 'friends' && friends.length" class="flex items-center gap-2 text-sm text-gray-500">
-          <span>共 {{ filteredFriends.length }}/{{ friends.length }} 名好友</span>
-          <button
-            class="rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            @click="handleBatchBlacklist"
-          >
-            一键拉黑
-          </button>
-          <button
-            class="rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 transition hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            @click="handleBatchWhitelist"
-          >
-            一键拉白
-          </button>
+        <div v-if="activeTab === 'friends' && friends.length" class="text-sm text-gray-500">
+          共 {{ filteredFriends.length }}/{{ friends.length }} 名好友
         </div>
         <div v-if="activeTab === 'blacklist'" class="text-sm text-gray-500">
           共 {{ blacklist.length }} 人
@@ -646,10 +636,10 @@ async function handleBatchAddKnownFriendGids() {
     </div>
 
     <div v-if="loading || statusLoading || interactLoading" class="flex justify-center py-12">
-      <span class="text-4xl animate-spin">⏳</span>
+      <span class="animate-spin text-4xl">⏳</span>
     </div>
 
-    <div v-else-if="!currentAccountId" class="farm-card flex flex-col items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
+    <div v-else-if="!currentAccountId" class="flex flex-col farm-card items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
       <span class="text-4xl text-gray-400">👤</span>
       <div>
         <div class="text-lg text-gray-700 font-medium dark:text-gray-300">
@@ -661,7 +651,7 @@ async function handleBatchAddKnownFriendGids() {
       </div>
     </div>
 
-    <div v-else-if="!status?.connection?.connected" class="farm-card flex flex-col items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
+    <div v-else-if="!status?.connection?.connected" class="flex flex-col farm-card items-center justify-center gap-4 rounded-2xl bg-white p-12 text-center text-gray-500 shadow-md dark:bg-gray-800">
       <span class="text-4xl text-gray-400">📡</span>
       <div>
         <div class="text-lg text-gray-700 font-medium dark:text-gray-300">
@@ -675,7 +665,7 @@ async function handleBatchAddKnownFriendGids() {
 
     <template v-else>
       <div v-if="activeTab === 'friends'" class="space-y-4">
-        <div v-if="currentAccountId && isQqAccount" class="farm-card mb-4 border border-amber-200 rounded-2xl bg-white p-4 shadow-md dark:border-amber-700/50 dark:bg-gray-800">
+        <div v-if="currentAccountId && isQqAccount" class="mb-4 farm-card border border-amber-200 rounded-2xl bg-white p-4 shadow-md dark:border-amber-700/50 dark:bg-gray-800">
           <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <div class="flex items-center gap-2">
@@ -720,13 +710,13 @@ async function handleBatchAddKnownFriendGids() {
             </div>
           </div>
 
-          <div class="mt-4 grid gap-3 lg:grid-cols-2">
+          <div class="grid mt-4 gap-3 lg:grid-cols-2">
             <div>
               <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">访客检测入库冷却(秒)</label>
               <input
                 v-model.number="localKnownFriendGidSyncCooldownSec"
                 type="number"
-                class="farm-input w-full border border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full border farm-input border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
             </div>
             <div>
@@ -734,7 +724,7 @@ async function handleBatchAddKnownFriendGids() {
               <input
                 v-model.number="localFriendsListCacheTtlSec"
                 type="number"
-                class="farm-input w-full border border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="w-full border farm-input border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
             </div>
           </div>
@@ -745,8 +735,22 @@ async function handleBatchAddKnownFriendGids() {
         </div>
 
         <template v-else>
-          <div class="farm-card flex flex-wrap items-center gap-2 rounded-2xl bg-white p-3 shadow-md dark:bg-gray-800">
+          <div class="flex flex-wrap farm-card items-center gap-2 rounded-2xl bg-white p-3 shadow-md dark:bg-gray-800">
             <div class="flex-1" />
+            <button
+              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+              :disabled="loading"
+              @click="handleBatchBlacklist"
+            >
+              一键拉黑
+            </button>
+            <button
+              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+              :disabled="loading"
+              @click="handleBatchWhitelist"
+            >
+              一键拉白
+            </button>
             <button
               class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
               :disabled="loading"
@@ -926,7 +930,9 @@ async function handleBatchAddKnownFriendGids() {
         </div>
 
         <div v-if="blacklist.length === 0" class="farm-card rounded-2xl bg-white p-8 text-center text-gray-500 shadow-md dark:bg-gray-800">
-          <div class="mx-auto mb-3 text-4xl text-gray-300">🚫</div>
+          <div class="mx-auto mb-3 text-4xl text-gray-300">
+            🚫
+          </div>
           暂无黑名单好友
         </div>
 
@@ -934,7 +940,7 @@ async function handleBatchAddKnownFriendGids() {
           <div
             v-for="item in blacklist"
             :key="item.gid"
-            class="cartoon-card flex items-center justify-between rounded-2xl bg-white p-4 shadow-md dark:bg-gray-800"
+            class="flex cartoon-card items-center justify-between rounded-2xl bg-white p-4 shadow-md dark:bg-gray-800"
           >
             <div class="flex items-center gap-3">
               <div class="h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-1 ring-gray-100 dark:bg-gray-600 dark:ring-gray-700">
@@ -990,7 +996,9 @@ async function handleBatchAddKnownFriendGids() {
         </div>
 
         <div v-else-if="visibleInteractRecords.length === 0" class="farm-card rounded-2xl bg-white p-8 text-center text-gray-500 shadow-md dark:bg-gray-800">
-          <div class="mx-auto mb-3 text-4xl text-gray-300">👀</div>
+          <div class="mx-auto mb-3 text-4xl text-gray-300">
+            👀
+          </div>
           暂无访客记录
         </div>
 
@@ -998,7 +1006,7 @@ async function handleBatchAddKnownFriendGids() {
           <div
             v-for="record in visibleInteractRecords"
             :key="record.key"
-            class="cartoon-card flex items-start gap-3 rounded-2xl bg-white p-4 shadow-md dark:bg-gray-800"
+            class="flex cartoon-card items-start gap-3 rounded-2xl bg-white p-4 shadow-md dark:bg-gray-800"
           >
             <div class="h-12 w-12 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-1 ring-gray-100 dark:bg-gray-700 dark:ring-gray-600">
               <img
@@ -1070,7 +1078,7 @@ async function handleBatchAddKnownFriendGids() {
             v-model="batchGidInput"
             rows="8"
             placeholder="每行一个 GID，或用逗号、空格分隔&#10;例如：&#10;12345678&#10;87654321&#10;或&#10;12345678, 87654321, 11111111"
-            class="farm-input mb-4 w-full border border-gray-300 rounded-xl bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            class="mb-4 w-full border farm-input border-gray-300 rounded-xl bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <div class="flex justify-end gap-3">
             <button
@@ -1123,10 +1131,10 @@ async function handleBatchAddKnownFriendGids() {
                 v-model="gidSearchKeyword"
                 type="text"
                 placeholder="搜索 GID..."
-                class="farm-input flex-1 border border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                class="flex-1 border farm-input border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
               <button
-                class="cartoon-btn shrink-0 rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+                class="shrink-0 cartoon-btn rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
                 :disabled="knownFriendSettingsSaving || unsyncedGidCount === 0"
                 @click="handleRemoveUnsyncedGids"
               >

@@ -2,10 +2,10 @@
 import type { Card, UserCard } from '@/stores/user'
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/api'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSwitch from '@/components/ui/BaseSwitch.vue'
-import ConfirmModal from '@/components/ConfirmModal.vue'
 import { useToastStore } from '@/stores/toast'
 import { useUserStore } from '@/stores/user'
 
@@ -13,7 +13,7 @@ const userStore = useUserStore()
 const toast = useToastStore()
 
 const activeTab = ref<'card' | 'user' | 'log' | 'system'>(
-  (localStorage.getItem('admin-active-tab') as 'card' | 'user' | 'log' | 'system') || 'card'
+  (localStorage.getItem('admin-active-tab') as 'card' | 'user' | 'log' | 'system') || 'card',
 )
 
 watch(activeTab, (newTab) => {
@@ -142,7 +142,8 @@ async function fetchCardClaimStatus() {
 }
 
 async function toggleCardClaimStatus(enabled: boolean | undefined) {
-  if (enabled === undefined) return
+  if (enabled === undefined)
+    return
   cardClaimLoading.value = true
   try {
     const res = await api.post('/api/admin/card-claim/status', { enabled })
@@ -287,8 +288,9 @@ async function copyCode(code: string) {
 
 async function copySelectedCards() {
   const codes = Array.from(selectedCards.value)
-  if (codes.length === 0) return
-  
+  if (codes.length === 0)
+    return
+
   try {
     const text = codes.join('\n')
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -625,24 +627,26 @@ function getEventLabel(event: string): string {
 }
 
 function getEventClass(event: string): string {
-  return event === 'login_success' 
-    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+  return event === 'login_success'
+    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
 }
 
 function getErrorTypeLabel(errorType: string | null): string {
-  if (!errorType) return '-'
+  if (!errorType)
+    return '-'
   const labels: Record<string, string> = {
-    'rate_limit': '速率限制',
-    'locked': '账户锁定',
-    'invalid_credentials': '凭证错误',
+    rate_limit: '速率限制',
+    locked: '账户锁定',
+    invalid_credentials: '凭证错误',
   }
   return labels[errorType] || errorType
 }
 
 function parseBrowser(userAgent: string): string {
-  if (!userAgent || userAgent === 'unknown') return '未知'
-  
+  if (!userAgent || userAgent === 'unknown')
+    return '未知'
+
   if (userAgent.includes('Edg/')) {
     const match = userAgent.match(/Edg\/([\d.]+)/)
     return `Edge ${match ? match[1] : ''}`
@@ -662,7 +666,7 @@ function parseBrowser(userAgent: string): string {
   if (userAgent.includes('MSIE') || userAgent.includes('Trident/')) {
     return 'IE'
   }
-  
+
   return '其他'
 }
 
@@ -730,7 +734,8 @@ async function loadDevicePresets() {
 
 function applyDevicePreset(presetId: string) {
   const preset = devicePresets.value.find(p => p.id === presetId)
-  if (!preset) return
+  if (!preset)
+    return
   const di = preset.deviceInfo as any
   localSystemConfig.value.os = di.os || 'Windows'
   localSystemConfig.value.clientVersion = di.clientVersion || ''
@@ -770,7 +775,8 @@ async function loadSystemConfig() {
           os: saved.os || 'Windows',
           deviceInfo: saved.deviceInfo ? { ...saved.deviceInfo } : { ...localSystemConfig.value.deviceInfo },
         }
-      } else {
+      }
+      else {
         // 没有已保存的配置时，用默认值填充输入框
         const def = defaultSystemConfig.value
         localSystemConfig.value = {
@@ -897,7 +903,7 @@ onMounted(() => {
           </div>
 
           <!-- 卡密领取功能开关 -->
-          <div class="farm-card flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
+          <div class="flex farm-card items-center justify-between border border-gray-200 rounded-2xl bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
             <div>
               <h4 class="text-sm text-gray-900 font-medium dark:text-white">
                 卡密领取功能
@@ -951,15 +957,15 @@ onMounted(() => {
             </button>
           </div>
 
-          <div class="farm-card flex items-center gap-2 rounded-2xl bg-white px-2 py-1.5 shadow-md dark:bg-gray-800">
+          <div class="flex farm-card items-center gap-2 rounded-2xl bg-white px-2 py-1.5 shadow-md dark:bg-gray-800">
             <input
               v-model="searchQuery"
               placeholder="搜索卡密、描述或使用者..."
-              class="farm-input h-8 w-64 border border-gray-300 rounded-xl bg-white px-3 text-sm text-gray-900 outline-none transition-all dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500/20"
+              class="h-8 w-64 border farm-input border-gray-300 rounded-xl bg-white px-3 text-sm text-gray-900 outline-none transition-all dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500/20"
             >
             <select
               v-model="filterStatus"
-              class="farm-input border border-gray-300 rounded-xl bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              class="border farm-input border-gray-300 rounded-xl bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             >
               <option value="all">
                 全部状态
@@ -1377,7 +1383,7 @@ onMounted(() => {
                     v-if="!editForm.isPermanent"
                     v-model="editForm.expiresAt"
                     type="datetime-local"
-                    class="farm-input mt-2 w-full border border-gray-200 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    class="mt-2 w-full border farm-input border-gray-200 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                 </div>
               </div>
@@ -1423,7 +1429,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="farm-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md dark:border-gray-700 dark:bg-gray-800">
+          <div class="farm-card overflow-hidden border border-gray-200 rounded-2xl bg-white shadow-md dark:border-gray-700 dark:bg-gray-800">
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead class="bg-gray-50 dark:bg-gray-900">
@@ -1603,7 +1609,7 @@ onMounted(() => {
               </div>
 
               <!-- 设备详细信息 -->
-              <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div class="grid grid-cols-2 mt-3 gap-3 text-sm">
                 <BaseInput
                   v-model="localSystemConfig.deviceInfo.clientVersion"
                   label="客户端版本"

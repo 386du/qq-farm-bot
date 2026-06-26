@@ -64,7 +64,8 @@ function handleTemplateChange() {
 function handleImageSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file)
+    return
 
   // 验证文件类型
   const allowed = ['image/png', 'image/jpeg', 'image/webp']
@@ -96,7 +97,8 @@ function removeImage() {
 }
 
 function parseGrowTime(phases: string): number {
-  if (!phases) return 0
+  if (!phases)
+    return 0
   let total = 0
   const parts = phases.split(';').filter(p => p)
   for (const part of parts) {
@@ -109,8 +111,10 @@ function parseGrowTime(phases: string): number {
 }
 
 function formatTime(seconds: number): string {
-  if (seconds < 60) return `${seconds}秒`
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`
+  if (seconds < 60)
+    return `${seconds}秒`
+  if (seconds < 3600)
+    return `${Math.floor(seconds / 60)}分${seconds % 60}秒`
   const hours = Math.floor(seconds / 3600)
   const mins = Math.floor((seconds % 3600) / 60)
   return mins > 0 ? `${hours}时${mins}分` : `${hours}时`
@@ -160,9 +164,12 @@ async function submit() {
     formData.append('seasons', form.seasons)
     formData.append('fruit_count', form.fruit_count)
     formData.append('price', form.price)
-    if (form.exp) formData.append('exp', form.exp)
-    if (form.size) formData.append('size', form.size)
-    if (imageFile.value) formData.append('image', imageFile.value)
+    if (form.exp)
+      formData.append('exp', form.exp)
+    if (form.size)
+      formData.append('size', form.size)
+    if (imageFile.value)
+      formData.append('image', imageFile.value)
 
     let res
     if (isEdit) {
@@ -174,8 +181,10 @@ async function submit() {
         editFormData.append('seasons', form.seasons)
         editFormData.append('fruit_count', form.fruit_count)
         editFormData.append('price', form.price)
-        if (form.exp) editFormData.append('exp', form.exp)
-        if (form.size) editFormData.append('size', form.size)
+        if (form.exp)
+          editFormData.append('exp', form.exp)
+        if (form.size)
+          editFormData.append('size', form.size)
         editFormData.append('image', imageFile.value)
         res = await api.put(`/api/config/seed/${form.seed_id}`, editFormData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -205,12 +214,15 @@ async function submit() {
     if (res.data.ok) {
       emit('saved')
       close()
-    } else {
+    }
+    else {
       errorMessage.value = `保存失败: ${res.data.error}`
     }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     errorMessage.value = `保存失败: ${e.response?.data?.error || e.message}`
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -283,7 +295,7 @@ watch(() => props.show, (newVal) => {
         <div class="space-y-4">
           <!-- 基本信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               📋 基本信息（必填）
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -319,7 +331,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 收益信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               💰 收益信息（必填）
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -342,7 +354,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 生长阶段 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               ⏱️ 生长阶段（必填）
             </div>
             <div class="mb-2">
@@ -352,7 +364,9 @@ watch(() => props.show, (newVal) => {
                 class="w-full border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                 @change="handleTemplateChange"
               >
-                <option value="">选择模板...</option>
+                <option value="">
+                  选择模板...
+                </option>
                 <option v-for="tpl in phaseTemplates" :key="tpl.value" :value="tpl.value">
                   {{ tpl.label }}
                 </option>
@@ -372,7 +386,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 选填信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               📝 选填信息
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -394,7 +408,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 种子图片 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               🖼️ 种子图片（必填）
             </div>
             <div class="flex items-center gap-3">
@@ -404,14 +418,14 @@ watch(() => props.show, (newVal) => {
               >
                 <img :src="imagePreview" class="h-14 w-14 object-contain">
                 <button
-                  class="absolute -right-1 -top-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white"
+                  class="absolute h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white -right-1 -top-1"
                   @click="removeImage"
                 >
                   ✕
                 </button>
               </div>
               <label
-                class="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 transition hover:border-blue-400 hover:text-blue-500 dark:border-gray-600 dark:hover:border-blue-500"
+                class="flex cursor-pointer items-center gap-2 border border-gray-300 rounded-lg border-dashed px-4 py-3 text-sm text-gray-500 transition dark:border-gray-600 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-500"
               >
                 <span class="text-lg">📷</span>
                 <span>{{ imagePreview ? '更换图片' : '选择图片' }}</span>

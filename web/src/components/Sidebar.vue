@@ -428,8 +428,8 @@ async function copyToken() {
       <!-- Sun -->
       <div class="farm-sun absolute right-4 top-3 h-8 w-8 rounded-full" style="background: radial-gradient(circle, #FFD700 30%, #FFA500 70%, transparent 100%); box-shadow: 0 0 16px 4px rgba(255, 215, 0, 0.3);" />
       <!-- Clouds -->
-      <div class="farm-cloud farm-cloud-1 absolute top-4 left-3 h-3 w-10 rounded-full opacity-50" style="background: white;" />
-      <div class="farm-cloud farm-cloud-2 absolute top-6 left-12 h-2.5 w-7 rounded-full opacity-40" style="background: white;" />
+      <div class="farm-cloud farm-cloud-1 absolute left-3 top-4 h-3 w-10 rounded-full opacity-50" style="background: white;" />
+      <div class="farm-cloud farm-cloud-2 absolute left-12 top-6 h-2.5 w-7 rounded-full opacity-40" style="background: white;" />
       <!-- Grass -->
       <div class="absolute inset-x-0 bottom-0 h-8" style="background: linear-gradient(0deg, var(--theme-grass, #4CAF50) 0%, color-mix(in srgb, var(--theme-grass, #4CAF50) 60%, transparent) 60%, transparent 100%); opacity: 0.35;" />
       <!-- Fence posts -->
@@ -454,8 +454,8 @@ async function copyToken() {
     <!-- Brand -->
     <div class="h-16 flex items-center justify-between border-b-3 border-[#8b6914]/15 px-6 dark:border-gray-700/40">
       <div class="flex items-center gap-3">
-        <span class="text-2xl select-none">🌱</span>
-        <span class="text-lg font-bold font-display text-[#3d2b1f] dark:text-[#f0c040]">
+        <span class="select-none text-2xl">🌱</span>
+        <span class="text-lg text-[#3d2b1f] font-bold font-display dark:text-[#f0c040]">
           QQ农场智能助手
         </span>
       </div>
@@ -486,12 +486,12 @@ async function copyToken() {
                 >
               </div>
               <!-- Admin crown badge -->
-              <div v-if="userStore.isAdmin" class="absolute -top-1 -right-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-[8px] shadow-sm" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
+              <div v-if="userStore.isAdmin" class="absolute z-10 h-4 w-4 flex items-center justify-center rounded-full text-[8px] shadow-sm -right-1 -top-1" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
                 <span>&#9733;</span>
               </div>
             </div>
             <div class="min-w-0 flex flex-col items-start">
-              <span class="w-full truncate text-left text-sm font-medium font-body">
+              <span class="font-body w-full truncate text-left text-sm font-medium">
                 {{ userStore.username || '未登录' }}
               </span>
               <div class="mt-0.5 flex items-center gap-1.5">
@@ -541,7 +541,7 @@ async function copyToken() {
           <div class="py-1">
             <button
               v-if="userStore.isAdmin"
-              class="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors rounded-xl mx-1 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="openAnnouncementModal"
             >
@@ -550,7 +550,7 @@ async function copyToken() {
             </button>
             <button
               v-if="!userStore.isAdmin"
-              class="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors rounded-xl mx-1 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="openRenewModal"
             >
@@ -558,7 +558,7 @@ async function copyToken() {
               <span>续费卡密/额度</span>
             </button>
             <button
-              class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 transition-colors rounded-xl mx-1 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
               @click="handleLogout"
             >
               <div class="i-carbon-logout" />
@@ -577,7 +577,7 @@ async function copyToken() {
           @click="showAccountDropdown = !showAccountDropdown"
         >
           <div class="flex items-center gap-3 overflow-hidden">
-            <div class="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-green-300/50 dark:bg-gray-600 dark:ring-green-700/50 shadow-sm">
+            <div class="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 shadow-sm ring-2 ring-green-300/50 dark:bg-gray-600 dark:ring-green-700/50">
               <img
                 v-if="currentAccount?.uin"
                 :src="`https://q1.qlogo.cn/g?b=qq&nk=${currentAccount.uin}&s=100`"
@@ -587,7 +587,7 @@ async function copyToken() {
               <div v-else class="i-carbon-user text-gray-400" />
             </div>
             <div class="min-w-0 flex flex-col items-start">
-              <span class="w-full truncate text-left text-sm font-medium font-body">
+              <span class="font-body w-full truncate text-left text-sm font-medium">
                 {{ displayName }}
               </span>
               <div class="mt-0.5 flex items-center gap-1.5">
@@ -620,12 +620,12 @@ async function copyToken() {
               <button
                 v-for="acc in accounts"
                 :key="acc.id || acc.uin"
-                class="w-full flex items-center gap-3 px-4 py-2 transition-all duration-200 rounded-xl mx-1 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+                class="mx-1 w-full flex items-center gap-3 rounded-xl px-4 py-2 transition-all duration-200 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
                 :class="{ 'bg-green-50/50 dark:bg-green-900/20': currentAccount?.id === acc.id }"
                 :style="{ backgroundColor: currentAccount?.id === acc.id ? 'color-mix(in srgb, var(--theme-primary) 10%, transparent)' : undefined }"
                 @click="selectAccount(acc)"
               >
-                <div class="h-6 w-6 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600 shadow-sm">
+                <div class="h-6 w-6 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 shadow-sm dark:bg-gray-600">
                   <img
                     v-if="acc.uin"
                     :src="`https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`"
@@ -667,7 +667,7 @@ async function copyToken() {
           </div>
           <div class="mt-1 border-t border-gray-100/60 pt-1 dark:border-gray-700/60">
             <button
-              class="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors rounded-xl mx-1 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="showAccountModal = true; showAccountDropdown = false"
             >
@@ -676,7 +676,7 @@ async function copyToken() {
             </button>
             <router-link
               to="/settings"
-              class="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors rounded-xl mx-1 hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="showAccountDropdown = false"
             >
@@ -694,15 +694,15 @@ async function copyToken() {
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
-        class="group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 hover:bg-[#4a8c3f]/10 dark:hover:bg-[#6dbf5b]/10 hover:animate-[bounce-hover_0.3s_ease]"
+        class="group flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-all duration-200 hover:animate-[bounce-hover_0.3s_ease] hover:bg-[#4a8c3f]/10 dark:hover:bg-[#6dbf5b]/10"
         :active-class="item.path === '/' ? '' : 'font-medium'"
         :style="{
-          'color': 'var(--theme-text)',
-          'opacity': '0.85',
+          color: 'var(--theme-text)',
+          opacity: '0.85',
         }"
         :data-nav="item.path"
       >
-        <span class="text-xl transition-transform duration-200 group-hover:scale-110 select-none">{{ item.icon }}</span>
+        <span class="select-none text-xl transition-transform duration-200 group-hover:scale-110">{{ item.icon }}</span>
         <span class="font-body">{{ item.label }}</span>
       </router-link>
     </nav>
@@ -1107,8 +1107,14 @@ async function copyToken() {
 }
 
 @keyframes farm-sun-glow {
-  0% { box-shadow: 0 0 16px 4px rgba(240, 192, 64, 0.3); transform: scale(1) rotate(0deg); }
-  100% { box-shadow: 0 0 28px 10px rgba(240, 192, 64, 0.5); transform: scale(1.08) rotate(5deg); }
+  0% {
+    box-shadow: 0 0 16px 4px rgba(240, 192, 64, 0.3);
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    box-shadow: 0 0 28px 10px rgba(240, 192, 64, 0.5);
+    transform: scale(1.08) rotate(5deg);
+  }
 }
 
 .farm-cloud {
@@ -1126,48 +1132,60 @@ async function copyToken() {
 }
 
 @keyframes farm-cloud-drift-1 {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(35px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(35px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 @keyframes farm-cloud-drift-2 {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(-25px); }
-  100% { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-25px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 /* Active router link styling — 草地高亮 */
 .router-link-active {
-  background: linear-gradient(135deg, rgba(74,140,63,0.15) 0%, rgba(109,191,91,0.1) 100%) !important;
+  background: linear-gradient(135deg, rgba(74, 140, 63, 0.15) 0%, rgba(109, 191, 91, 0.1) 100%) !important;
   color: #4a8c3f !important;
   font-weight: 600;
   box-shadow:
-    0 2px 0 rgba(74,140,63,0.1),
-    0 0 0 2px rgba(74,140,63,0.15) !important;
+    0 2px 0 rgba(74, 140, 63, 0.1),
+    0 0 0 2px rgba(74, 140, 63, 0.15) !important;
   border-radius: 14px;
 }
 
 .dark .router-link-active {
-  background: linear-gradient(135deg, rgba(109,191,91,0.2) 0%, rgba(74,140,63,0.15) 100%) !important;
+  background: linear-gradient(135deg, rgba(109, 191, 91, 0.2) 0%, rgba(74, 140, 63, 0.15) 100%) !important;
   color: #6dbf5b !important;
   box-shadow:
-    0 2px 0 rgba(109,191,91,0.15),
-    0 0 0 2px rgba(109,191,91,0.2) !important;
+    0 2px 0 rgba(109, 191, 91, 0.15),
+    0 0 0 2px rgba(109, 191, 91, 0.2) !important;
 }
 
 .router-link-exact-active {
-  background: linear-gradient(135deg, rgba(74,140,63,0.18) 0%, rgba(109,191,91,0.12) 100%) !important;
+  background: linear-gradient(135deg, rgba(74, 140, 63, 0.18) 0%, rgba(109, 191, 91, 0.12) 100%) !important;
   color: #4a8c3f !important;
   font-weight: 600;
   box-shadow:
-    0 2px 0 rgba(74,140,63,0.12),
-    0 0 0 2px rgba(74,140,63,0.18) !important;
+    0 2px 0 rgba(74, 140, 63, 0.12),
+    0 0 0 2px rgba(74, 140, 63, 0.18) !important;
   border-radius: 14px;
 }
 
 .dark .router-link-exact-active {
-  background: linear-gradient(135deg, rgba(109,191,91,0.22) 0%, rgba(74,140,63,0.18) 100%) !important;
+  background: linear-gradient(135deg, rgba(109, 191, 91, 0.22) 0%, rgba(74, 140, 63, 0.18) 100%) !important;
   color: #6dbf5b !important;
 }
 
@@ -1217,7 +1235,17 @@ async function copyToken() {
 
 /* 自定义调整大小手柄样式 */
 .announcement-view-modal::-webkit-resizer {
-  background: linear-gradient(-45deg, transparent 50%, var(--theme-primary) 50%, var(--theme-primary) 60%, transparent 60%, transparent 70%, var(--theme-primary) 70%, var(--theme-primary) 80%, transparent 80%);
+  background: linear-gradient(
+    -45deg,
+    transparent 50%,
+    var(--theme-primary) 50%,
+    var(--theme-primary) 60%,
+    transparent 60%,
+    transparent 70%,
+    var(--theme-primary) 70%,
+    var(--theme-primary) 80%,
+    transparent 80%
+  );
   border-radius: 0 0 12px 0;
 }
 </style>

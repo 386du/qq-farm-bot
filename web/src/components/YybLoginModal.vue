@@ -39,7 +39,7 @@ async function loginOne(openid: string) {
     const result = await yybStore.fetchCode(openid)
     if (!result.ok || !result.code) {
       toast.error(result.error || '获取 Code 失败')
-      return
+      return false
     }
 
     const name = accountNames.value[openid]?.trim() || `应用宝_${openid.slice(-6)}`
@@ -68,6 +68,14 @@ async function loginOne(openid: string) {
         })
         toast.success(`已添加账号: ${name}`)
       }
+
+      // 登录成功后自动启动账号
+      const started = accountStore.accounts.find((a: any) => a.openid === openid)
+      if (started && !started.running) {
+        await accountStore.startAccount(String(started.id))
+        toast.success(`账号已启动: ${name}`)
+      }
+
       emit('saved')
       return true
     }
@@ -92,7 +100,8 @@ async function loginAll() {
   try {
     for (const openid of openIds) {
       const ok = await loginOne(openid)
-      if (ok) successCount++
+      if (ok)
+        successCount++
     }
   }
   finally {
@@ -109,7 +118,7 @@ function close() {
 
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-    <div class="max-h-[90vh] w-full max-w-md overflow-hidden rounded-2xl" :style="{ background: 'var(--theme-bg)', boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))' }">
+    <div class="max-h-[90vh] max-w-md w-full overflow-hidden rounded-2xl" :style="{ background: 'var(--theme-bg)', boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))' }">
       <div class="flex items-center justify-between p-4" style="border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent)">
         <div>
           <h3 class="text-lg font-semibold" style="color: var(--theme-primary, var(--theme-text))">
@@ -133,7 +142,7 @@ function close() {
           <div
             v-for="openid in yybStore.config.openIds"
             :key="openid"
-            class="space-y-2 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-800"
+            class="border border-gray-200 rounded-xl bg-white p-3 space-y-2 dark:border-gray-600 dark:bg-gray-800"
           >
             <div class="flex items-center justify-between gap-2">
               <span class="min-w-0 flex-1 truncate text-sm font-medium" :style="{ color: 'var(--theme-text)' }">

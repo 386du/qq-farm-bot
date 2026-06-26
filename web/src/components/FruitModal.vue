@@ -60,7 +60,8 @@ const plantOptions = computed(() => {
 
 // 选中的植物
 const selectedPlant = computed(() => {
-  if (!form.plantId) return null
+  if (!form.plantId)
+    return null
   return plantList.value.find((p: any) => String(p.plantId) === form.plantId) || null
 })
 
@@ -69,7 +70,8 @@ async function loadPlantList() {
   plantListLoading.value = true
   try {
     const { data } = await api.get('/api/config/plants')
-    if (data?.ok) plantList.value = data.data || []
+    if (data?.ok)
+      plantList.value = data.data || []
   }
   catch { /* ignore */ }
   finally { plantListLoading.value = false }
@@ -90,7 +92,8 @@ function handlePlantChange() {
 function handleImageSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file)
+    return
 
   const allowed = ['image/png', 'image/jpeg', 'image/webp']
   if (!allowed.includes(file.type)) {
@@ -170,12 +173,18 @@ async function submit() {
       formData.append('price', form.price)
       formData.append('priceId', form.priceId)
       formData.append('fruitCount', form.fruitCount)
-      if (form.assetName) formData.append('assetName', form.assetName)
-      if (form.desc) formData.append('desc', form.desc)
-      if (form.effectDesc) formData.append('effectDesc', form.effectDesc)
-      if (form.rarity) formData.append('rarity', form.rarity)
-      if (form.maxCount) formData.append('maxCount', form.maxCount)
-      if (imageFile.value) formData.append('image', imageFile.value)
+      if (form.assetName)
+        formData.append('assetName', form.assetName)
+      if (form.desc)
+        formData.append('desc', form.desc)
+      if (form.effectDesc)
+        formData.append('effectDesc', form.effectDesc)
+      if (form.rarity)
+        formData.append('rarity', form.rarity)
+      if (form.maxCount)
+        formData.append('maxCount', form.maxCount)
+      if (imageFile.value)
+        formData.append('image', imageFile.value)
       res = await api.post('/api/config/fruit', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         skipErrorToast: true,
@@ -263,7 +272,7 @@ watch(() => props.show, (newVal) => {
         <div class="space-y-4">
           <!-- 关联植物 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               🌱 关联植物（必填）
             </div>
             <div v-if="plantListLoading" class="py-3 text-center text-sm text-gray-400">
@@ -288,7 +297,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 基本信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               📋 基本信息
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -311,7 +320,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 价格信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               💰 价格信息
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -333,7 +342,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 选填信息 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               📝 选填信息
             </div>
             <div class="grid grid-cols-2 gap-3">
@@ -357,7 +366,7 @@ watch(() => props.show, (newVal) => {
 
           <!-- 图片 -->
           <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-700/50">
-            <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
               🖼️ 果实图片（选填）
             </div>
             <div class="flex items-center gap-3">
@@ -367,14 +376,14 @@ watch(() => props.show, (newVal) => {
               >
                 <img :src="imagePreview" class="h-14 w-14 object-contain">
                 <button
-                  class="absolute -right-1 -top-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white"
+                  class="absolute h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white -right-1 -top-1"
                   @click="removeImage"
                 >
                   ✕
                 </button>
               </div>
               <label
-                class="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 transition hover:border-blue-400 hover:text-blue-500 dark:border-gray-600 dark:hover:border-blue-500"
+                class="flex cursor-pointer items-center gap-2 border border-gray-300 rounded-lg border-dashed px-4 py-3 text-sm text-gray-500 transition dark:border-gray-600 hover:border-blue-400 hover:text-blue-500 dark:hover:border-blue-500"
               >
                 <span class="text-lg">📷</span>
                 <span>{{ imagePreview ? '更换图片' : '选择图片' }}</span>

@@ -95,7 +95,8 @@ async function submitManual() {
 }
 
 async function reloginYyb() {
-  if (!props.editData) return
+  if (!props.editData)
+    return
   const openid = String(props.editData.openid || '').trim()
   if (!openid) {
     errorMessage.value = '该账号没有绑定应用宝 OpenID'
@@ -204,7 +205,7 @@ watch(() => props.show, (newVal) => {
             </label>
           </div>
 
-          <div v-if="!editData" class="rounded-xl border border-dashed p-3 dark:border-gray-600" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent)">
+          <div v-if="!editData" class="border rounded-xl border-dashed p-3 dark:border-gray-600" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent)">
             <p class="mb-2 text-xs opacity-70" :style="{ color: 'var(--theme-text)' }">
               其他登录方式
             </p>
@@ -227,7 +228,7 @@ watch(() => props.show, (newVal) => {
             </div>
           </div>
 
-          <div v-if="editData" class="rounded-xl border border-dashed p-3 dark:border-gray-600" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent)">
+          <div v-if="editData" class="border rounded-xl border-dashed p-3 dark:border-gray-600" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent)">
             <p class="mb-2 text-xs opacity-70" :style="{ color: 'var(--theme-text)' }">
               应用宝登录
             </p>

@@ -42,7 +42,7 @@ function getBorderColor(type: string) {
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        class="w-80 flex items-start gap-3 rounded-2xl p-4 transition-all duration-300 border-3"
+        class="w-80 flex items-start gap-3 border-3 rounded-2xl p-4 transition-all duration-300"
         :class="[getBgColor(toast.type), getBorderColor(toast.type)]"
         style="box-shadow: 0 3px 0 rgba(0,0,0,0.1), 0 4px 12px rgba(0,0,0,0.08)"
       >
