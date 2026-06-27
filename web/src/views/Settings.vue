@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnchorRect } from '@/composables/useModalAnchor'
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
@@ -27,6 +28,21 @@ const yybStore = useYybLoginStore()
 
 const showYybConfig = ref(false)
 const showYybLogin = ref(false)
+const yybConfigAnchor = ref<AnchorRect | null>(null)
+
+function openYybConfig(event?: MouseEvent | TouchEvent) {
+  const target = event?.currentTarget as HTMLElement | null
+  if (target) {
+    yybConfigAnchor.value = target.getBoundingClientRect() as AnchorRect
+  }
+  showYybConfig.value = true
+}
+
+function closeYybConfig() {
+  showYybConfig.value = false
+  yybStore.loadConfig()
+  yybConfigAnchor.value = null
+}
 
 const activeTab = ref<'account' | 'strategy' | 'automation' | 'user'>(
   (localStorage.getItem('settings-active-tab') as 'account' | 'strategy' | 'automation' | 'user') || 'account',
@@ -902,7 +918,7 @@ async function handleTestOffline() {
               <BaseButton
                 variant="secondary"
                 size="sm"
-                @click="showYybConfig = true"
+                @click="openYybConfig"
               >
                 <span class="mr-2">⚙️</span>
                 应用宝配置
@@ -1065,7 +1081,7 @@ async function handleTestOffline() {
             @close="showModal = false"
             @saved="handleSaved"
             @yyb-login="showModal = false; showYybLogin = true"
-            @yyb-config="showModal = false; showYybConfig = true"
+            @yyb-config="(anchor) => { showModal = false; yybConfigAnchor = anchor; showYybConfig = true }"
           />
 
           <ConfirmModal
@@ -1094,7 +1110,8 @@ async function handleTestOffline() {
 
           <YybConfigModal
             :show="showYybConfig"
-            @close="showYybConfig = false; yybStore.loadConfig()"
+            :anchor="yybConfigAnchor"
+            @close="closeYybConfig"
           />
 
           <YybLoginModal

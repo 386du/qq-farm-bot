@@ -118,7 +118,7 @@ onUnmounted(() => {
           <button
             v-for="op in operations"
             :key="op.type"
-            class="relative flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 overflow-hidden active:translate-y-1 active:scale-95 hover:-translate-y-0.5 hover:brightness-110"
+            class="relative flex items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2.5 text-sm text-white font-bold transition-all duration-200 active:translate-y-1 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 hover:brightness-110 hover:-translate-y-0.5"
             :style="{
               background: op.bgGradient,
               boxShadow: `0 3px 0 ${op.shadowColor}, 0 6px 14px ${op.shadowColor}50`,
@@ -128,7 +128,7 @@ onUnmounted(() => {
           >
             <span class="text-base drop-shadow-sm">{{ op.icon }}</span>
             {{ op.label }}
-            <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%)" />
+            <div class="pointer-events-none absolute inset-0" style="background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 50%)" />
           </button>
         </div>
       </div>

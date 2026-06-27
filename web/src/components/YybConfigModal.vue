@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnchorRect } from '@/composables/useModalAnchor'
 import { computed, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -7,6 +8,7 @@ import { useYybLoginStore } from '@/stores/yyb-login'
 
 const props = defineProps<{
   show: boolean
+  anchor?: AnchorRect | null
 }>()
 
 const emit = defineEmits(['close'])
@@ -38,6 +40,71 @@ function resetForm() {
 watch(() => props.show, (show) => {
   if (show) {
     yybStore.loadConfig().then(resetForm)
+  }
+})
+
+const panelStyle = computed(() => {
+  const anchor = props.anchor
+  const base = {
+    background: 'var(--theme-bg)',
+    boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))',
+  }
+
+  if (!anchor) {
+    return {
+      ...base,
+      maxHeight: 'min(85dvh, 700px)',
+    }
+  }
+
+  const gap = 8
+  const preferredWidth = 384
+  const minHeight = 180
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  const width = Math.min(preferredWidth, vw - gap * 2)
+  let left = anchor.left
+  if (left + width > vw - gap) {
+    left = Math.max(gap, vw - width - gap)
+  }
+
+  const spaceBelow = vh - anchor.bottom - gap
+  const spaceAbove = anchor.top - gap
+
+  let position: 'below' | 'above' = 'below'
+  let maxHeight: number
+
+  if (spaceBelow >= minHeight) {
+    position = 'below'
+    maxHeight = spaceBelow
+  }
+  else if (spaceAbove >= minHeight) {
+    position = 'above'
+    maxHeight = spaceAbove
+  }
+  else {
+    if (spaceBelow >= spaceAbove) {
+      position = 'below'
+      maxHeight = spaceBelow
+    }
+    else {
+      position = 'above'
+      maxHeight = spaceAbove
+    }
+  }
+
+  maxHeight = Math.max(minHeight, Math.min(maxHeight, Math.min(600, vh - gap * 2)))
+
+  return {
+    ...base,
+    position: 'fixed' as const,
+    left: `${left}px`,
+    top: position === 'below' ? `${anchor.bottom + gap}px` : undefined,
+    bottom: position === 'above' ? `${vh - anchor.top + gap}px` : undefined,
+    width: `${width}px`,
+    maxWidth: `${width}px`,
+    maxHeight: `${maxHeight}px`,
   }
 })
 
@@ -103,9 +170,15 @@ function close() {
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom, 0))" @click.self="close">
-    <div class="max-h-[min(85dvh,700px)] max-w-md w-full overflow-hidden rounded-2xl flex flex-col" :style="{ background: 'var(--theme-bg)', boxShadow: 'var(--theme-shadow-lg, 0 8px 32px rgba(0,0,0,0.16))' }">
-      <div class="flex items-center justify-between p-4 shrink-0" style="border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent)">
+  <div v-if="show" class="fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/50" @click.self="close" />
+    <div
+      class="z-10 flex flex-col overflow-hidden rounded-2xl"
+      :class="[!anchor && 'absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2']"
+      :style="panelStyle"
+      @click.stop
+    >
+      <div class="flex shrink-0 items-center justify-between p-4" style="border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent)">
         <div>
           <h3 class="text-lg font-semibold" style="color: var(--theme-primary, var(--theme-text))">
             应用宝配置
@@ -209,10 +282,9 @@ function close() {
             </div>
           </div>
         </div>
-
       </div>
 
-      <div class="flex justify-end gap-2 border-t p-4 shrink-0 dark:border-gray-700" style="border-top-color: color-mix(in srgb, var(--theme-text) 10%, transparent)">
+      <div class="flex shrink-0 justify-end gap-2 border-t p-4 dark:border-gray-700" style="border-top-color: color-mix(in srgb, var(--theme-text) 10%, transparent)">
         <BaseButton variant="outline" class="cartoon-btn" @click="close">
           取消
         </BaseButton>

@@ -85,7 +85,7 @@ function formatTaskProgress(task: any) {
         class="flex flex-col items-center justify-center gap-3 rounded-2xl py-8 text-center"
         :style="{ background: `linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 8%, transparent) 0%, color-mix(in srgb, var(--theme-secondary) 8%, transparent) 100%)` }"
       >
-        <div class="text-3xl animate-float">
+        <div class="animate-float text-3xl">
           👤
         </div>
         <div>
@@ -103,7 +103,7 @@ function formatTaskProgress(task: any) {
         class="flex flex-col items-center justify-center gap-3 rounded-2xl py-8 text-center"
         :style="{ background: `linear-gradient(135deg, color-mix(in srgb, var(--theme-primary) 8%, transparent) 0%, color-mix(in srgb, var(--theme-secondary) 8%, transparent) 100%)` }"
       >
-        <div class="text-3xl animate-float">
+        <div class="animate-float text-3xl">
           📡
         </div>
         <div>
@@ -127,11 +127,13 @@ function formatTaskProgress(task: any) {
           :style="{ background: `linear-gradient(90deg, color-mix(in srgb, var(--theme-primary) 4%, transparent) 0%, transparent 100%)` }"
         >
           <div class="flex items-center gap-2">
-            <div class="text-base">{{ task.done ? '✅' : '📋' }}</div>
+            <div class="text-base">
+              {{ task.done ? '✅' : '📋' }}
+            </div>
             <span class="font-medium" :style="{ color: 'var(--theme-text)', opacity: task.done ? 0.6 : 0.9 }">{{ task.desc || task.name }}</span>
           </div>
           <span
-            class="text-xs font-bold rounded-lg px-2 py-0.5"
+            class="rounded-lg px-2 py-0.5 text-xs font-bold"
             :style="task.done
               ? { background: 'linear-gradient(135deg, #bbf7d0 0%, #86efac 100%)', color: '#15803d' }
               : { background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)', color: '#4b5563' }"
@@ -140,8 +142,12 @@ function formatTaskProgress(task: any) {
       </div>
 
       <div v-else class="flex flex-col items-center justify-center gap-2 py-8 text-center">
-        <div class="text-3xl opacity-50">📭</div>
-        <div class="text-sm opacity-60">暂无任务详情</div>
+        <div class="text-3xl opacity-50">
+          📭
+        </div>
+        <div class="text-sm opacity-60">
+          暂无任务详情
+        </div>
       </div>
     </div>
   </div>

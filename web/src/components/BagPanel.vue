@@ -379,23 +379,23 @@ useIntervalFn(loadBag, 60000)
     </div>
 
     <div v-else>
-      <div class="farm-card-enhanced p-2 mb-4">
+      <div class="farm-card-enhanced mb-4 p-2">
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="cat in CATEGORY_OPTIONS"
             :key="cat.value"
-            class="relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold transition-all duration-300 overflow-hidden"
+            class="relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-sm font-bold transition-all duration-300"
             :class="selectedCategory === cat.value
               ? 'text-white shadow-md scale-105'
               : 'hover:scale-105'"
             :style="selectedCategory === cat.value
               ? {
-                  backgroundColor: 'var(--theme-primary)',
-                  boxShadow: `0 3px 10px color-mix(in srgb, var(--theme-primary), 40%, transparent)`,
-                }
+                backgroundColor: 'var(--theme-primary)',
+                boxShadow: `0 3px 10px color-mix(in srgb, var(--theme-primary), 40%, transparent)`,
+              }
               : {
-                  color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
-                }"
+                color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
+              }"
             @click="selectedCategory = cat.value"
           >
             <span>{{ cat.value === 'fruit' ? '🍎' : cat.value === 'seed' ? '🌱' : cat.value === 'tool' ? '🔧' : cat.value === 'other' ? '📦' : '📋' }}</span>
@@ -403,13 +403,13 @@ useIntervalFn(loadBag, 60000)
             <span class="text-xs opacity-80">({{ categoryCounts[cat.value] || 0 }})</span>
             <div
               v-if="selectedCategory === cat.value"
-              class="absolute inset-0 pointer-events-none"
+              class="pointer-events-none absolute inset-0"
               style="background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%);"
             />
           </button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 mt-3 pt-3" style="border-top: 1px solid color-mix(in srgb, var(--theme-primary) 10%, transparent)">
+        <div class="mt-3 flex flex-wrap items-center gap-2 pt-3" style="border-top: 1px solid color-mix(in srgb, var(--theme-primary) 10%, transparent)">
           <template v-if="selectedCategory === 'fruit' || selectedCategory === 'all'">
             <button
               class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-sm font-bold transition-all duration-200 hover:scale-105"
@@ -426,7 +426,7 @@ useIntervalFn(loadBag, 60000)
             </button>
             <template v-if="batchMode">
               <button
-                class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-sm font-bold text-white transition-all duration-200 hover:scale-105 shadow-md"
+                class="flex items-center gap-1 rounded-xl px-3 py-1.5 text-sm text-white font-bold shadow-md transition-all duration-200 hover:scale-105"
                 style="background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 3px 0 #1d4ed8"
                 @click="selectAllSellable"
               >
