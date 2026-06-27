@@ -653,6 +653,49 @@ function canAddAccount(username: string): { canAdd: boolean; current: number; li
     return { canAdd: true, current: 0, limit };
 }
 
+function resetPasswordByCard(username: string, cardCode: string, newPassword: string): { ok: boolean; error?: string; message?: string } {
+    loadUsers();
+    loadCards();
+
+    if (!username || !cardCode) {
+        return { ok: false, error: '请提供用户名和卡密' };
+    }
+
+    const user = users.find(u => u.username === username);
+    if (!user) {
+        return { ok: false, error: '用户不存在' };
+    }
+
+    // 验证卡密：检查卡密是否属于该用户
+    const card = cards.find(c => c.code === cardCode);
+    if (!card) {
+        return { ok: false, error: '卡密不存在' };
+    }
+
+    if (!card.enabled) {
+        return { ok: false, error: '卡密已被禁用' };
+    }
+
+    // 卡密必须是该用户使用过的
+    if (card.usedBy !== username) {
+        return { ok: false, error: '卡密与用户名不匹配' };
+    }
+
+    // 验证新密码强度
+    const passwordValidation = auth.validatePasswordStrength(newPassword);
+    if (!passwordValidation.valid) {
+        return { ok: false, error: passwordValidation.errors.join('；') };
+    }
+
+    user.password = auth.hashPassword(newPassword);
+    if (user.mustChangePassword) {
+        delete user.mustChangePassword;
+    }
+
+    saveUsers();
+    return { ok: true, message: '密码重置成功，请使用新密码登录' };
+}
+
 module.exports = {
     loadUsers,
     saveUsers,
@@ -673,6 +716,7 @@ module.exports = {
     deleteCardsBatch,
     deleteUser,
     changePassword,
+    resetPasswordByCard,
     saveWxLoginConfig,
     getWxLoginConfig,
     getUserAccountLimit,

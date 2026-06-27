@@ -248,6 +248,23 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         res.json(result);
     });
 
+    // 忘记密码：通过卡密重置密码
+    app.post('/api/user/reset-password', (req: Request, res: Response) => {
+        const { username, cardCode, newPassword } = req.body || {};
+
+        if (!username || !cardCode || !newPassword) {
+            return res.status(400).json({ ok: false, error: '请填写完整信息' });
+        }
+
+        const result = userStore.resetPasswordByCard(username, cardCode, newPassword);
+        if (!result.ok) {
+            return res.status(400).json(result);
+        }
+
+        adminLogger.info('密码重置成功', { username, ip: getClientIp(req) });
+        res.json(result);
+    });
+
     app.use('/api', (req: Request, res: Response, next: any) => {
         if (req.path === '/login' || req.path === '/qr/create' || req.path === '/qr/check' || req.path === '/card-claim/status' || req.path === '/card-claim/claim' || req.path === '/game-version') return next();
         return authRequired(req, res, next);

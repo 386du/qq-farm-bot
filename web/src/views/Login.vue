@@ -34,6 +34,17 @@ const claimModalContent = ref({
   days: 0,
 })
 
+// 忘记密码弹窗
+const showForgotPassword = ref(false)
+const forgotUsername = ref('')
+const forgotCardCode = ref('')
+const forgotNewPassword = ref('')
+const forgotConfirmPassword = ref('')
+const forgotLoading = ref(false)
+const forgotError = ref('')
+const forgotSuccess = ref('')
+const showForgotPasswordStrength = ref(false)
+
 const passwordStrength = computed(() => {
   const pwd = password.value
   if (!pwd)
@@ -283,6 +294,99 @@ function closeClaimModal() {
   showClaimModal.value = false
 }
 
+// 忘记密码
+function openForgotPassword() {
+  showForgotPassword.value = true
+  forgotUsername.value = ''
+  forgotCardCode.value = ''
+  forgotNewPassword.value = ''
+  forgotConfirmPassword.value = ''
+  forgotError.value = ''
+  forgotSuccess.value = ''
+  showForgotPasswordStrength.value = false
+}
+
+function closeForgotPassword() {
+  showForgotPassword.value = false
+}
+
+function validateForgotForm(): boolean {
+  if (!forgotUsername.value) {
+    forgotError.value = '请输入用户名'
+    return false
+  }
+
+  if (!forgotCardCode.value) {
+    forgotError.value = '请输入卡密'
+    return false
+  }
+
+  if (!forgotNewPassword.value) {
+    forgotError.value = '请输入新密码'
+    return false
+  }
+
+  if (forgotNewPassword.value.length < 6) {
+    forgotError.value = '密码长度至少6位'
+    return false
+  }
+
+  if (!passwordStrength.value.valid) {
+    forgotError.value = '密码强度不足：需包含大写字母、小写字母、数字、特殊符号中的至少两种'
+    return false
+  }
+
+  if (forgotNewPassword.value !== forgotConfirmPassword.value) {
+    forgotError.value = '两次输入的密码不一致'
+    return false
+  }
+
+  return true
+}
+
+async function handleResetPassword() {
+  if (!validateForgotForm())
+    return
+
+  forgotLoading.value = true
+  forgotError.value = ''
+  forgotSuccess.value = ''
+
+  try {
+    const res = await api.post('/api/user/reset-password', {
+      username: forgotUsername.value,
+      cardCode: forgotCardCode.value,
+      newPassword: forgotNewPassword.value,
+    })
+
+    if (res.data.ok) {
+      forgotSuccess.value = '密码重置成功！请使用新密码登录'
+      setTimeout(() => {
+        closeForgotPassword()
+        password.value = forgotNewPassword.value
+        username.value = forgotUsername.value
+        isLogin.value = true
+      }, 1500)
+    }
+    else {
+      forgotError.value = res.data.error || '密码重置失败'
+    }
+  }
+  catch (e: any) {
+    const data = e.response?.data
+    forgotError.value = data?.error || e.message || '操作异常'
+  }
+  finally {
+    forgotLoading.value = false
+  }
+}
+
+watch(forgotNewPassword, () => {
+  if (forgotNewPassword.value) {
+    showForgotPasswordStrength.value = true
+  }
+})
+
 onMounted(() => {
   checkCardClaimStatus()
   fetchGameVersion()
@@ -426,7 +530,7 @@ async function fetchGameVersion() {
             >
             <span>记住我</span>
           </label>
-          <button type="button" class="forgot-password font-body">
+          <button type="button" class="forgot-password font-body" @click="openForgotPassword">
             忘记密码？
           </button>
         </div>
@@ -532,6 +636,118 @@ async function fetchGameVersion() {
             <div class="claim-modal-footer">
               <button class="claim-modal-btn" @click="closeClaimModal">
                 {{ claimModalContent.success ? '开始注册' : '我知道了' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- 忘记密码弹窗 -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div
+          v-if="showForgotPassword"
+          class="claim-modal-overlay"
+          @click.self="closeForgotPassword"
+        >
+          <div class="claim-modal forgot-modal">
+            <div class="claim-modal-header">
+              <span class="claim-modal-icon">🔑</span>
+              <h3 class="claim-modal-title">
+                忘记密码
+              </h3>
+            </div>
+            <div class="claim-modal-body">
+              <p class="claim-modal-message font-body">
+                输入用户名和你使用过的卡密来重置密码
+              </p>
+
+              <div v-if="forgotError" class="message error-message mb-3">
+                <span class="message-icon">⚠️</span>
+                {{ forgotError }}
+              </div>
+              <div v-if="forgotSuccess" class="message success-message mb-3">
+                <span class="message-icon">✅</span>
+                {{ forgotSuccess }}
+              </div>
+
+              <form @submit.prevent="handleResetPassword">
+                <div class="form-group">
+                  <label class="form-label font-body">
+                    <span class="label-icon">👤</span>
+                    用户名
+                  </label>
+                  <BaseInput
+                    v-model="forgotUsername"
+                    type="text"
+                    placeholder="请输入用户名"
+                    required
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label font-body">
+                    <span class="label-icon">🎫</span>
+                    卡密
+                  </label>
+                  <BaseInput
+                    v-model="forgotCardCode"
+                    type="text"
+                    placeholder="请输入你使用过的卡密"
+                    required
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label font-body">
+                    <span class="label-icon">🔒</span>
+                    新密码
+                  </label>
+                  <BaseInput
+                    v-model="forgotNewPassword"
+                    type="password"
+                    placeholder="请输入新密码"
+                    required
+                  />
+                  <div v-if="showForgotPasswordStrength && forgotNewPassword" class="password-strength">
+                    <div class="strength-bar">
+                      <div
+                        class="strength-fill"
+                        :style="{ width: `${Math.min(passwordStrength.score * 12.5, 100)}%`, backgroundColor: passwordStrength.color }"
+                      />
+                    </div>
+                    <span class="strength-text" :style="{ color: passwordStrength.color }">
+                      {{ passwordStrength.level }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label font-body">
+                    <span class="label-icon">🔒</span>
+                    确认密码
+                  </label>
+                  <BaseInput
+                    v-model="forgotConfirmPassword"
+                    type="password"
+                    placeholder="请再次输入新密码"
+                    required
+                  />
+                </div>
+              </form>
+            </div>
+            <div class="claim-modal-footer">
+              <button
+                class="claim-modal-btn"
+                :disabled="forgotLoading"
+                @click="handleResetPassword"
+              >
+                <span v-if="forgotLoading" class="i-svg-spinners-90-ring-with-bg" />
+                <span v-else>确认重置</span>
+              </button>
+              <button class="claim-modal-btn-secondary" @click="closeForgotPassword">
+                取消
               </button>
             </div>
           </div>
@@ -1420,6 +1636,129 @@ async function fetchGameVersion() {
 
   .claim-modal-btn {
     padding: 12px;
+  }
+}
+
+/* 忘记密码弹窗样式 */
+.forgot-modal .claim-modal-body {
+  padding: 16px 20px;
+}
+
+.forgot-modal .claim-modal-body .form-group {
+  margin-bottom: 16px;
+}
+
+.forgot-modal .claim-modal-body .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.forgot-modal .claim-modal-body .form-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #37474f;
+  margin-bottom: 6px;
+}
+
+.forgot-modal .claim-modal-body .label-icon {
+  font-size: 1rem;
+}
+
+.forgot-modal .claim-modal-body :deep(.base-input) {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 2px solid #e5e7eb;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9375rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.forgot-modal .claim-modal-body :deep(.base-input:focus) {
+  border-color: var(--theme-primary);
+  outline: none;
+}
+
+.forgot-modal .claim-modal-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 20px 20px;
+}
+
+.forgot-modal .claim-modal-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--theme-gradient);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.forgot-modal .claim-modal-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px color-mix(in srgb, var(--theme-primary) 40%, transparent);
+}
+
+.forgot-modal .claim-modal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.forgot-modal .claim-modal-btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 12px;
+  color: #666;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.forgot-modal .claim-modal-btn-secondary:hover {
+  background: #e8e8e8;
+}
+
+.mb-3 {
+  margin-bottom: 12px;
+}
+
+/* 暗色模式 */
+@media (prefers-color-scheme: dark) {
+  .forgot-modal .claim-modal-body .form-label {
+    color: #a5d6a7;
+  }
+
+  .forgot-modal .claim-modal-body :deep(.base-input) {
+    border-color: #4a6b3f;
+    background-color: rgba(0, 0, 0, 0.2);
+    color: #e2e8f0;
+  }
+
+  .forgot-modal .claim-modal-body :deep(.base-input:focus) {
+    border-color: #6dbf5b;
+  }
+
+  .forgot-modal .claim-modal-btn-secondary {
+    background: #2a4a3a;
+    color: #a5d6a7;
+  }
+
+  .forgot-modal .claim-modal-btn-secondary:hover {
+    background: #3a5a4a;
   }
 }
 </style>
