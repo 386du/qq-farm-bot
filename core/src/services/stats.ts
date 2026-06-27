@@ -53,6 +53,8 @@ interface OperationsMap {
     sell: number;
     upgrade: number;
     levelUp: number;
+    gold: number;
+    exp: number;
 }
 
 const operations: OperationsMap = {
@@ -66,6 +68,8 @@ const operations: OperationsMap = {
     sell: 0,
     upgrade: 0,
     levelUp: 0,
+    gold: 0,
+    exp: 0,
 };
 
 let currentDateKey: string | null = null;
@@ -199,6 +203,7 @@ function updateStats(currentGold: number, currentExp: number): void {
     if (currentGold > lastState.gold) {
         const delta: number = currentGold - lastState.gold;
         session.lastGoldGain = delta;
+        recordOperation('gold', delta);
     } else if (currentGold < lastState.gold) {
         session.lastGoldGain = 0;
     }
@@ -212,6 +217,7 @@ function updateStats(currentGold: number, currentExp: number): void {
         } else {
             session.lastExpGain = delta;
             session.lastExpTime = now;
+            recordOperation('exp', delta);
             // console.warn(`[系统] 经验 +${delta} (总计: ${currentExp})`);
         }
     } else {

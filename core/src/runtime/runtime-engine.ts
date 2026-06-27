@@ -12,7 +12,7 @@ const { createRuntimeState } = require('./runtime-state');
 const { createWorkerManager } = require('./worker-manager');
 const { createYybReloginService } = require('./yyb-relogin');
 
-const OPERATION_KEYS = ['harvest', 'farming', 'fertilize', 'plant', 'steal', 'helpFarming', 'taskClaim', 'sell', 'upgrade'];
+const OPERATION_KEYS = ['harvest', 'farming', 'fertilize', 'plant', 'steal', 'helpFarming', 'taskClaim', 'sell', 'upgrade', 'gold', 'exp'];
 
 interface RuntimeEngineOptions {
     processRef?: any;
