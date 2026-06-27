@@ -16,6 +16,7 @@ const { MiniProgramLoginSession } = require('../../services/qrlogin');
 const { fetchFarmCode } = require('../../services/yyb-login');
 const store = require('../../models/store');
 const userStore = require('../../models/user-store');
+const tokenStore = require('../../models/user-store/token-store');
 
 const {
     getClientIp,
@@ -101,7 +102,8 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 }
             }
 
-            const token = issueToken();
+            const entry = tokenStore.addToken(user);
+            const token = entry.token;
             ctx.tokens.add(token);
             ctx.tokenUserMap.set(token, user);
 
@@ -119,6 +121,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 ok: true,
                 data: {
                     token,
+                    expiresAt: entry.expiresAt,
                     role: user.role,
                     card: user.card,
                     accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2,
@@ -224,6 +227,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 user.card = result.card;
                 user.accountLimit = result.accountLimit;
                 ctx.tokenUserMap.set(token, user);
+                tokenStore.updateTokenUser(token, user);
                 break;
             }
         }
@@ -310,6 +314,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         if (token) {
             ctx.tokens.delete(token);
             ctx.tokenUserMap.delete(token);
+            tokenStore.removeToken(token);
             if (ctx.io) {
                 for (const socket of ctx.io.sockets.sockets.values()) {
                     if (String((socket.data as any).adminToken || '') === String(token)) {

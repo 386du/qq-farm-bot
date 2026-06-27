@@ -9,6 +9,7 @@ import type { AdminContext } from './context';
 const crypto = require('node:crypto');
 
 const store = require('../../models/store');
+const tokenStore = require('../../models/user-store/token-store');
 const { normalizeAccountRef, resolveAccountId } = require('../../services/account-resolver');
 
 interface AuthenticatedRequest extends Request {
@@ -51,12 +52,26 @@ const issueToken = (): string => crypto.randomBytes(24).toString('hex');
 function createAuthRequired(ctx: AdminContext) {
     return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
         const token = req.headers['x-admin-token'] as string;
-        if (!token || !ctx.tokens.has(token)) {
+        if (!token) {
             res.status(401).json({ ok: false, error: 'Unauthorized' });
             return;
         }
+
+        const entry = tokenStore.getToken(token);
+        if (!entry) {
+            ctx.tokens.delete(token);
+            ctx.tokenUserMap.delete(token);
+            res.status(401).json({ ok: false, error: 'Unauthorized' });
+            return;
+        }
+
+        if (!ctx.tokens.has(token)) {
+            ctx.tokens.add(token);
+            ctx.tokenUserMap.set(token, entry.user);
+        }
+
         req.adminToken = token;
-        req.currentUser = ctx.tokenUserMap.get(token);
+        req.currentUser = entry.user;
 
         // 管理员不检查封禁和过期
         if (req.currentUser && req.currentUser.role !== 'admin') {
@@ -67,6 +82,7 @@ function createAuthRequired(ctx: AdminContext) {
                     console.log('[请求拒绝] 用户已被封禁:', req.currentUser.username);
                     ctx.tokens.delete(token);
                     ctx.tokenUserMap.delete(token);
+                    tokenStore.removeToken(token);
                     res.status(403).json({ ok: false, error: '账号已被封禁，请联系管理员' });
                     return;
                 }
@@ -78,6 +94,7 @@ function createAuthRequired(ctx: AdminContext) {
                         console.log('[请求拒绝] 用户已过期:', req.currentUser.username);
                         ctx.tokens.delete(token);
                         ctx.tokenUserMap.delete(token);
+                        tokenStore.removeToken(token);
                         res.status(403).json({ ok: false, error: '账号已过期，请续费后重新登录' });
                         return;
                     }
@@ -126,6 +143,7 @@ function createCleanupExpiredUsers(ctx: AdminContext): () => void {
         for (const { token, username, reason } of usersToCleanup) {
             ctx.tokens.delete(token);
             ctx.tokenUserMap.delete(token);
+            tokenStore.removeToken(token);
             // 断开相关 socket 连接
             if (ctx.io) {
                 for (const socket of ctx.io.sockets.sockets.values()) {
