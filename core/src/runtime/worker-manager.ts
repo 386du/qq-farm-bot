@@ -1,5 +1,6 @@
 export {};
 const { createScheduler } = require('../services/scheduler');
+const store = require('../models/store');
 
 interface WorkerManagerOptions {
     fork: any;
@@ -159,14 +160,24 @@ function createWorkerManager(options: WorkerManagerOptions) {
 
             if (current && current.process === child) {
                 delete workers[account.id];
+                if (store && typeof store.markAccountStopped === 'function') {
+                    store.markAccountStopped(account.id);
+                }
             }
         });
+        if (store && typeof store.markAccountRunning === 'function') {
+            store.markAccountRunning(account.id);
+        }
         return true;
     }
 
     function stopWorker(accountId: string): void {
         const worker = workers[accountId];
         if (!worker) return;
+
+        if (store && typeof store.markAccountStopped === 'function') {
+            store.markAccountStopped(accountId);
+        }
 
         const proc = worker.process;
         worker.stopping = true;

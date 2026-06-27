@@ -9,6 +9,7 @@ const { readTextFile, readJsonFile, writeJsonFileAtomic } = require('../../servi
 
 const STORE_FILE: string = getDataFile('store.json');
 const ACCOUNTS_FILE: string = getDataFile('accounts.json');
+const RUNTIME_ACCOUNTS_FILE: string = getDataFile('runtime-accounts.json');
 const KNOWN_FRIEND_GIDS_DIR: string = getDataFile('known_friend_gids');
 
 const ALLOWED_PLANTING_STRATEGIES: PlantingStrategy[] = ['preferred', 'level', 'max_exp', 'max_fert_exp', 'max_profit', 'max_fert_profit', 'bag_priority'];
@@ -523,6 +524,7 @@ module.exports = {
     // File paths
     STORE_FILE,
     ACCOUNTS_FILE,
+    RUNTIME_ACCOUNTS_FILE,
     KNOWN_FRIEND_GIDS_DIR,
     // Constants
     ALLOWED_PLANTING_STRATEGIES,

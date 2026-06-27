@@ -3,6 +3,7 @@ const sharedState = require('./shared-state');
 const globalConfig = require('./global-config');
 const accountConfig = require('./account-config');
 const accounts = require('./accounts');
+const runtimeAccounts = require('./runtime-accounts');
 
 module.exports = {
     // Account config
@@ -59,6 +60,13 @@ module.exports = {
     getAccountsByUser: accounts.getAccountsByUser,
     deleteAccountsByUser: accounts.deleteAccountsByUser,
     deleteUserConfig: accounts.deleteUserConfig,
+
+    // Runtime accounts (persisted running state)
+    getRunningAccountIds: runtimeAccounts.getRunningAccountIds,
+    isAccountRunning: runtimeAccounts.isAccountRunning,
+    markAccountRunning: runtimeAccounts.markAccountRunning,
+    markAccountStopped: runtimeAccounts.markAccountStopped,
+    clearAllRuntimeAccounts: runtimeAccounts.clearAllRuntimeAccounts,
 
     // Announcements
     getAnnouncement: globalConfig.getAnnouncement,

@@ -172,10 +172,21 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
     }
 
     function startAllAccounts(): void {
-        const accounts = (store.getAccounts().accounts || []);
-        if (accounts.length > 0) {
-            log('系统', `发现 ${accounts.length} 个账号，正在启动...`);
-            accounts.forEach((acc: any) => startWorker(acc));
+        const allAccounts = (store.getAccounts().accounts || []);
+        let targetAccounts: any[] = allAccounts;
+
+        if (store && typeof store.getRunningAccountIds === 'function') {
+            const runningIds = new Set(store.getRunningAccountIds());
+            if (runningIds.size > 0) {
+                targetAccounts = allAccounts.filter((a: any) => runningIds.has(String(a.id)));
+            }
+        }
+
+        if (targetAccounts.length > 0) {
+            log('系统', `发现 ${targetAccounts.length} 个运行中账号，正在恢复启动...`);
+            targetAccounts.forEach((acc: any) => startWorker(acc));
+        } else if (allAccounts.length > 0) {
+            log('系统', `未发现上次运行中的账号，共 ${allAccounts.length} 个账号，请在面板中手动启动`);
         } else {
             log('系统', '未发现账号，请访问管理面板添加账号');
         }
