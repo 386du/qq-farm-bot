@@ -1,6 +1,6 @@
-export {};
 import type { Application, Request, Response } from 'express';
 import type { AdminContext } from './context';
+export {};
 
 /**
  * Auth-related routes: login, register, login-logs, card info, user renew,
@@ -17,6 +17,8 @@ const { fetchFarmCode } = require('../../services/yyb-login');
 const store = require('../../models/store');
 const userStore = require('../../models/user-store');
 const tokenStore = require('../../models/user-store/token-store');
+const auditLog = require('../../models/audit-log');
+const ipBlacklist = require('../../models/ip-blacklist');
 
 const {
     getClientIp,
@@ -63,6 +65,13 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     userAgent
                 });
 
+                auditLog.log('login_failed', username, clientIp, {
+                    errorType: user.error,
+                    message: user.message,
+                    userAgent,
+                });
+                ipBlacklist.recordFailedLogin(clientIp);
+
                 return res.status(statusCode).json({
                     ok: false,
                     error: user.message,
@@ -82,6 +91,12 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     userAgent
                 });
 
+                auditLog.log('login_failed', username, clientIp, {
+                    errorType: 'invalid_credentials',
+                    userAgent,
+                });
+                ipBlacklist.recordFailedLogin(clientIp);
+
                 return res.status(401).json({ ok: false, error: '用户名或密码错误' });
             }
 
@@ -90,6 +105,11 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
             if (user.role !== 'admin') {
                 if (user.card && user.card.enabled === false) {
                     adminLogger.warn('登录拒绝', { username, reason: 'banned' });
+                    auditLog.log('login_failed', username, clientIp, {
+                        errorType: 'banned',
+                        reason: '账号已被封禁',
+                        userAgent,
+                    });
                     return res.status(403).json({ ok: false, error: '账号已被封禁，请联系管理员' });
                 }
 
@@ -97,6 +117,11 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     const now = Date.now();
                     if (user.card.expiresAt < now) {
                         adminLogger.warn('登录拒绝', { username, reason: 'expired' });
+                        auditLog.log('login_failed', username, clientIp, {
+                            errorType: 'expired',
+                            reason: '账号已过期',
+                            userAgent,
+                        });
                         return res.status(403).json({ ok: false, error: '账号已过期，请续费后重新登录' });
                     }
                 }
@@ -116,6 +141,12 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 ip: clientIp,
                 userAgent
             });
+
+            auditLog.log('login_success', username, clientIp, {
+                role: user.role,
+                userAgent,
+            });
+            ipBlacklist.clearFailedAttempts(clientIp);
 
             return res.json({
                 ok: true,
@@ -221,6 +252,11 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
             return res.status(400).json(result);
         }
 
+        auditLog.log('user_renewed', username, getClientIp(req), {
+            cardCode,
+            cardType: result.cardType,
+        });
+
         // 更新 token 中的用户信息
         for (const [token, user] of ctx.tokenUserMap.entries()) {
             if (user.username === username) {
@@ -249,6 +285,9 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         }
 
         const result = userStore.changePassword(username, oldPassword, newPassword);
+        if (result.ok) {
+            auditLog.log('password_changed', username, getClientIp(req));
+        }
         res.json(result);
     });
 
@@ -266,6 +305,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         }
 
         adminLogger.info('密码重置成功', { username, ip: getClientIp(req) });
+        auditLog.log('password_reset', username, getClientIp(req));
         res.json(result);
     });
 

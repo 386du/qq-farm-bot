@@ -814,6 +814,116 @@ function parseBrowser(userAgent: string): string {
   return '其他'
 }
 
+// ========== 审计日志 ==========
+interface AuditLog {
+  id: string
+  timestamp: number
+  event: string
+  username: string
+  ip: string
+  details?: Record<string, any>
+}
+
+const activeLogTab = ref<'login' | 'audit'>('login')
+const auditLogs = ref<AuditLog[]>([])
+const auditLogsLoading = ref(false)
+const auditLogsTotal = ref(0)
+const showClearAuditLogsConfirm = ref(false)
+const clearAuditLogsLoading = ref(false)
+
+async function fetchAuditLogs() {
+  auditLogsLoading.value = true
+  try {
+    const res = await api.get('/api/admin/audit-logs', { params: { limit: 100, offset: 0 } })
+    if (res.data?.ok) {
+      auditLogs.value = res.data.data.logs || []
+      auditLogsTotal.value = res.data.data.total || 0
+    }
+    else {
+      toast.error(res.data?.error || '获取审计日志失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '获取审计日志失败')
+  }
+  finally {
+    auditLogsLoading.value = false
+  }
+}
+
+function openClearAuditLogsConfirm() {
+  if (auditLogsTotal.value === 0) {
+    toast.warning('暂无审计日志可清空')
+    return
+  }
+  showClearAuditLogsConfirm.value = true
+}
+
+async function confirmClearAuditLogs() {
+  clearAuditLogsLoading.value = true
+  try {
+    const res = await api.delete('/api/admin/audit-logs')
+    if (res.data?.ok) {
+      toast.success('审计日志已清空')
+      auditLogs.value = []
+      auditLogsTotal.value = 0
+      showClearAuditLogsConfirm.value = false
+    }
+    else {
+      toast.error(res.data?.error || '清空失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '清空失败')
+  }
+  finally {
+    clearAuditLogsLoading.value = false
+  }
+}
+
+function getAuditEventLabel(event: string): string {
+  const labels: Record<string, string> = {
+    login_success: '登录成功',
+    login_failed: '登录失败',
+    password_changed: '修改密码',
+    account_added: '添加账号',
+    account_updated: '更新账号',
+    account_deleted: '删除账号',
+    account_started: '启动账号',
+    account_stopped: '停止账号',
+    account_remark_updated: '更新账号备注',
+    account_settings_saved: '保存账号设置',
+    user_updated: '更新用户',
+    user_edited: '编辑用户',
+    user_deleted: '删除用户',
+    user_renewed_by_admin: '管理员续费用户',
+    system_config_updated: '更新系统配置',
+    system_config_reset: '重置系统配置',
+    announcement_updated: '更新公告',
+    card_created: '创建卡密',
+    cards_created_batch: '批量创建卡密',
+    card_updated: '更新卡密',
+    card_deleted: '删除卡密',
+    cards_deleted_batch: '批量删除卡密',
+    card_claim_status_changed: '卡密领取开关',
+    backup_imported: '导入备份',
+    ip_blacklisted: '封禁IP',
+    ip_unblocked: '解封IP',
+    ip_blacklist_cleared: '清空IP黑名单',
+    audit_logs_cleared: '清空审计日志',
+  }
+  return labels[event] || event
+}
+
+function formatAuditDetails(details?: Record<string, any>): string {
+  if (!details || typeof details !== 'object')
+    return '-'
+  const entries = Object.entries(details)
+  if (entries.length === 0)
+    return '-'
+  return entries.map(([key, value]) => `${key}: ${value}`).join(', ')
+}
+
 // ========== 系统配置 ==========
 const systemConfigSaving = ref(false)
 const systemConfigLoading = ref(false)
@@ -991,6 +1101,229 @@ async function handleResetSystemConfig() {
   }
 }
 
+// ========== 数据备份与恢复 ==========
+interface BackupData {
+  createdAt: number
+  version: string
+  files: Record<string, string>
+}
+
+const backupLoading = ref(false)
+const importLoading = ref(false)
+const backupData = ref<BackupData | null>(null)
+const showImportConfirm = ref(false)
+const importFileContent = ref('')
+const importFileInput = ref<HTMLInputElement | null>(null)
+
+async function fetchBackup() {
+  backupLoading.value = true
+  try {
+    const res = await api.get('/api/admin/backup/export')
+    if (res.data?.ok) {
+      backupData.value = res.data.data
+    }
+    else {
+      toast.error(res.data?.error || '获取备份数据失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '获取备份数据失败')
+  }
+  finally {
+    backupLoading.value = false
+  }
+}
+
+function downloadBackup() {
+  if (!backupData.value)
+    return
+  const blob = new Blob([JSON.stringify(backupData.value, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `backup_${formatDateForFile(Date.now())}.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  toast.success('备份文件已下载')
+}
+
+function handleImportFile(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file)
+    return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const content = String(e.target?.result || '')
+      const parsed = JSON.parse(content)
+      if (!parsed.files || typeof parsed.files !== 'object') {
+        toast.error('无效的备份文件格式')
+        return
+      }
+      importFileContent.value = content
+      showImportConfirm.value = true
+    }
+    catch {
+      toast.error('备份文件解析失败，请检查 JSON 格式')
+    }
+  }
+  reader.readAsText(file)
+  target.value = ''
+}
+
+async function confirmImport() {
+  importLoading.value = true
+  try {
+    const parsed = JSON.parse(importFileContent.value)
+    const res = await api.post('/api/admin/backup/import', { files: parsed.files })
+    if (res.data?.ok) {
+      toast.success(res.data?.message || '数据已导入')
+      showImportConfirm.value = false
+      importFileContent.value = ''
+    }
+    else {
+      toast.error(res.data?.error || '导入失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '导入失败')
+  }
+  finally {
+    importLoading.value = false
+  }
+}
+
+// ========== IP 黑名单 ==========
+interface IpBlacklistEntry {
+  ip: string
+  reason: string
+  createdAt: number
+  expiresAt: number | null
+  autoBlocked: boolean
+}
+
+const ipBlacklist = ref<IpBlacklistEntry[]>([])
+const ipBlacklistLoading = ref(false)
+const newBlacklistIp = ref('')
+const newBlacklistReason = ref('')
+const newBlacklistDuration = ref(60)
+const newBlacklistPermanent = ref(false)
+const addBlacklistLoading = ref(false)
+const showClearBlacklistConfirm = ref(false)
+const clearBlacklistLoading = ref(false)
+
+async function fetchIpBlacklist() {
+  ipBlacklistLoading.value = true
+  try {
+    const res = await api.get('/api/admin/ip-blacklist')
+    if (res.data?.ok) {
+      ipBlacklist.value = res.data.data || []
+    }
+    else {
+      toast.error(res.data?.error || '获取 IP 黑名单失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '获取 IP 黑名单失败')
+  }
+  finally {
+    ipBlacklistLoading.value = false
+  }
+}
+
+async function addIpBlacklist() {
+  if (!newBlacklistIp.value.trim()) {
+    toast.warning('请输入 IP 地址')
+    return
+  }
+  addBlacklistLoading.value = true
+  try {
+    const res = await api.post('/api/admin/ip-blacklist', {
+      ip: newBlacklistIp.value.trim(),
+      reason: newBlacklistReason.value.trim() || undefined,
+      durationMinutes: newBlacklistPermanent.value ? undefined : newBlacklistDuration.value,
+    })
+    if (res.data?.ok) {
+      toast.success('IP 已封禁')
+      newBlacklistIp.value = ''
+      newBlacklistReason.value = ''
+      await fetchIpBlacklist()
+    }
+    else {
+      toast.error(res.data?.error || '封禁失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '封禁失败')
+  }
+  finally {
+    addBlacklistLoading.value = false
+  }
+}
+
+async function removeIpBlacklist(ip: string) {
+  if (!confirm(`确定要解封 IP ${ip} 吗？`))
+    return
+  try {
+    const res = await api.delete('/api/admin/ip-blacklist', { data: { ip } })
+    if (res.data?.ok) {
+      toast.success(res.data?.message || '已解封')
+      await fetchIpBlacklist()
+    }
+    else {
+      toast.error(res.data?.error || '解封失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '解封失败')
+  }
+}
+
+function openClearBlacklistConfirm() {
+  if (ipBlacklist.value.length === 0) {
+    toast.warning('暂无黑名单可清空')
+    return
+  }
+  showClearBlacklistConfirm.value = true
+}
+
+async function confirmClearBlacklist() {
+  clearBlacklistLoading.value = true
+  try {
+    const res = await api.delete('/api/admin/ip-blacklist/all')
+    if (res.data?.ok) {
+      toast.success('IP 黑名单已清空')
+      ipBlacklist.value = []
+      showClearBlacklistConfirm.value = false
+    }
+    else {
+      toast.error(res.data?.error || '清空失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '清空失败')
+  }
+  finally {
+    clearBlacklistLoading.value = false
+  }
+}
+
+function formatRemainingTime(expiresAt: number | null): string {
+  if (!expiresAt)
+    return '永久'
+  const remaining = expiresAt - Date.now()
+  if (remaining <= 0)
+    return '已过期'
+  const hours = Math.floor(remaining / 3600000)
+  const minutes = Math.floor((remaining % 3600000) / 60000)
+  if (hours > 0)
+    return `${hours}小时${minutes}分钟`
+  return `${minutes}分钟`
+}
+
 onMounted(() => {
   fetchDashboard()
   if (activeTab.value === 'dashboard') {
@@ -1000,9 +1333,12 @@ onMounted(() => {
   fetchUsers()
   fetchAdminAccounts()
   fetchLoginLogs()
+  fetchAuditLogs()
   loadSystemConfig()
   loadDevicePresets()
   fetchCardClaimStatus()
+  fetchBackup()
+  fetchIpBlacklist()
 })
 
 onUnmounted(() => {
@@ -1019,6 +1355,14 @@ watch(activeTab, (tab) => {
   }
   if (tab === 'account') {
     fetchAdminAccounts()
+  }
+  if (tab === 'log') {
+    fetchLoginLogs()
+    fetchAuditLogs()
+  }
+  if (tab === 'system') {
+    fetchBackup()
+    fetchIpBlacklist()
   }
 })
 </script>
@@ -1072,7 +1416,7 @@ watch(activeTab, (tab) => {
 
           <div v-else class="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div
-              class="farm-card rounded-2xl border border-gray-200 p-4 shadow-md dark:border-gray-700"
+              class="farm-card border border-gray-200 rounded-2xl p-4 shadow-md dark:border-gray-700"
               :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 20%, transparent)', background: 'color-mix(in srgb, var(--theme-bg) 95%, transparent)' }"
             >
               <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -1083,7 +1427,7 @@ watch(activeTab, (tab) => {
               </div>
             </div>
             <div
-              class="farm-card rounded-2xl border border-gray-200 p-4 shadow-md dark:border-gray-700"
+              class="farm-card border border-gray-200 rounded-2xl p-4 shadow-md dark:border-gray-700"
               :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 20%, transparent)', background: 'color-mix(in srgb, var(--theme-bg) 95%, transparent)' }"
             >
               <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -1094,7 +1438,7 @@ watch(activeTab, (tab) => {
               </div>
             </div>
             <div
-              class="farm-card rounded-2xl border border-gray-200 p-4 shadow-md dark:border-gray-700"
+              class="farm-card border border-gray-200 rounded-2xl p-4 shadow-md dark:border-gray-700"
               :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 20%, transparent)', background: 'color-mix(in srgb, var(--theme-bg) 95%, transparent)' }"
             >
               <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -1105,7 +1449,7 @@ watch(activeTab, (tab) => {
               </div>
             </div>
             <div
-              class="farm-card rounded-2xl border border-gray-200 p-4 shadow-md dark:border-gray-700"
+              class="farm-card border border-gray-200 rounded-2xl p-4 shadow-md dark:border-gray-700"
               :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 20%, transparent)', background: 'color-mix(in srgb, var(--theme-bg) 95%, transparent)' }"
             >
               <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -1119,13 +1463,13 @@ watch(activeTab, (tab) => {
 
           <div
             v-if="dashboard"
-            class="farm-card rounded-2xl border border-gray-200 p-4 shadow-md dark:border-gray-700"
+            class="farm-card border border-gray-200 rounded-2xl p-4 shadow-md dark:border-gray-700"
             :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 20%, transparent)', background: 'color-mix(in srgb, var(--theme-bg) 95%, transparent)' }"
           >
             <h4 class="mb-3 text-base font-semibold" style="color: var(--theme-primary)">
               服务状态
             </h4>
-            <div class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-1 gap-3 text-sm lg:grid-cols-4 sm:grid-cols-2">
               <div class="flex justify-between">
                 <span class="text-gray-500 dark:text-gray-400">运行时长</span>
                 <span class="font-medium" style="color: var(--theme-text)">{{ formatDuration(dashboard.uptime) }}</span>
@@ -1802,13 +2146,49 @@ watch(activeTab, (tab) => {
           />
         </div>
 
-        <!-- 登录日志 -->
+        <!-- 日志中心 -->
         <div v-else-if="activeTab === 'log'" class="space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="text-lg text-gray-900 font-bold dark:text-gray-100">
-              登录日志
+              日志中心
             </h3>
-            <div class="flex items-center gap-2">
+            <BaseButton
+              variant="primary"
+              size="sm"
+              :loading="loginLogsLoading || auditLogsLoading"
+              @click="fetchLoginLogs(); fetchAuditLogs()"
+            >
+              刷新
+            </BaseButton>
+          </div>
+
+          <!-- 日志子标签 -->
+          <div class="flex gap-2">
+            <button
+              class="cartoon-btn rounded-xl px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="activeLogTab === 'login'
+                ? 'text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
+              :style="activeLogTab === 'login' ? { backgroundColor: 'var(--theme-primary)' } : {}"
+              @click="activeLogTab = 'login'"
+            >
+              登录日志
+            </button>
+            <button
+              class="cartoon-btn rounded-xl px-3 py-1.5 text-sm font-medium transition-colors"
+              :class="activeLogTab === 'audit'
+                ? 'text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
+              :style="activeLogTab === 'audit' ? { backgroundColor: 'var(--theme-primary)' } : {}"
+              @click="activeLogTab = 'audit'"
+            >
+              审计日志
+            </button>
+          </div>
+
+          <!-- 登录日志 -->
+          <div v-if="activeLogTab === 'login'" class="space-y-4">
+            <div class="flex items-center justify-end">
               <BaseButton
                 variant="danger"
                 size="sm"
@@ -1816,123 +2196,226 @@ watch(activeTab, (tab) => {
               >
                 清空日志
               </BaseButton>
+            </div>
+
+            <div class="admin-log-area farm-card-enhanced overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="admin-table min-w-full text-left text-sm">
+                  <thead class="admin-table-head">
+                    <tr>
+                      <th class="px-4 py-3 font-bold">
+                        🕐 时间
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        📋 事件
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        👤 用户名
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        ❌ 错误类型
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        🌐 IP地址
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        🖥️ 浏览器
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="admin-table-body">
+                    <tr v-if="loginLogsLoading">
+                      <td colspan="6" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                        加载中...
+                      </td>
+                    </tr>
+                    <tr v-else-if="loginLogs.length === 0">
+                      <td colspan="6" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                        暂无登录日志
+                      </td>
+                    </tr>
+                    <tr v-for="(log, index) in loginLogs" :key="log.id" class="admin-table-row" :class="index % 2 === 0 ? 'row-even' : 'row-odd'">
+                      <td class="whitespace-nowrap px-4 py-3 text-sm font-mono" style="color: var(--theme-text)">
+                        {{ formatLogTime(log.timestamp) }}
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3">
+                        <span class="admin-status-wrap inline-flex items-center gap-1.5">
+                          <span
+                            class="admin-status-dot"
+                            :class="log.event === 'login_success' ? 'status-online' : 'status-offline'"
+                          />
+                          <span
+                            class="admin-badge inline-flex rounded-full px-2.5 py-1 text-xs font-bold"
+                            :class="log.event === 'login_success' ? 'badge-green' : 'badge-red'"
+                          >
+                            {{ getEventLabel(log.event) }}
+                          </span>
+                        </span>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3 font-bold" style="color: var(--theme-text)">
+                        {{ log.username }}
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
+                        {{ getErrorTypeLabel(log.errorType) }}
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3">
+                        <code class="admin-code-bg rounded-lg px-2.5 py-1 text-xs font-mono">{{ log.ip }}</code>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
+                        {{ parseBrowser(log.userAgent) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="loginLogsTotal > 0" class="admin-log-footer px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 50%, transparent)">
+                <span class="inline-flex items-center gap-1.5">
+                  <span>📊</span>
+                  共 {{ loginLogsTotal }} 条记录
+                </span>
+              </div>
+            </div>
+
+            <!-- 清空登录日志确认弹窗 -->
+            <div
+              v-if="showClearLogsConfirm"
+              class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+              @click.self="showClearLogsConfirm = false"
+            >
+              <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+                <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                  确认清空登录日志
+                </h2>
+                <p class="mb-4 text-gray-600 dark:text-gray-300">
+                  确定要清空所有登录日志吗？此操作不可恢复。
+                </p>
+                <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                  当前共有 {{ loginLogsTotal }} 条记录
+                </p>
+                <div class="flex justify-end space-x-3">
+                  <BaseButton variant="secondary" size="sm" @click="showClearLogsConfirm = false">
+                    取消
+                  </BaseButton>
+                  <BaseButton
+                    variant="danger"
+                    size="sm"
+                    :loading="clearLogsLoading"
+                    @click="confirmClearLogs"
+                  >
+                    确认清空
+                  </BaseButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 审计日志 -->
+          <div v-else-if="activeLogTab === 'audit'" class="space-y-4">
+            <div class="flex items-center justify-end">
               <BaseButton
-                variant="primary"
+                variant="danger"
                 size="sm"
-                :loading="loginLogsLoading"
-                @click="fetchLoginLogs"
+                @click="openClearAuditLogsConfirm"
               >
-                刷新
+                清空审计日志
               </BaseButton>
             </div>
-          </div>
 
-          <div class="admin-log-area farm-card-enhanced overflow-hidden">
-            <div class="overflow-x-auto">
-              <table class="admin-table min-w-full text-left text-sm">
-                <thead class="admin-table-head">
-                  <tr>
-                    <th class="px-4 py-3 font-bold">
-                      🕐 时间
-                    </th>
-                    <th class="px-4 py-3 font-bold">
-                      📋 事件
-                    </th>
-                    <th class="px-4 py-3 font-bold">
-                      👤 用户名
-                    </th>
-                    <th class="px-4 py-3 font-bold">
-                      ❌ 错误类型
-                    </th>
-                    <th class="px-4 py-3 font-bold">
-                      🌐 IP地址
-                    </th>
-                    <th class="px-4 py-3 font-bold">
-                      🖥️ 浏览器
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="admin-table-body">
-                  <tr v-if="loginLogsLoading">
-                    <td colspan="6" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
-                      加载中...
-                    </td>
-                  </tr>
-                  <tr v-else-if="loginLogs.length === 0">
-                    <td colspan="6" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
-                      暂无登录日志
-                    </td>
-                  </tr>
-                  <tr v-for="(log, index) in loginLogs" :key="log.id" class="admin-table-row" :class="index % 2 === 0 ? 'row-even' : 'row-odd'">
-                    <td class="whitespace-nowrap px-4 py-3 text-sm font-mono" style="color: var(--theme-text)">
-                      {{ formatLogTime(log.timestamp) }}
-                    </td>
-                    <td class="whitespace-nowrap px-4 py-3">
-                      <span class="admin-status-wrap inline-flex items-center gap-1.5">
-                        <span
-                          class="admin-status-dot"
-                          :class="log.event === 'login_success' ? 'status-online' : 'status-offline'"
-                        />
+            <div class="admin-log-area farm-card-enhanced overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="admin-table min-w-full text-left text-sm">
+                  <thead class="admin-table-head">
+                    <tr>
+                      <th class="px-4 py-3 font-bold">
+                        🕐 时间
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        📋 事件
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        👤 用户
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        🌐 IP地址
+                      </th>
+                      <th class="px-4 py-3 font-bold">
+                        📝 详情
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="admin-table-body">
+                    <tr v-if="auditLogsLoading">
+                      <td colspan="5" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                        加载中...
+                      </td>
+                    </tr>
+                    <tr v-else-if="auditLogs.length === 0">
+                      <td colspan="5" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                        暂无审计日志
+                      </td>
+                    </tr>
+                    <tr v-for="(log, index) in auditLogs" :key="log.id" class="admin-table-row" :class="index % 2 === 0 ? 'row-even' : 'row-odd'">
+                      <td class="whitespace-nowrap px-4 py-3 text-sm font-mono" style="color: var(--theme-text)">
+                        {{ formatLogTime(log.timestamp) }}
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3">
                         <span
                           class="admin-badge inline-flex rounded-full px-2.5 py-1 text-xs font-bold"
-                          :class="log.event === 'login_success' ? 'badge-green' : 'badge-red'"
+                          :class="log.event.includes('_deleted') || log.event.includes('_failed') || log.event === 'ip_blacklisted' ? 'badge-red' : 'badge-blue'"
                         >
-                          {{ getEventLabel(log.event) }}
+                          {{ getAuditEventLabel(log.event) }}
                         </span>
-                      </span>
-                    </td>
-                    <td class="whitespace-nowrap px-4 py-3 font-bold" style="color: var(--theme-text)">
-                      {{ log.username }}
-                    </td>
-                    <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
-                      {{ getErrorTypeLabel(log.errorType) }}
-                    </td>
-                    <td class="whitespace-nowrap px-4 py-3">
-                      <code class="admin-code-bg rounded-lg px-2.5 py-1 text-xs font-mono">{{ log.ip }}</code>
-                    </td>
-                    <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
-                      {{ parseBrowser(log.userAgent) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3 font-bold" style="color: var(--theme-text)">
+                        {{ log.username }}
+                      </td>
+                      <td class="whitespace-nowrap px-4 py-3">
+                        <code class="admin-code-bg rounded-lg px-2.5 py-1 text-xs font-mono">{{ log.ip }}</code>
+                      </td>
+                      <td class="max-w-xs whitespace-normal break-all px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
+                        {{ formatAuditDetails(log.details) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-if="auditLogsTotal > 0" class="admin-log-footer px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 50%, transparent)">
+                <span class="inline-flex items-center gap-1.5">
+                  <span>📊</span>
+                  共 {{ auditLogsTotal }} 条记录
+                </span>
+              </div>
             </div>
-            <div v-if="loginLogsTotal > 0" class="admin-log-footer px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 50%, transparent)">
-              <span class="inline-flex items-center gap-1.5">
-                <span>📊</span>
-                共 {{ loginLogsTotal }} 条记录
-              </span>
-            </div>
-          </div>
 
-          <!-- 清空日志确认弹窗 -->
-          <div
-            v-if="showClearLogsConfirm"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-            @click.self="showClearLogsConfirm = false"
-          >
-            <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
-              <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
-                确认清空日志
-              </h2>
-              <p class="mb-4 text-gray-600 dark:text-gray-300">
-                确定要清空所有登录日志吗？此操作不可恢复。
-              </p>
-              <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-                当前共有 {{ loginLogsTotal }} 条记录
-              </p>
-              <div class="flex justify-end space-x-3">
-                <BaseButton variant="secondary" size="sm" @click="showClearLogsConfirm = false">
-                  取消
-                </BaseButton>
-                <BaseButton
-                  variant="danger"
-                  size="sm"
-                  :loading="clearLogsLoading"
-                  @click="confirmClearLogs"
-                >
-                  确认清空
-                </BaseButton>
+            <!-- 清空审计日志确认弹窗 -->
+            <div
+              v-if="showClearAuditLogsConfirm"
+              class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+              @click.self="showClearAuditLogsConfirm = false"
+            >
+              <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+                <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                  确认清空审计日志
+                </h2>
+                <p class="mb-4 text-gray-600 dark:text-gray-300">
+                  确定要清空所有审计日志吗？此操作不可恢复。
+                </p>
+                <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                  当前共有 {{ auditLogsTotal }} 条记录
+                </p>
+                <div class="flex justify-end space-x-3">
+                  <BaseButton variant="secondary" size="sm" @click="showClearAuditLogsConfirm = false">
+                    取消
+                  </BaseButton>
+                  <BaseButton
+                    variant="danger"
+                    size="sm"
+                    :loading="clearAuditLogsLoading"
+                    @click="confirmClearAuditLogs"
+                  >
+                    确认清空
+                  </BaseButton>
+                </div>
               </div>
             </div>
           </div>
@@ -2078,6 +2561,253 @@ watch(activeTab, (tab) => {
                 >
                   保存
                 </BaseButton>
+              </div>
+            </div>
+          </div>
+
+          <!-- 数据备份与恢复 -->
+          <div class="farm-card-enhanced p-5">
+            <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+              <div class="admin-section-icon">
+                <div class="i-carbon-archive" />
+              </div>
+              <span>数据备份与恢复</span>
+              <div class="admin-section-divider" />
+            </h4>
+
+            <div class="space-y-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    导出核心数据
+                  </p>
+                  <p class="mt-1 text-xs" style="color: color-mix(in srgb, var(--theme-text) 50%, transparent)">
+                    下载包含用户、卡密、账号、配置等核心数据的备份文件
+                  </p>
+                </div>
+                <BaseButton
+                  variant="primary"
+                  size="sm"
+                  :loading="backupLoading"
+                  :disabled="!backupData"
+                  @click="downloadBackup"
+                >
+                  下载备份
+                </BaseButton>
+              </div>
+
+              <div class="border-t border-gray-200 dark:border-gray-700" />
+
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    导入备份数据
+                  </p>
+                  <p class="mt-1 text-xs" style="color: color-mix(in srgb, var(--theme-text) 50%, transparent)">
+                    选择之前下载的备份文件进行恢复，导入后建议重启服务
+                  </p>
+                </div>
+                <label class="cursor-pointer">
+                  <BaseButton
+                    variant="secondary"
+                    size="sm"
+                    :loading="importLoading"
+                    @click="importFileInput?.click()"
+                  >
+                    上传恢复
+                  </BaseButton>
+                  <input
+                    ref="importFileInput"
+                    type="file"
+                    accept=".json,application/json"
+                    class="hidden"
+                    @change="handleImportFile"
+                  >
+                </label>
+              </div>
+            </div>
+
+            <!-- 导入确认弹窗 -->
+            <div
+              v-if="showImportConfirm"
+              class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+              @click.self="showImportConfirm = false"
+            >
+              <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+                <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                  确认恢复备份
+                </h2>
+                <p class="mb-4 text-gray-600 dark:text-gray-300">
+                  导入备份将覆盖当前系统中的核心数据，此操作不可恢复。请确认备份文件来源可靠。
+                </p>
+                <div class="flex justify-end space-x-3">
+                  <BaseButton variant="secondary" size="sm" @click="showImportConfirm = false">
+                    取消
+                  </BaseButton>
+                  <BaseButton
+                    variant="danger"
+                    size="sm"
+                    :loading="importLoading"
+                    @click="confirmImport"
+                  >
+                    确认恢复
+                  </BaseButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- IP 黑名单 -->
+          <div class="farm-card-enhanced p-5">
+            <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+              <div class="admin-section-icon">
+                <div class="i-carbon-security" />
+              </div>
+              <span>IP 黑名单</span>
+              <div class="admin-section-divider" />
+            </h4>
+
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-12">
+                <div class="sm:col-span-4">
+                  <BaseInput
+                    v-model="newBlacklistIp"
+                    placeholder="输入要封禁的 IP 地址"
+                  />
+                </div>
+                <div class="sm:col-span-4">
+                  <BaseInput
+                    v-model="newBlacklistReason"
+                    placeholder="封禁原因（可选）"
+                  />
+                </div>
+                <div class="flex items-center gap-3 sm:col-span-4">
+                  <BaseInput
+                    v-model.number="newBlacklistDuration"
+                    type="number"
+                    min="1"
+                    placeholder="封禁时长（分钟）"
+                    :disabled="newBlacklistPermanent"
+                    class="flex-1"
+                  />
+                  <label class="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                    <input
+                      v-model="newBlacklistPermanent"
+                      type="checkbox"
+                      class="border-gray-300 rounded text-blue-600 focus:ring-blue-500"
+                    >
+                    永久
+                  </label>
+                </div>
+              </div>
+              <div class="flex justify-end gap-2">
+                <BaseButton
+                  variant="danger"
+                  size="sm"
+                  :loading="addBlacklistLoading"
+                  @click="addIpBlacklist"
+                >
+                  封禁 IP
+                </BaseButton>
+                <BaseButton
+                  variant="secondary"
+                  size="sm"
+                  :disabled="ipBlacklist.length === 0"
+                  @click="openClearBlacklistConfirm"
+                >
+                  清空全部
+                </BaseButton>
+              </div>
+
+              <div class="admin-log-area farm-card-enhanced overflow-hidden">
+                <div class="overflow-x-auto">
+                  <table class="admin-table min-w-full text-left text-sm">
+                    <thead class="admin-table-head">
+                      <tr>
+                        <th class="px-4 py-3 font-bold">
+                          🌐 IP地址
+                        </th>
+                        <th class="px-4 py-3 font-bold">
+                          📝 原因
+                        </th>
+                        <th class="px-4 py-3 font-bold">
+                          ⏰ 剩余时间
+                        </th>
+                        <th class="px-4 py-3 font-bold">
+                          类型
+                        </th>
+                        <th class="px-4 py-3 text-right font-bold">
+                          操作
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="admin-table-body">
+                      <tr v-if="ipBlacklistLoading">
+                        <td colspan="5" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                          加载中...
+                        </td>
+                      </tr>
+                      <tr v-else-if="ipBlacklist.length === 0">
+                        <td colspan="5" class="px-4 py-8 text-center" style="color: color-mix(in srgb, var(--theme-text) 40%, transparent)">
+                          暂无封禁记录
+                        </td>
+                      </tr>
+                      <tr v-for="(entry, index) in ipBlacklist" :key="entry.ip" class="admin-table-row" :class="index % 2 === 0 ? 'row-even' : 'row-odd'">
+                        <td class="whitespace-nowrap px-4 py-3">
+                          <code class="admin-code-bg rounded-lg px-2.5 py-1 text-xs font-mono">{{ entry.ip }}</code>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: var(--theme-text)">
+                          {{ entry.reason || '-' }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-sm" style="color: color-mix(in srgb, var(--theme-text) 60%, transparent)">
+                          {{ formatRemainingTime(entry.expiresAt) }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3">
+                          <span
+                            class="admin-badge inline-flex rounded-full px-2.5 py-1 text-xs font-bold"
+                            :class="entry.autoBlocked ? 'badge-purple' : 'badge-blue'"
+                          >
+                            {{ entry.autoBlocked ? '自动封禁' : '手动封禁' }}
+                          </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-3 text-right text-sm">
+                          <button class="admin-table-btn admin-table-btn-primary" @click="removeIpBlacklist(entry.ip)">
+                            解封
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- 清空黑名单确认弹窗 -->
+            <div
+              v-if="showClearBlacklistConfirm"
+              class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+              @click.self="showClearBlacklistConfirm = false"
+            >
+              <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+                <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                  确认清空 IP 黑名单
+                </h2>
+                <p class="mb-4 text-gray-600 dark:text-gray-300">
+                  确定要清空所有 IP 黑名单记录吗？此操作不可恢复。
+                </p>
+                <div class="flex justify-end space-x-3">
+                  <BaseButton variant="secondary" size="sm" @click="showClearBlacklistConfirm = false">
+                    取消
+                  </BaseButton>
+                  <BaseButton
+                    variant="danger"
+                    size="sm"
+                    :loading="clearBlacklistLoading"
+                    @click="confirmClearBlacklist"
+                  >
+                    确认清空
+                  </BaseButton>
+                </div>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
-export {};
-import type { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import type { AdminContext } from './context';
+export {};
 
 /**
  * Admin middleware and helper functions.

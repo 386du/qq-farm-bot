@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const { getDataFile, ensureDataDir } = require('../../config/runtime-paths');
 
 const auth = require('./auth');
+const ipBlacklist = require('../ip-blacklist');
 
 const USERS_FILE: string = getDataFile('users.json');
 const CARDS_FILE: string = getDataFile('cards.json');
@@ -171,6 +172,15 @@ function initDefaultAdmin(): void {
 function validateUser(username: string, password: string, ip: string = 'unknown'): ValidationResult {
     loadUsers();
     auth.loadLoginAttempts();
+
+    const ipBlockResult = ipBlacklist.isBlocked(ip);
+    if (ipBlockResult.blocked) {
+        return {
+            error: 'ip_blocked',
+            message: `IP 已被封禁：${ipBlockResult.reason}${ipBlockResult.remainingMs ? `，剩余 ${Math.ceil(ipBlockResult.remainingMs / 1000 / 60)} 分钟` : ''}`,
+            remainingMs: ipBlockResult.remainingMs,
+        };
+    }
 
     const rateLimitResult = auth.checkRateLimit(ip);
     if (!rateLimitResult.allowed) {

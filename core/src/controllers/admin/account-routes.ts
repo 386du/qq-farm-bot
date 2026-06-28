@@ -1,6 +1,6 @@
-export {};
 import type { Application, Request, Response } from 'express';
 import type { AdminContext } from './context';
+export {};
 
 /**
  * Account CRUD routes, account-logs, logs, and settings routes.
@@ -10,6 +10,7 @@ const store = require('../../models/store');
 const { addOrUpdateAccount, deleteAccount } = store;
 const { findAccountByRef } = require('../../services/account-resolver');
 const userStore = require('../../models/user-store');
+const auditLog = require('../../models/audit-log');
 
 const {
     getAccId,
@@ -18,9 +19,15 @@ const {
     handleApiError,
     getAccountList,
     resolveAccId,
+    getClientIp,
 } = require('./middleware');
 
 function mountAccountRoutes(app: Application, ctx: AdminContext): void {
+
+    function audit(event: string, req: Request, details?: Record<string, any>): void {
+        const username = (req as any).currentUser?.username || 'unknown';
+        auditLog.log(event, username, getClientIp(req), details);
+    }
 
     // API: 账号管理
     app.get('/api/accounts', (req: Request, res: Response) => {
@@ -74,6 +81,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider && ctx.provider.addAccountLog) {
                 ctx.provider.addAccountLog('update', `更新账号备注: ${remark}`, accountId, remark);
             }
+            audit('account_remark_updated', req, { accountId, remark });
             res.json({ ok: true, data });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
@@ -135,16 +143,25 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
             }
 
             const data = addOrUpdateAccount(payload);
+            const touchedAccountId = isUpdate
+                ? String(payload.id)
+                : String((data.accounts[data.accounts.length - 1] || {}).id || '');
+            const touchedAccountName = payload.name || '';
+
             if (ctx.provider.addAccountLog) {
-                const accountId = isUpdate ? String(payload.id) : String((data.accounts[data.accounts.length - 1] || {}).id || '');
-                const accountName = payload.name || '';
                 ctx.provider.addAccountLog(
                     isUpdate ? 'update' : 'add',
-                    isUpdate ? `更新账号: ${accountName || accountId}` : `添加账号: ${accountName || accountId}`,
-                    accountId,
-                    accountName
+                    isUpdate ? `更新账号: ${touchedAccountName || touchedAccountId}` : `添加账号: ${touchedAccountName || touchedAccountId}`,
+                    touchedAccountId,
+                    touchedAccountName,
                 );
             }
+
+            audit(isUpdate ? 'account_updated' : 'account_added', req, {
+                accountId: touchedAccountId,
+                accountName: touchedAccountName,
+            });
+
             // 如果是新增，自动启动
             if (!isUpdate) {
                 const newAcc = data.accounts[data.accounts.length - 1];
@@ -175,6 +192,10 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider.addAccountLog) {
                 ctx.provider.addAccountLog('delete', `删除账号: ${(target && target.name) || req.params.id}`, resolvedId, target ? target.name : '');
             }
+            audit('account_deleted', req, {
+                accountId: resolvedId,
+                accountName: target ? target.name : '',
+            });
             res.json({ ok: true, data });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
@@ -315,6 +336,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
 
         try {
             const data = await ctx.provider.saveSettings(id, req.body || {});
+            audit('account_settings_saved', req, { accountId: id });
             res.json({ ok: true, data: data || {} });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
@@ -326,6 +348,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
         try {
             const theme = String((req.body || {}).theme || '');
             const data = await ctx.provider.setUITheme(theme);
+            audit('theme_changed', req, { theme });
             res.json({ ok: true, data: data || {} });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });

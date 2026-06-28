@@ -1,8 +1,8 @@
-export {};
 /**
  * Proto 加载与消息类型管理
  */
 import type protobuf from 'protobufjs';
+export {};
 
 const protobufModule = require('protobufjs');
 const { getResourcePath } = require('../config/runtime-paths');

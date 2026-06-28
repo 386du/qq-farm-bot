@@ -90,7 +90,7 @@ const panelStyle = computed(() => ({
     <div v-if="show" class="fixed inset-0 z-50">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click.self="close" />
       <div
-        class="z-10 absolute left-1/2 top-1/2 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl"
+        class="absolute left-1/2 top-1/2 z-10 max-w-md w-[calc(100%-2rem)] flex flex-col rounded-2xl -translate-x-1/2 -translate-y-1/2"
         :style="panelStyle"
         @click.stop
       >

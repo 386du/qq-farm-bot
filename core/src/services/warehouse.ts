@@ -1,9 +1,9 @@
-export {};
 /**
  * 仓库系统 - 自动出售果实
  * 协议说明：BagReply 使用 item_bag（ItemBag），item_bag.items 才是背包物品列表
  */
 import type protobuf from 'protobufjs';
+export {};
 
 const protobufModule = require('protobufjs');
 const { getFruitName, getPlantByFruitId, getPlantBySeedId, getItemById, getItemImageById, getSeedImageBySeedId, parseSells } = require('../config/gameConfig');

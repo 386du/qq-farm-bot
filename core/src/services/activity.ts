@@ -61,10 +61,10 @@ async function operateActivity(activityId: number, operateType: number = 0, para
  * 解析 varint
  */
 function readVarint(buf: Buffer, offset: number): { value: number; next: number } | null {
-    let result = 0, shift = 0, pos = offset;
+    let result = 0; let shift = 0; let pos = offset;
     while (pos < buf.length) {
         const b = buf[pos]; pos++;
-        result |= (b & 0x7f) << shift;
+        result |= (b & 0x7F) << shift;
         if ((b & 0x80) === 0) break;
         shift += 7;
     }
@@ -83,7 +83,7 @@ function parseDrawInfo(data: Buffer | null): any {
         while (off < data.length) {
             const tag = readVarint(data, off);
             if (!tag) break;
-            const fn = tag.value >> 3, wt = tag.value & 0x7;
+            const fn = tag.value >> 3; const wt = tag.value & 0x7;
             if (fn === 105 && wt === 2) {
                 const len = readVarint(data, tag.next);
                 if (!len) break;
@@ -109,7 +109,7 @@ function parseDrawConfig(buf: Buffer, start: number, end: number): any {
     while (off < end) {
         const tag = readVarint(buf, off);
         if (!tag) break;
-        const fn = tag.value >> 3, wt = tag.value & 0x7;
+        const fn = tag.value >> 3; const wt = tag.value & 0x7;
 
         if (wt === 0) {
             const v = readVarint(buf, tag.next);
@@ -146,7 +146,7 @@ function parsePrizeItem(buf: Buffer, start: number, end: number): any {
     while (off < end) {
         const tag = readVarint(buf, off);
         if (!tag) break;
-        const fn = tag.value >> 3, wt = tag.value & 0x7;
+        const fn = tag.value >> 3; const wt = tag.value & 0x7;
 
         if (wt === 0) {
             const v = readVarint(buf, tag.next);
@@ -202,7 +202,7 @@ function parseRewards(rewards: Buffer | null): any[] {
         while (off < rewards.length) {
             const tag = readVarint(rewards, off);
             if (!tag) break;
-            const fn = tag.value >> 3, wt = tag.value & 0x7;
+            const fn = tag.value >> 3; const wt = tag.value & 0x7;
             if (wt === 2) {
                 const len = readVarint(rewards, tag.next);
                 if (!len) break;

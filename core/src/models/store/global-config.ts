@@ -1,5 +1,5 @@
+import type { AccountConfig, Announcement, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
 export {};
-import type { AccountConfig, OfflineReminder, UIConfig, SystemConfig, Announcement, GlobalConfig, YybConfig } from '../../types/config';
 
 const fs = require('node:fs');
 const { readTextFile, writeJsonFileAtomic } = require('../../services/json-db');

@@ -477,7 +477,7 @@ function handleNotify(msg: any): void {
                 const notify = types.SkinChangeNotify.decode(eventBody);
                 networkEvents.emit('skinChanged', notify);
             } catch {}
-            return;
+            
         }
     } catch (e: any) {
         logWarn('推送', `解码失败: ${e.message}`);
