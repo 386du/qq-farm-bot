@@ -120,6 +120,9 @@ const addAccountDisabledReason = computed(() => {
 
 const stoppedAccounts = computed(() => accounts.value.filter((acc: any) => !acc.running))
 const stoppedAccountsCount = computed(() => stoppedAccounts.value.length)
+const runningAccounts = computed(() => accounts.value.filter((acc: any) => acc.running))
+const runningAccountsCount = computed(() => runningAccounts.value.length)
+const hasRunningAccounts = computed(() => runningAccountsCount.value > 0)
 
 onMounted(async () => {
   await accountStore.fetchAccounts()
@@ -251,6 +254,41 @@ async function startAllAccounts() {
   }
   finally {
     startAllLoading.value = false
+  }
+}
+
+async function stopAllAccounts() {
+  const targets = runningAccounts.value
+  if (targets.length === 0) {
+    showAlert('没有运行中的账号需要停止', 'primary')
+    return
+  }
+  startAllLoading.value = true
+  let successCount = 0
+  try {
+    for (const acc of targets) {
+      try {
+        await accountStore.stopAccount(acc.id)
+        successCount++
+      }
+      catch (e) {
+        console.error(`停止账号 ${acc.id} 失败:`, e)
+      }
+    }
+    showAlert(`一键停止完成，成功 ${successCount}/${targets.length}`, 'primary')
+    await accountStore.fetchAccounts()
+  }
+  finally {
+    startAllLoading.value = false
+  }
+}
+
+function handleToggleAllAccounts() {
+  if (hasRunningAccounts.value) {
+    stopAllAccounts()
+  }
+  else {
+    startAllAccounts()
   }
 }
 
@@ -983,23 +1021,23 @@ async function handleTestOffline() {
               <BaseButton
                 variant="primary"
                 size="sm"
+                :loading="startAllLoading"
+                :disabled="accounts.length === 0"
+                @click="handleToggleAllAccounts"
+              >
+                <span class="mr-2">{{ hasRunningAccounts ? '⏹️' : '▶️' }}</span>
+                {{ hasRunningAccounts ? '一键停止' : '一键启动' }}
+                <span class="ml-1">({{ hasRunningAccounts ? runningAccountsCount : stoppedAccountsCount }})</span>
+              </BaseButton>
+              <BaseButton
+                variant="secondary"
+                size="sm"
                 :disabled="isAddAccountDisabled"
                 :title="addAccountDisabledReason"
                 @click="openAddModal()"
               >
                 <span class="mr-2">➕</span>
                 添加账号
-              </BaseButton>
-              <BaseButton
-                variant="success"
-                size="sm"
-                :loading="startAllLoading"
-                :disabled="stoppedAccountsCount === 0 || isAccountOpsDisabled"
-                @click="startAllAccounts"
-              >
-                <span class="mr-2">▶️</span>
-                一键启动
-                <span v-if="stoppedAccountsCount > 0" class="ml-1">({{ stoppedAccountsCount }})</span>
               </BaseButton>
             </div>
           </div>
@@ -1073,7 +1111,8 @@ async function handleTestOffline() {
                     variant="secondary"
                     size="sm"
                     class="border rounded-full shadow-sm transition-all duration-500 ease-in-out sm:w-20 active:scale-95"
-                    :class="acc.running ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 focus:ring-red-500 active:border-red-300 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 dark:focus:ring-red-500 dark:active:border-red-700' : 'border-green-200 bg-green-50 text-green-600 hover:bg-green-100 focus:ring-green-500 active:border-green-300 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30 dark:focus:ring-green-500 dark:active:border-green-700'"
+                    :class="acc.running ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 focus:ring-red-500 active:border-red-300 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 dark:focus:ring-red-500 dark:active:border-red-700' : 'border-current bg-current/10 hover:bg-current/20 focus:ring-current active:current/30 dark:bg-current/20 dark:hover:bg-current/30'"
+                    :style="acc.running ? {} : { borderColor: 'color-mix(in srgb, var(--theme-primary) 30%, transparent)', color: 'var(--theme-primary)', backgroundColor: 'color-mix(in srgb, var(--theme-primary) 10%, transparent)' }"
                     :disabled="!acc.running && isAccountOpsDisabled"
                     :title="!acc.running && isAccountOpsDisabled ? '账号已到期，无法启动账号' : ''"
                     @click="toggleAccount(acc)"
