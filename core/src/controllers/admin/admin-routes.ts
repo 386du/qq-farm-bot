@@ -296,6 +296,60 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // ============ 账号全局管理 API（仅管理员） ============
+    // 获取所有账号
+    app.get('/api/admin/accounts', authRequired, adminRequired, (_req: Request, res: Response) => {
+        try {
+            const accountData = ctx.provider && typeof ctx.provider.getAccounts === 'function'
+                ? ctx.provider.getAccounts()
+                : store.getAccounts();
+            res.json({ ok: true, data: accountData?.accounts || [] });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 启动指定账号
+    app.post('/api/admin/accounts/:id/start', authRequired, adminRequired, (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            if (ctx.provider && typeof ctx.provider.startAccount === 'function') {
+                ctx.provider.startAccount(id);
+                res.json({ ok: true });
+            } else {
+                res.status(500).json({ ok: false, error: '账号启动功能不可用' });
+            }
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 停止指定账号
+    app.post('/api/admin/accounts/:id/stop', authRequired, adminRequired, (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            if (ctx.provider && typeof ctx.provider.stopAccount === 'function') {
+                ctx.provider.stopAccount(id);
+                res.json({ ok: true });
+            } else {
+                res.status(500).json({ ok: false, error: '账号停止功能不可用' });
+            }
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 删除指定账号
+    app.delete('/api/admin/accounts/:id', authRequired, adminRequired, (req: Request, res: Response) => {
+        try {
+            const { id } = req.params;
+            store.deleteAccount(id);
+            res.json({ ok: true });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
     // ============ 用户管理 API（仅管理员） ============
     // 获取所有用户
     app.get('/api/admin/users', authRequired, adminRequired, (_req: Request, res: Response) => {

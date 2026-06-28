@@ -12,8 +12,8 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const toast = useToastStore()
 
-const activeTab = ref<'dashboard' | 'card' | 'user' | 'log' | 'system'>(
-  (localStorage.getItem('admin-active-tab') as 'dashboard' | 'card' | 'user' | 'log' | 'system') || 'dashboard',
+const activeTab = ref<'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system'>(
+  (localStorage.getItem('admin-active-tab') as 'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system') || 'dashboard',
 )
 
 watch(activeTab, (newTab) => {
@@ -24,6 +24,7 @@ const tabs = [
   { key: 'dashboard', label: '仪表盘', icon: 'i-carbon-dashboard' },
   { key: 'card', label: '卡密', icon: 'i-carbon-ticket' },
   { key: 'user', label: '用户', icon: 'i-carbon-user-admin' },
+  { key: 'account', label: '账号', icon: 'i-carbon-server' },
   { key: 'log', label: '日志', icon: 'i-carbon-document' },
   { key: 'system', label: '系统', icon: 'i-carbon-settings' },
 ] as const
@@ -623,6 +624,82 @@ function isExpired(card: UserCard | null) {
   return Date.now() > card.expiresAt
 }
 
+// ========== 账号全局管理 ==========
+interface AdminAccount {
+  id: string
+  name: string
+  uin: string
+  qq: string
+  platform: string
+  username: string
+  running: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+const adminAccounts = ref<AdminAccount[]>([])
+const adminAccountsLoading = ref(false)
+const accountToDelete = ref<AdminAccount | null>(null)
+const showDeleteAccountConfirm = ref(false)
+
+async function fetchAdminAccounts() {
+  adminAccountsLoading.value = true
+  try {
+    const res = await api.get('/api/admin/accounts')
+    if (res.data?.ok) {
+      adminAccounts.value = res.data.data || []
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '获取账号列表失败')
+  }
+  finally {
+    adminAccountsLoading.value = false
+  }
+}
+
+async function startAdminAccount(acc: AdminAccount) {
+  try {
+    await api.post(`/api/admin/accounts/${acc.id}/start`)
+    toast.success('启动指令已发送')
+    await fetchAdminAccounts()
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '启动失败')
+  }
+}
+
+async function stopAdminAccount(acc: AdminAccount) {
+  try {
+    await api.post(`/api/admin/accounts/${acc.id}/stop`)
+    toast.success('停止指令已发送')
+    await fetchAdminAccounts()
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '停止失败')
+  }
+}
+
+function confirmDeleteAdminAccount(acc: AdminAccount) {
+  accountToDelete.value = acc
+  showDeleteAccountConfirm.value = true
+}
+
+async function deleteAdminAccount() {
+  if (!accountToDelete.value)
+    return
+  try {
+    await api.delete(`/api/admin/accounts/${accountToDelete.value.id}`)
+    showDeleteAccountConfirm.value = false
+    accountToDelete.value = null
+    toast.success('删除成功')
+    await fetchAdminAccounts()
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '删除失败')
+  }
+}
+
 // ========== 登录日志 ==========
 interface LoginLog {
   id: string
@@ -921,6 +998,7 @@ onMounted(() => {
   }
   fetchCards()
   fetchUsers()
+  fetchAdminAccounts()
   fetchLoginLogs()
   loadSystemConfig()
   loadDevicePresets()
@@ -938,6 +1016,9 @@ watch(activeTab, (tab) => {
   }
   else {
     stopDashboardTimer()
+  }
+  if (tab === 'account') {
+    fetchAdminAccounts()
   }
 })
 </script>
@@ -1614,6 +1695,111 @@ watch(activeTab, (tab) => {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- 账号全局管理 -->
+        <div v-else-if="activeTab === 'account'" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg text-gray-900 font-bold dark:text-gray-100">
+              账号全局管理
+            </h3>
+            <BaseButton variant="primary" size="sm" @click="fetchAdminAccounts">
+              刷新
+            </BaseButton>
+          </div>
+
+          <div v-if="adminAccountsLoading" class="py-8 text-center text-gray-500">
+            <div i-svg-spinners-90-ring-with-bg class="mb-2 inline-block text-2xl" />
+            <div>加载中...</div>
+          </div>
+
+          <div v-else class="farm-card overflow-hidden border border-gray-200 rounded-2xl shadow-md dark:border-gray-700">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      账号
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      平台
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      所属用户
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      状态
+                    </th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                  <tr v-for="acc in adminAccounts" :key="acc.id">
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 font-medium dark:text-white">
+                      <div>{{ acc.name || acc.uin || acc.id }}</div>
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ acc.uin || acc.qq || '-' }}
+                      </div>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {{ acc.platform || '-' }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {{ acc.username || '-' }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2">
+                      <span
+                        class="inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5"
+                        :class="acc.running ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'"
+                      >
+                        <span class="h-1.5 w-1.5 rounded-full" :class="acc.running ? 'bg-green-500' : 'bg-gray-400'" />
+                        {{ acc.running ? '运行中' : '已停止' }}
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
+                      <button
+                        v-if="!acc.running"
+                        class="mr-3 text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
+                        @click="startAdminAccount(acc)"
+                      >
+                        启动
+                      </button>
+                      <button
+                        v-else
+                        class="mr-3 text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300"
+                        @click="stopAdminAccount(acc)"
+                      >
+                        停止
+                      </button>
+                      <button
+                        class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                        @click="confirmDeleteAdminAccount(acc)"
+                      >
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="adminAccounts.length === 0">
+                    <td colspan="5" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
+                      暂无账号
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <ConfirmModal
+            :show="showDeleteAccountConfirm"
+            title="删除账号"
+            :message="`确定要删除账号 ${accountToDelete?.name || accountToDelete?.uin || accountToDelete?.id} 吗？此操作不可恢复。`"
+            type="danger"
+            confirm-text="删除"
+            @confirm="deleteAdminAccount"
+            @cancel="showDeleteAccountConfirm = false; accountToDelete = null"
+          />
         </div>
 
         <!-- 登录日志 -->
