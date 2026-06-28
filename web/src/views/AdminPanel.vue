@@ -12,8 +12,10 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const toast = useToastStore()
 
-const activeTab = ref<'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system'>(
-  (localStorage.getItem('admin-active-tab') as 'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system') || 'dashboard',
+type AdminTab = 'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system' | 'session'
+
+const activeTab = ref<AdminTab>(
+  (localStorage.getItem('admin-active-tab') as AdminTab) || 'dashboard',
 )
 
 watch(activeTab, (newTab) => {
@@ -21,13 +23,24 @@ watch(activeTab, (newTab) => {
 })
 
 const tabs = [
-  { key: 'dashboard', label: '仪表盘', icon: 'i-carbon-dashboard' },
-  { key: 'card', label: '卡密', icon: 'i-carbon-ticket' },
-  { key: 'user', label: '用户', icon: 'i-carbon-user-admin' },
-  { key: 'account', label: '账号', icon: 'i-carbon-server' },
-  { key: 'log', label: '日志', icon: 'i-carbon-document' },
-  { key: 'system', label: '系统', icon: 'i-carbon-settings' },
+  { key: 'dashboard', label: '仪表盘', icon: 'i-carbon-dashboard', permission: 'dashboard:read' },
+  { key: 'card', label: '卡密', icon: 'i-carbon-ticket', permission: 'card:*' },
+  { key: 'user', label: '用户', icon: 'i-carbon-user-admin', permission: 'user:read' },
+  { key: 'account', label: '账号', icon: 'i-carbon-server', permission: 'account:read' },
+  { key: 'session', label: '会话', icon: 'i-carbon-events', permission: 'session:read' },
+  { key: 'log', label: '日志', icon: 'i-carbon-document', permission: 'log:read' },
+  { key: 'system', label: '系统', icon: 'i-carbon-settings', permission: 'system:*' },
 ] as const
+
+const visibleTabs = computed(() => tabs.filter(tab => userStore.hasPermission(tab.permission)))
+
+// 如果当前标签没有权限，自动切换到第一个有权限的标签
+watch(visibleTabs, (list) => {
+  const first = list[0]
+  if (first && !list.some(t => t.key === activeTab.value)) {
+    activeTab.value = first.key
+  }
+}, { immediate: true })
 
 const modalVisible = ref(false)
 const modalConfig = ref({
@@ -484,8 +497,36 @@ interface EditForm {
   newUsername: string
   password: string
   accountLimit: number
+  role: string
   expiresAt: string
   isPermanent: boolean
+}
+
+interface RoleOption {
+  value: string
+  label: string
+}
+
+const roleLabels: Record<string, string> = {
+  admin: '超级管理员',
+  operator: '运营人员',
+  viewer: '只读管理员',
+  user: '普通用户',
+}
+
+const roleBadgeColors: Record<string, string> = {
+  admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  operator: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  viewer: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  user: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+}
+
+function getRoleLabel(role: string): string {
+  return roleLabels[role] || role
+}
+
+function getRoleBadgeColor(role: string): string {
+  return (roleBadgeColors[role] || roleBadgeColors.user) as string
 }
 
 const users = ref<UserInfo[]>([])
@@ -496,9 +537,11 @@ const editForm = ref<EditForm>({
   newUsername: '',
   password: '',
   accountLimit: 2,
+  role: 'user',
   expiresAt: '',
   isPermanent: false,
 })
+const availableRoles = ref<RoleOption[]>([])
 const editLoading = ref(false)
 
 const currentUsername = computed(() => userStore.username)
@@ -519,6 +562,18 @@ async function fetchUsers() {
   }
   finally {
     usersLoading.value = false
+  }
+}
+
+async function fetchRoles() {
+  try {
+    const res = await api.get('/api/admin/roles')
+    if (res.data.ok) {
+      availableRoles.value = res.data.data
+    }
+  }
+  catch {
+    availableRoles.value = []
   }
 }
 
@@ -564,9 +619,11 @@ function openEditModal(user: UserInfo) {
     newUsername: user.username,
     password: '',
     accountLimit: user.accountLimit || 2,
+    role: user.role || 'user',
     expiresAt: user.card?.expiresAt ? formatDateTimeLocal(user.card.expiresAt) : '',
     isPermanent: user.card?.days === -1,
   }
+  fetchRoles()
   showEditModal.value = true
 }
 
@@ -592,6 +649,7 @@ async function handleEdit() {
 
     const updateData: Record<string, any> = {
       accountLimit: editForm.value.accountLimit,
+      role: editForm.value.role,
       expiresAt: expiresAtValue,
       isPermanent: editForm.value.isPermanent,
     }
@@ -602,6 +660,10 @@ async function handleEdit() {
 
     if (editForm.value.password) {
       updateData.password = editForm.value.password
+    }
+
+    if (editForm.value.role === selectedUser.value.role) {
+      delete updateData.role
     }
 
     const res = await api.post(`/api/admin/users/${selectedUser.value.username}/edit`, updateData)
@@ -708,6 +770,138 @@ async function deleteAdminAccount() {
   }
   catch (e: any) {
     toast.error(e?.response?.data?.error || '删除失败')
+  }
+}
+
+// ========== 在线会话管理 ==========
+interface SessionInfo {
+  token: string
+  username: string
+  role: string
+  ip?: string
+  userAgent?: string
+  createdAt: number
+  lastActivityAt: number
+  online: boolean
+}
+
+const sessions = ref<SessionInfo[]>([])
+const sessionsLoading = ref(false)
+const sessionsTimer = ref<number | null>(null)
+const sessionSearch = ref('')
+const sessionToRevoke = ref<SessionInfo | null>(null)
+const showRevokeSessionConfirm = ref(false)
+const revokeSessionLoading = ref(false)
+const userSessionsToRevoke = ref('')
+const showRevokeUserSessionsConfirm = ref(false)
+const revokeUserSessionsLoading = ref(false)
+
+const filteredSessions = computed(() => {
+  let result = sessions.value
+  const query = sessionSearch.value.trim().toLowerCase()
+  if (query) {
+    result = result.filter(s =>
+      s.username.toLowerCase().includes(query)
+      || (s.ip || '').toLowerCase().includes(query)
+      || (s.userAgent || '').toLowerCase().includes(query)
+      || s.token.toLowerCase().includes(query),
+    )
+  }
+  return result
+})
+
+const currentToken = computed(() => userStore.token)
+
+async function fetchSessions() {
+  sessionsLoading.value = true
+  try {
+    const result = await userStore.getSessions()
+    if (result.ok) {
+      sessions.value = result.data || []
+    }
+    else {
+      toast.error(result.error || '获取会话列表失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '获取会话列表失败')
+  }
+  finally {
+    sessionsLoading.value = false
+  }
+}
+
+async function revokeSession(session: SessionInfo) {
+  if (session.token === currentToken.value) {
+    toast.error('不能强制下线当前会话')
+    return
+  }
+  revokeSessionLoading.value = true
+  try {
+    const result = await userStore.revokeSession(session.token)
+    if (result.ok) {
+      toast.success('会话已强制下线')
+      showRevokeSessionConfirm.value = false
+      sessionToRevoke.value = null
+      await fetchSessions()
+    }
+    else {
+      toast.error(result.error || '操作失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '操作失败')
+  }
+  finally {
+    revokeSessionLoading.value = false
+  }
+}
+
+function confirmRevokeSession(session: SessionInfo) {
+  sessionToRevoke.value = session
+  showRevokeSessionConfirm.value = true
+}
+
+async function revokeAllUserSessions() {
+  const username = userSessionsToRevoke.value.trim()
+  if (!username) {
+    toast.error('请输入用户名')
+    return
+  }
+  if (username === userStore.username) {
+    toast.error('不能强制下线自己的全部会话')
+    return
+  }
+  revokeUserSessionsLoading.value = true
+  try {
+    const result = await userStore.revokeUserSessions(username)
+    if (result.ok) {
+      toast.success(`已强制下线 ${username} 的全部会话`)
+      showRevokeUserSessionsConfirm.value = false
+      userSessionsToRevoke.value = ''
+      await fetchSessions()
+    }
+    else {
+      toast.error(result.error || '操作失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || '操作失败')
+  }
+  finally {
+    revokeUserSessionsLoading.value = false
+  }
+}
+
+function startSessionsTimer() {
+  stopSessionsTimer()
+  sessionsTimer.value = window.setInterval(fetchSessions, 10000)
+}
+
+function stopSessionsTimer() {
+  if (sessionsTimer.value) {
+    clearInterval(sessionsTimer.value)
+    sessionsTimer.value = null
   }
 }
 
@@ -981,6 +1175,8 @@ function isAuditEventDanger(event: string): boolean {
     'system_config_reset',
     'cleanup_run',
     'password_reset',
+    'session_revoked',
+    'user_sessions_revoked',
   ].includes(event)
 }
 
@@ -1019,6 +1215,8 @@ function getAuditEventLabel(event: string): string {
     audit_logs_cleared: '清空审计日志',
     cleanup_run: '执行系统清理',
     theme_changed: '切换主题',
+    session_revoked: '强制下线会话',
+    user_sessions_revoked: '强制下线用户全部会话',
   }
   return labels[event] || event
 }
@@ -1539,6 +1737,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopDashboardTimer()
+  stopSessionsTimer()
 })
 
 watch(activeTab, (tab) => {
@@ -1560,6 +1759,13 @@ watch(activeTab, (tab) => {
     fetchBackup()
     fetchIpBlacklist()
   }
+  if (tab === 'session') {
+    fetchSessions()
+    startSessionsTimer()
+  }
+  else {
+    stopSessionsTimer()
+  }
 })
 </script>
 
@@ -1579,7 +1785,7 @@ watch(activeTab, (tab) => {
       <div class="admin-tabs-nav">
         <nav class="flex gap-2 p-2">
           <button
-            v-for="tab in tabs"
+            v-for="tab in visibleTabs"
             :key="tab.key"
             class="admin-tab flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300"
             :class="activeTab === tab.key
@@ -1696,14 +1902,19 @@ watch(activeTab, (tab) => {
               <BaseButton variant="secondary" size="sm" @click="fetchCards">
                 刷新
               </BaseButton>
-              <BaseButton variant="primary" size="sm" @click="showCreateModal = true">
+              <BaseButton
+                v-if="userStore.hasPermission('card:*')"
+                variant="primary"
+                size="sm"
+                @click="showCreateModal = true"
+              >
                 创建卡密
               </BaseButton>
             </div>
           </div>
 
           <!-- 卡密领取功能开关 -->
-          <div class="admin-info-card farm-card-enhanced p-5">
+          <div v-if="userStore.hasPermission('card:*')" class="admin-info-card farm-card-enhanced p-5">
             <div class="flex items-center gap-4">
               <div class="admin-card-icon">
                 <span class="text-2xl">🎫</span>
@@ -1805,7 +2016,12 @@ watch(activeTab, (tab) => {
             <BaseButton variant="secondary" size="sm" @click="copySelectedCards">
               一键复制
             </BaseButton>
-            <BaseButton variant="danger" size="sm" @click="deleteSelectedCards">
+            <BaseButton
+              v-if="userStore.hasPermission('card:*')"
+              variant="danger"
+              size="sm"
+              @click="deleteSelectedCards"
+            >
               批量删除
             </BaseButton>
             <button
@@ -1918,10 +2134,18 @@ watch(activeTab, (tab) => {
                         <button class="admin-table-btn admin-table-btn-primary" @click="copyCode(card.code)">
                           复制
                         </button>
-                        <button class="admin-table-btn admin-table-btn-warning" @click="toggleCardStatus(card)">
+                        <button
+                          v-if="userStore.hasPermission('card:*')"
+                          class="admin-table-btn admin-table-btn-warning"
+                          @click="toggleCardStatus(card)"
+                        >
                           {{ card.enabled ? '禁用' : '启用' }}
                         </button>
-                        <button class="admin-table-btn admin-table-btn-danger" @click="deleteCard(card)">
+                        <button
+                          v-if="userStore.hasPermission('card:*')"
+                          class="admin-table-btn admin-table-btn-danger"
+                          @click="deleteCard(card)"
+                        >
                           删除
                         </button>
                       </div>
@@ -2080,9 +2304,9 @@ watch(activeTab, (tab) => {
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
                       <span
                         class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
-                        :class="user.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'"
+                        :class="getRoleBadgeColor(user.role)"
                       >
-                        {{ user.role === 'admin' ? '管理员' : '用户' }}
+                        {{ getRoleLabel(user.role) }}
                       </span>
                     </td>
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
@@ -2120,20 +2344,21 @@ watch(activeTab, (tab) => {
                     </td>
                     <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
                       <button
+                        v-if="userStore.hasPermission('user:write')"
                         class="mr-3 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                         @click="openEditModal(user)"
                       >
                         编辑
                       </button>
                       <button
-                        v-if="user.card"
+                        v-if="userStore.hasPermission('user:write') && user.card"
                         class="mr-3 text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300"
                         @click="toggleUserStatus(user)"
                       >
                         {{ user.card.enabled === false ? '解封' : '封禁' }}
                       </button>
                       <button
-                        v-if="user.username !== currentUsername"
+                        v-if="userStore.hasPermission('user:write') && user.username !== currentUsername"
                         class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                         @click="deleteUser(user)"
                       >
@@ -2184,6 +2409,23 @@ watch(activeTab, (tab) => {
                   />
                   <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     密码长度至少6位，需包含大写字母、小写字母、数字、特殊符号中的至少两种
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-1 block text-sm text-gray-700 font-medium dark:text-gray-300">
+                    角色
+                  </label>
+                  <select
+                    v-model="editForm.role"
+                    class="w-full border farm-input border-gray-200 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    :disabled="selectedUser?.username === currentUsername"
+                  >
+                    <option v-for="r in availableRoles" :key="r.value" :value="r.value">
+                      {{ r.label }}
+                    </option>
+                  </select>
+                  <p v-if="selectedUser?.username === currentUsername" class="mt-1 text-xs text-amber-500">
+                    不能修改自己的角色
                   </p>
                 </div>
                 <div>
@@ -2300,20 +2542,21 @@ watch(activeTab, (tab) => {
                     </td>
                     <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
                       <button
-                        v-if="!acc.running"
+                        v-if="userStore.hasPermission('account:control') && !acc.running"
                         class="mr-3 text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
                         @click="startAdminAccount(acc)"
                       >
                         启动
                       </button>
                       <button
-                        v-else
+                        v-else-if="userStore.hasPermission('account:control')"
                         class="mr-3 text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300"
                         @click="stopAdminAccount(acc)"
                       >
                         停止
                       </button>
                       <button
+                        v-if="userStore.hasPermission('account:control')"
                         class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                         @click="confirmDeleteAdminAccount(acc)"
                       >
@@ -2340,6 +2583,198 @@ watch(activeTab, (tab) => {
             @confirm="deleteAdminAccount"
             @cancel="showDeleteAccountConfirm = false; accountToDelete = null"
           />
+        </div>
+
+        <!-- 在线会话管理 -->
+        <div v-else-if="activeTab === 'session'" class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3 class="text-lg text-gray-900 font-bold dark:text-gray-100">
+              在线会话管理
+            </h3>
+            <div class="flex items-center gap-2">
+              <BaseButton variant="secondary" size="sm" :loading="sessionsLoading" @click="fetchSessions">
+                刷新
+              </BaseButton>
+              <BaseButton
+                v-if="userStore.hasPermission('session:delete')"
+                variant="danger"
+                size="sm"
+                @click="showRevokeUserSessionsConfirm = true"
+              >
+                批量踢人
+              </BaseButton>
+            </div>
+          </div>
+
+          <div class="farm-card items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-md dark:bg-gray-800">
+            <input
+              v-model="sessionSearch"
+              placeholder="搜索用户名、IP、浏览器或 Token..."
+              class="h-8 w-full border farm-input border-gray-300 rounded-xl bg-white px-3 text-sm text-gray-900 outline-none transition-all dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-green-500/20"
+            >
+          </div>
+
+          <div v-if="sessionsLoading" class="py-8 text-center text-gray-500">
+            <div i-svg-spinners-90-ring-with-bg class="mb-2 inline-block text-2xl" />
+            <div>加载中...</div>
+          </div>
+
+          <div v-else class="farm-card overflow-hidden border border-gray-200 rounded-2xl shadow-md dark:border-gray-700">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      用户名
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      角色
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      状态
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      IP 地址
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      浏览器
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      登录时间
+                    </th>
+                    <th class="px-3 py-2 text-left text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      最后活跃
+                    </th>
+                    <th class="px-3 py-2 text-right text-xs text-gray-500 font-medium uppercase dark:text-gray-300">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
+                  <tr v-for="session in filteredSessions" :key="session.token">
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 font-medium dark:text-white">
+                      {{ session.username }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      <span
+                        class="inline-flex rounded-full px-2 text-xs font-semibold leading-5"
+                        :class="getRoleBadgeColor(session.role)"
+                      >
+                        {{ getRoleLabel(session.role) }}
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2">
+                      <span
+                        class="inline-flex items-center gap-1 rounded-full px-2 text-xs font-semibold leading-5"
+                        :class="session.online ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'"
+                      >
+                        <span class="h-1.5 w-1.5 rounded-full" :class="session.online ? 'bg-green-500' : 'bg-gray-400'" />
+                        {{ session.online ? '在线' : '离线' }}
+                      </span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
+                      {{ session.ip || '-' }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      {{ parseBrowser(session.userAgent || '') }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      {{ formatDateTimeCN(session.createdAt) }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      {{ formatDateTimeCN(session.lastActivityAt) }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
+                      <button
+                        v-if="session.token === currentToken"
+                        class="text-gray-400 cursor-not-allowed"
+                        disabled
+                      >
+                        当前会话
+                      </button>
+                      <button
+                        v-else-if="userStore.hasPermission('session:delete')"
+                        class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                        @click="confirmRevokeSession(session)"
+                      >
+                        强制下线
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredSessions.length === 0">
+                    <td colspan="8" class="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
+                      暂无会话
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 强制下线单个会话确认弹窗 -->
+          <div
+            v-if="showRevokeSessionConfirm"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            @click.self="showRevokeSessionConfirm = false"
+          >
+            <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+              <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                确认强制下线
+              </h2>
+              <p class="mb-4 text-gray-600 dark:text-gray-300">
+                确定要强制下线用户 <span class="font-bold">{{ sessionToRevoke?.username }}</span> 的会话吗？
+              </p>
+              <div class="flex justify-end space-x-3">
+                <BaseButton variant="secondary" size="sm" @click="showRevokeSessionConfirm = false">
+                  取消
+                </BaseButton>
+                <BaseButton
+                  variant="danger"
+                  size="sm"
+                  :loading="revokeSessionLoading"
+                  @click="sessionToRevoke && revokeSession(sessionToRevoke)"
+                >
+                  强制下线
+                </BaseButton>
+              </div>
+            </div>
+          </div>
+
+          <!-- 批量踢人确认弹窗 -->
+          <div
+            v-if="showRevokeUserSessionsConfirm"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            @click.self="showRevokeUserSessionsConfirm = false"
+          >
+            <div class="max-w-md w-full rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-800" @click.stop>
+              <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
+                强制下线用户全部会话
+              </h2>
+              <p class="mb-4 text-gray-600 dark:text-gray-300">
+                输入用户名，将该用户的所有会话强制下线。
+              </p>
+              <div class="mb-4">
+                <input
+                  v-model="userSessionsToRevoke"
+                  placeholder="输入用户名"
+                  class="w-full border farm-input border-gray-200 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+              </div>
+              <div class="flex justify-end space-x-3">
+                <BaseButton variant="secondary" size="sm" @click="showRevokeUserSessionsConfirm = false">
+                  取消
+                </BaseButton>
+                <BaseButton
+                  variant="danger"
+                  size="sm"
+                  :loading="revokeUserSessionsLoading"
+                  @click="revokeAllUserSessions"
+                >
+                  确认下线
+                </BaseButton>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 日志中心 -->
@@ -2386,6 +2821,7 @@ watch(activeTab, (tab) => {
           <div v-if="activeLogTab === 'login'" class="space-y-4">
             <div class="flex items-center justify-end">
               <BaseButton
+                v-if="userStore.hasPermission('system:*')"
                 variant="danger"
                 size="sm"
                 @click="openClearLogsConfirm"
@@ -2539,6 +2975,7 @@ watch(activeTab, (tab) => {
                 </button>
               </div>
               <BaseButton
+                v-if="userStore.hasPermission('system:*')"
                 variant="danger"
                 size="sm"
                 @click="openClearAuditLogsConfirm"

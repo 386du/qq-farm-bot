@@ -37,6 +37,28 @@ function closeYybConfig() {
   showYybConfig.value = false
 }
 
+const roleLabels: Record<string, string> = {
+  admin: '超级管理员',
+  operator: '运营人员',
+  viewer: '只读管理员',
+  user: '普通用户',
+}
+
+const roleBadgeClasses: Record<string, string> = {
+  admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  operator: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  viewer: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  user: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+}
+
+function getRoleLabel(role: string): string {
+  return roleLabels[role] || role
+}
+
+function getRoleBadgeClass(role: string): string {
+  return (roleBadgeClasses[role] || roleBadgeClasses.user) as string
+}
+
 const systemConnected = ref(true)
 const serverUptimeBase = ref(0)
 const serverVersion = ref('')
@@ -93,8 +115,9 @@ function openAccountEditModal(acc: any) {
 onMounted(() => {
   accountStore.fetchAccounts()
   checkConnection()
-  // 获取当前用户信息
+  // 获取当前用户信息和权限
   userStore.fetchUserInfo()
+  userStore.fetchPermissions()
   // 获取公告（普通用户）
   fetchAnnouncement()
 })
@@ -207,9 +230,9 @@ const connectionStatus = computed(() => {
 
 // 根据用户角色过滤导航菜单
 const navItems = computed(() => {
-  const isAdmin = userStore.isAdmin
+  const isAdminPanel = userStore.isAdminPanelUser
   return menuRoutes
-    .filter(item => !item.adminOnly || isAdmin)
+    .filter(item => !item.adminOnly || isAdminPanel)
     .map(item => ({
       path: item.path ? `/${item.path}` : '/',
       label: item.label,
@@ -496,7 +519,7 @@ async function copyToken() {
                 >
               </div>
               <!-- Admin crown badge -->
-              <div v-if="userStore.isAdmin" class="absolute z-10 h-4 w-4 flex items-center justify-center rounded-full text-[8px] shadow-sm -right-1 -top-1" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
+              <div v-if="userStore.isAdminPanelUser" class="absolute z-10 h-4 w-4 flex items-center justify-center rounded-full text-[8px] shadow-sm -right-1 -top-1" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
                 <span>&#9733;</span>
               </div>
             </div>
@@ -507,9 +530,9 @@ async function copyToken() {
               <div class="mt-0.5 flex items-center gap-1.5">
                 <span
                   class="rounded-lg px-1.5 py-0.2 text-[10px] font-medium leading-tight"
-                  :class="userStore.isAdmin ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'"
+                  :class="getRoleBadgeClass(userStore.role)"
                 >
-                  {{ userStore.isAdmin ? '管理员' : '用户' }}
+                  {{ getRoleLabel(userStore.role) }}
                 </span>
                 <span v-if="userStore.userCard" class="truncate text-xs text-gray-400">
                   {{ getDaysLabel(userStore.userCard.days) }} {{ userStore.accountLimit }}额度
@@ -533,7 +556,7 @@ async function copyToken() {
               {{ userStore.username }}
             </div>
             <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ userStore.isAdmin ? '管理员' : '普通用户' }}
+              {{ getRoleLabel(userStore.role) }}
             </div>
             <div v-if="userStore.userCard" class="mt-1 text-xs">
               <span class="text-gray-500">时长:</span>
@@ -550,7 +573,7 @@ async function copyToken() {
           </div>
           <div class="py-1">
             <button
-              v-if="userStore.isAdmin"
+              v-if="userStore.hasPermission('announcement:*')"
               class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="openAnnouncementModal"
@@ -559,7 +582,7 @@ async function copyToken() {
               <span>设置公告</span>
             </button>
             <button
-              v-if="!userStore.isAdmin"
+              v-if="!userStore.isAdminPanelUser"
               class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               :style="{ color: 'var(--theme-primary)' }"
               @click="openRenewModal"

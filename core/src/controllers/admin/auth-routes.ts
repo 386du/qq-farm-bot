@@ -27,16 +27,23 @@ const {
     createAuthRequired,
     createCheckUserAccess,
     adminRequired,
+    requirePermission,
     getAccId,
     checkAccountAccess,
     handleApiError,
 } = require('./middleware');
+const { getRoles, getRolePermissions } = require('./permissions');
 
 const adminLogger = createModuleLogger('admin');
 
 function mountAuthRoutes(app: Application, ctx: AdminContext): void {
     const authRequired = createAuthRequired(ctx);
     const checkUserAccess = createCheckUserAccess(ctx);
+
+    function audit(event: string, req: Request, details?: Record<string, any>): void {
+        const username = (req as any).currentUser?.username || 'unknown';
+        auditLog.log(event, username, getClientIp(req), details);
+    }
 
     // 登录与鉴权
     app.post('/api/login', (req: Request, res: Response) => {
@@ -128,10 +135,11 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 }
             }
 
-            const entry = tokenStore.addToken(user);
+            const tokenUser = { ...user, ip: clientIp, userAgent };
+            const entry = tokenStore.addToken(tokenUser);
             const token = entry.token;
             ctx.tokens.add(token);
-            ctx.tokenUserMap.set(token, user);
+            ctx.tokenUserMap.set(token, tokenUser);
 
             adminLogger.info('登录成功', { username, role: user.role, ip: clientIp });
 
@@ -179,12 +187,8 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: result.user });
     });
 
-    // 获取登录日志（管理员）
-    app.get('/api/admin/login-logs', authRequired, (req: Request, res: Response) => {
-        if (!(req as any).currentUser || (req as any).currentUser.role !== 'admin') {
-            return res.status(403).json({ ok: false, error: '无权限访问' });
-        }
-
+    // 获取登录日志
+    app.get('/api/admin/login-logs', authRequired, requirePermission('log:read'), (req: Request, res: Response) => {
         const limit = Math.min(Math.max(Number.parseInt(req.query.limit as string) || 100, 1), 500);
         const offset = Math.max(Number.parseInt(req.query.offset as string) || 0, 0);
 
@@ -192,12 +196,8 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: result });
     });
 
-    // 清空登录日志（管理员）
-    app.delete('/api/admin/login-logs', authRequired, (req: Request, res: Response) => {
-        if (!(req as any).currentUser || (req as any).currentUser.role !== 'admin') {
-            return res.status(403).json({ ok: false, error: '无权限访问' });
-        }
-
+    // 清空登录日志
+    app.delete('/api/admin/login-logs', authRequired, requirePermission('system:*'), (req: Request, res: Response) => {
         const result = userStore.clearLoginLogs();
         adminLogger.info('登录日志已清空', { admin: (req as any).currentUser.username });
         res.json(result);
@@ -522,6 +522,134 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 return res.json({ ok: true, code: result.code });
             }
             return res.status(400).json({ ok: false, error: result.error || '获取 Code 失败' });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 获取角色列表（登录即可查看，用于前端展示）
+    app.get('/api/admin/roles', authRequired, (req: Request, res: Response) => {
+        try {
+            const currentUser = (req as any).currentUser;
+            const roles = getRoles();
+            // 非超级管理员只能看到非 admin 角色
+            const visibleRoles = currentUser?.role === 'admin'
+                ? roles
+                : roles.filter((r: any) => r.value !== 'admin');
+            res.json({ ok: true, data: visibleRoles });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 获取当前用户权限
+    app.get('/api/admin/me/permissions', authRequired, (req: Request, res: Response) => {
+        try {
+            const currentUser = (req as any).currentUser;
+            res.json({
+                ok: true,
+                data: {
+                    role: currentUser?.role,
+                    permissions: getRolePermissions(currentUser?.role),
+                },
+            });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // ============ 在线会话管理 API ============
+
+    // 获取会话列表
+    app.get('/api/admin/sessions', authRequired, requirePermission('session:read'), (req: Request, res: Response) => {
+        try {
+            const sessions = tokenStore.getActiveSessions();
+            res.json({ ok: true, data: sessions });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 强制下线单个会话
+    app.delete('/api/admin/sessions/:token', authRequired, requirePermission('session:delete'), (req: Request, res: Response) => {
+        try {
+            const token = String(req.params.token);
+            const currentUser = (req as any).currentUser;
+            const session = tokenStore.getToken(token);
+
+            if (!session) {
+                return res.status(404).json({ ok: false, error: '会话不存在或已过期' });
+            }
+
+            // 不能踢自己当前会话
+            if (token === (req as any).adminToken) {
+                return res.status(400).json({ ok: false, error: '不能强制下线当前会话' });
+            }
+
+            // operator/viewer 不能踢 admin
+            if (session.user?.role === 'admin' && currentUser?.role !== 'admin') {
+                return res.status(403).json({ ok: false, error: '权限不足' });
+            }
+
+            tokenStore.revokeToken(token);
+            ctx.tokens.delete(token);
+            ctx.tokenUserMap.delete(token);
+
+            // 断开相关 socket 连接
+            if (ctx.io) {
+                for (const socket of ctx.io.sockets.sockets.values()) {
+                    if (String((socket.data as any).adminToken || '') === String(token)) {
+                        socket.disconnect(true);
+                    }
+                }
+            }
+
+            audit('session_revoked', req, { targetUser: session.user?.username, targetRole: session.user?.role });
+            res.json({ ok: true });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 批量强制下线某用户所有会话
+    app.post('/api/admin/sessions/revoke-user', authRequired, requirePermission('session:delete'), (req: Request, res: Response) => {
+        try {
+            const { username } = req.body || {};
+            const currentUser = (req as any).currentUser;
+            if (!username) {
+                return res.status(400).json({ ok: false, error: '缺少用户名' });
+            }
+
+            if (username === currentUser?.username) {
+                return res.status(400).json({ ok: false, error: '不能强制下线自己的全部会话' });
+            }
+
+            // operator/viewer 不能踢 admin
+            const targetSessions = tokenStore.getActiveSessions().filter((s: any) => s.username === username);
+            if (targetSessions.some((s: any) => s.role === 'admin') && currentUser?.role !== 'admin') {
+                return res.status(403).json({ ok: false, error: '权限不足' });
+            }
+
+            const count = tokenStore.revokeTokensByUser(username);
+
+            // 同步清理内存和 socket
+            for (const token of ctx.tokens) {
+                const entry = tokenStore.getToken(token);
+                if (!entry || entry.user?.username === username) {
+                    ctx.tokens.delete(token);
+                    ctx.tokenUserMap.delete(token);
+                    if (ctx.io) {
+                        for (const socket of ctx.io.sockets.sockets.values()) {
+                            if (String((socket.data as any).adminToken || '') === String(token)) {
+                                socket.disconnect(true);
+                            }
+                        }
+                    }
+                }
+            }
+
+            audit('user_sessions_revoked', req, { targetUser: username, count });
+            res.json({ ok: true, data: { count } });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
         }

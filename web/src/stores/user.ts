@@ -13,7 +13,7 @@ export interface UserCard {
 
 export interface User {
   username: string
-  role: 'admin' | 'user'
+  role: string
   card: UserCard | null
   accountLimit: number
   avatar?: string
@@ -49,9 +49,12 @@ export interface Card {
 export const useUserStore = defineStore('user', () => {
   const token = useStorage('admin_token', '')
   const userInfo = useStorage<User | null>('user_info', null)
+  const userPermissions = useStorage<string[]>('user_permissions', [])
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => userInfo.value?.role === 'admin')
+  const isAdminPanelUser = computed(() => ['admin', 'operator', 'viewer'].includes(userInfo.value?.role || ''))
   const username = computed(() => userInfo.value?.username || '')
+  const role = computed(() => userInfo.value?.role || 'user')
   const userCard = computed(() => userInfo.value?.card)
   const accountLimit = computed(() => userInfo.value?.accountLimit ?? 2)
   const avatar = computed(() => userInfo.value?.avatar || '')
@@ -132,6 +135,33 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  async function fetchPermissions() {
+    try {
+      const res = await api.get('/api/admin/me/permissions')
+      if (res.data.ok) {
+        userPermissions.value = res.data.data.permissions || []
+      }
+      return res.data
+    }
+    catch {
+      userPermissions.value = []
+      return { ok: false }
+    }
+  }
+
+  function hasPermission(permission: string): boolean {
+    const perms = userPermissions.value
+    if (perms.includes('*')) return true
+    if (perms.includes(permission)) return true
+    const prefix = permission.split(':')[0]
+    if (perms.includes(`${prefix}:*`)) return true
+    return false
+  }
+
+  function hasAnyPermission(...permissions: string[]): boolean {
+    return permissions.some(p => hasPermission(p))
+  }
+
   async function renew(cardCode: string) {
     const res = await api.post('/api/user/renew', { cardCode })
     if (res.data.ok) {
@@ -205,12 +235,30 @@ export const useUserStore = defineStore('user', () => {
     return res.data
   }
 
+  async function getSessions() {
+    const res = await api.get('/api/admin/sessions')
+    return res.data
+  }
+
+  async function revokeSession(token: string) {
+    const res = await api.delete(`/api/admin/sessions/${token}`)
+    return res.data
+  }
+
+  async function revokeUserSessions(username: string) {
+    const res = await api.post('/api/admin/sessions/revoke-user', { username })
+    return res.data
+  }
+
   return {
     token,
     userInfo,
+    userPermissions,
     isLoggedIn,
     isAdmin,
+    isAdminPanelUser,
     username,
+    role,
     userCard,
     accountLimit,
     avatar,
@@ -220,6 +268,9 @@ export const useUserStore = defineStore('user', () => {
     register,
     logout,
     fetchUserInfo,
+    fetchPermissions,
+    hasPermission,
+    hasAnyPermission,
     renew,
     changePassword,
     getAllUsers,
@@ -233,5 +284,8 @@ export const useUserStore = defineStore('user', () => {
     updateCard,
     deleteCard,
     deleteCardsBatch,
+    getSessions,
+    revokeSession,
+    revokeUserSessions,
   }
 })

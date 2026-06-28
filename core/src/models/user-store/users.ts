@@ -4,6 +4,8 @@ const { getDataFile, ensureDataDir } = require('../../config/runtime-paths');
 
 const auth = require('./auth');
 const ipBlacklist = require('../ip-blacklist');
+const tokenStore = require('./token-store');
+const { isValidRole } = require('../../controllers/admin/permissions');
 
 const USERS_FILE: string = getDataFile('users.json');
 const CARDS_FILE: string = getDataFile('cards.json');
@@ -21,7 +23,7 @@ interface UserCard {
 interface User {
     username: string;
     password: string;
-    role: 'admin' | 'user';
+    role: string;
     cardCode?: string;
     card?: UserCard;
     accountLimit?: number;
@@ -76,6 +78,7 @@ interface EditUpdates {
     newUsername?: string;
     password?: string;
     accountLimit?: number;
+    role?: string;
     isPermanent?: boolean;
     expiresAt?: number | null;
 }
@@ -432,6 +435,18 @@ function editUser(oldUsername: string, updates: EditUpdates): EditResult {
 
     if (updates.accountLimit !== undefined) {
         user.accountLimit = Number.parseInt(String(updates.accountLimit), 10) || DEFAULT_ACCOUNT_LIMIT;
+    }
+
+    if (updates.role !== undefined) {
+        if (!isValidRole(updates.role)) {
+            return { ok: false, error: '无效的角色' };
+        }
+        if (user.role === 'admin' && updates.role !== 'admin' && users.filter(u => u.role === 'admin').length <= 1) {
+            return { ok: false, error: '不能取消最后一个管理员的管理员权限' };
+        }
+        user.role = updates.role;
+        // 同步更新已登录 token 中的角色信息，避免已登录用户权限不生效
+        tokenStore.updateTokensForUser(user.username, (u: any) => ({ ...u, role: user.role }));
     }
 
     if (updates.isPermanent) {

@@ -11,6 +11,7 @@ const crypto = require('node:crypto');
 const store = require('../../models/store');
 const tokenStore = require('../../models/user-store/token-store');
 const { normalizeAccountRef, resolveAccountId } = require('../../services/account-resolver');
+const { hasPermission } = require('./permissions');
 
 interface AuthenticatedRequest extends Request {
     adminToken?: string;
@@ -117,6 +118,34 @@ const adminRequired = (req: AuthenticatedRequest, res: Response, next: NextFunct
     }
     next();
 };
+
+function requirePermission(permission: string) {
+    return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+        if (!req.currentUser) {
+            res.status(401).json({ ok: false, error: 'Unauthorized' });
+            return;
+        }
+        if (!hasPermission(req.currentUser.role, permission)) {
+            res.status(403).json({ ok: false, error: '权限不足' });
+            return;
+        }
+        next();
+    };
+}
+
+function requireAnyPermission(...permissions: string[]) {
+    return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+        if (!req.currentUser) {
+            res.status(401).json({ ok: false, error: 'Unauthorized' });
+            return;
+        }
+        if (!permissions.some(p => hasPermission(req.currentUser!.role, p))) {
+            res.status(403).json({ ok: false, error: '权限不足' });
+            return;
+        }
+        next();
+    };
+}
 
 // 定期清理过期用户（每5分钟检查一次）
 function createCleanupExpiredUsers(ctx: AdminContext): () => void {
@@ -274,6 +303,8 @@ module.exports = {
     createAuthRequired,
     createCheckUserAccess,
     adminRequired,
+    requirePermission,
+    requireAnyPermission,
     createCleanupExpiredUsers,
     getAccountList,
     checkAccountAccess,

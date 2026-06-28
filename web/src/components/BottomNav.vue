@@ -9,7 +9,7 @@ const userStore = useUserStore()
 const activeKey = ref('')
 
 const visibleItems = computed(() => {
-  return menuRoutes.filter(item => !item.adminOnly || userStore.isAdmin)
+  return menuRoutes.filter(item => !item.adminOnly || userStore.isAdminPanelUser)
 })
 
 function isActive(path: string) {
