@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { AnchorRect } from '@/composables/useModalAnchor'
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
@@ -27,49 +26,27 @@ const farmStore = useFarmStore()
 const yybStore = useYybLoginStore()
 
 const showYybConfig = ref(false)
-const yybConfigAnchor = ref<AnchorRect | null>(null)
 const showYybLogin = ref(false)
-const yybLoginAnchor = ref<AnchorRect | null>(null)
-const accountModalAnchor = ref<AnchorRect | null>(null)
 
-function openYybConfig(event: MouseEvent | TouchEvent) {
-  const target = event.currentTarget as HTMLElement | null
-  if (target) {
-    yybConfigAnchor.value = target.getBoundingClientRect() as AnchorRect
-  }
+function openYybConfig() {
   showYybConfig.value = true
 }
 
 function closeYybConfig() {
   showYybConfig.value = false
-  yybConfigAnchor.value = null
   yybStore.loadConfig()
 }
 
-function openYybLogin(event: MouseEvent | TouchEvent) {
-  const target = event.currentTarget as HTMLElement | null
-  if (target) {
-    yybLoginAnchor.value = target.getBoundingClientRect() as AnchorRect
-  }
+function openYybLogin() {
   showYybLogin.value = true
 }
 
 function closeYybLogin() {
   showYybLogin.value = false
-  yybLoginAnchor.value = null
-}
-
-function openAddModalFromEvent(event: MouseEvent | TouchEvent) {
-  const target = event.currentTarget as HTMLElement | null
-  if (target) {
-    accountModalAnchor.value = target.getBoundingClientRect() as AnchorRect
-  }
-  openAddModal()
 }
 
 function closeAccountModal() {
   showModal.value = false
-  accountModalAnchor.value = null
 }
 
 const activeTab = ref<'account' | 'strategy' | 'automation' | 'user'>(
@@ -946,7 +923,7 @@ async function handleTestOffline() {
               <BaseButton
                 variant="secondary"
                 size="sm"
-                @click="openYybConfig"
+                @click="openYybConfig()"
               >
                 <span class="mr-2">⚙️</span>
                 应用宝配置
@@ -955,7 +932,7 @@ async function handleTestOffline() {
                 variant="secondary"
                 size="sm"
                 :disabled="yybStore.config.openIds.length === 0"
-                @click="openYybLogin"
+                @click="openYybLogin()"
               >
                 <span class="mr-2">🔑</span>
                 一键登录
@@ -977,7 +954,7 @@ async function handleTestOffline() {
                 size="sm"
                 :disabled="isAddAccountDisabled"
                 :title="addAccountDisabledReason"
-                @click="openAddModalFromEvent"
+                @click="openAddModal()"
               >
                 <span class="mr-2">➕</span>
                 添加账号
@@ -1002,7 +979,7 @@ async function handleTestOffline() {
               size="sm"
               :disabled="isAddAccountDisabled"
               :title="addAccountDisabledReason"
-              @click="openAddModalFromEvent"
+              @click="openAddModal()"
             >
               立即添加
             </BaseButton>
@@ -1106,11 +1083,10 @@ async function handleTestOffline() {
           <AccountModal
             :show="showModal"
             :edit-data="editingAccount"
-            :anchor="accountModalAnchor"
             @close="closeAccountModal"
             @saved="handleSaved"
-            @yyb-login="showModal = false; yybLoginAnchor = null; showYybLogin = true"
-            @yyb-config="(anchor) => { showModal = false; yybConfigAnchor = anchor; showYybConfig = true }"
+            @yyb-login="showModal = false; showYybLogin = true"
+            @yyb-config="showModal = false; showYybConfig = true"
           />
 
           <ConfirmModal
@@ -1139,13 +1115,11 @@ async function handleTestOffline() {
 
           <YybConfigModal
             :show="showYybConfig"
-            :anchor="yybConfigAnchor"
             @close="closeYybConfig"
           />
 
           <YybLoginModal
             :show="showYybLogin"
-            :anchor="yybLoginAnchor"
             @close="closeYybLogin"
             @saved="accountStore.fetchAccounts()"
           />

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { AnchorRect } from '@/composables/useModalAnchor'
 import { useDateFormat, useIntervalFn, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -30,19 +29,12 @@ const showAccountDropdown = ref(false)
 const showAccountModal = ref(false)
 const showRemarkModal = ref(false)
 const showYybConfig = ref(false)
-const yybConfigAnchor = ref<AnchorRect | null>(null)
 const showYybLogin = ref(false)
 const accountToEdit = ref<any>(null)
 const wsErrorNotifiedAt = ref<Record<string, number>>({})
 
-function handleYybConfig(anchor: AnchorRect | null) {
-  yybConfigAnchor.value = anchor
-  showYybConfig.value = true
-}
-
 function closeYybConfig() {
   showYybConfig.value = false
-  yybConfigAnchor.value = null
 }
 
 const systemConnected = ref(true)
@@ -880,12 +872,11 @@ async function copyToken() {
     @close="showAccountModal = false; accountToEdit = null"
     @saved="handleAccountSaved"
     @yyb-login="showAccountModal = false; showYybLogin = true"
-    @yyb-config="handleYybConfig"
+    @yyb-config="showAccountModal = false; showYybConfig = true"
   />
 
   <YybConfigModal
     :show="showYybConfig"
-    :anchor="yybConfigAnchor"
     @close="closeYybConfig"
   />
 

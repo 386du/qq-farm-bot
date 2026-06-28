@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { AnchorRect } from '@/composables/useModalAnchor'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import AccountModal from '@/components/AccountModal.vue'
@@ -18,19 +17,12 @@ const { accounts, currentAccount } = storeToRefs(accountStore)
 const showAccountDropdown = ref(false)
 const showAccountModal = ref(false)
 const showYybConfig = ref(false)
-const yybConfigAnchor = ref<AnchorRect | null>(null)
 const showYybLogin = ref(false)
 const accountToEdit = ref<any>(null)
 const accountTriggerRef = ref<HTMLElement | null>(null)
 
-function handleYybConfig(anchor: AnchorRect | null) {
-  yybConfigAnchor.value = anchor
-  showYybConfig.value = true
-}
-
 function closeYybConfig() {
   showYybConfig.value = false
-  yybConfigAnchor.value = null
 }
 const accountDropdownRef = ref<HTMLElement | null>(null)
 const dropdownStyle = ref<Record<string, string>>({
@@ -344,12 +336,11 @@ onUnmounted(() => {
       @close="showAccountModal = false; accountToEdit = null"
       @saved="handleAccountSaved"
       @yyb-login="showAccountModal = false; showYybLogin = true"
-      @yyb-config="handleYybConfig"
+      @yyb-config="showAccountModal = false; showYybConfig = true"
     />
 
     <YybConfigModal
       :show="showYybConfig"
-      :anchor="yybConfigAnchor"
       @close="closeYybConfig"
     />
 

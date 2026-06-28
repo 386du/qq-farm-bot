@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { AnchorRect } from '@/composables/useModalAnchor'
-import { computeAnchorStyle } from '@/composables/useModalAnchor'
 import { computed, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -10,7 +8,6 @@ import { useYybLoginStore } from '@/stores/yyb-login'
 
 const props = defineProps<{
   show: boolean
-  anchor?: AnchorRect | null
 }>()
 
 const emit = defineEmits(['close', 'saved'])
@@ -81,20 +78,11 @@ function close() {
   emit('close')
 }
 
-const panelStyle = computed(() => {
-  const base = {
-    background: 'var(--theme-bg)',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)',
-  }
-  const anchored = computeAnchorStyle(props.anchor)
-  if (anchored) {
-    return { ...base, ...anchored }
-  }
-  return {
-    ...base,
-    maxHeight: 'min(85dvh, 700px)',
-  }
-})
+const panelStyle = computed(() => ({
+  background: 'var(--theme-bg)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)',
+  maxHeight: 'min(85dvh, 700px)',
+}))
 </script>
 
 <template>
@@ -102,8 +90,7 @@ const panelStyle = computed(() => {
     <div v-if="show" class="fixed inset-0 z-50">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click.self="close" />
       <div
-        class="z-10 flex flex-col rounded-2xl"
-        :class="[!anchor && 'absolute left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2']"
+        class="z-10 absolute left-1/2 top-1/2 flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl"
         :style="panelStyle"
         @click.stop
       >
