@@ -28,6 +28,9 @@ const {
     putInsectsDetailed,
     putWeedsDetailed,
     checkCanOperateRemote,
+    getApplications,
+    acceptFriends,
+    rejectFriends,
 } = require('./api');
 const {
     postToMaster,
@@ -930,5 +933,110 @@ export async function visitFriendForHelp(friend: any, totalActions: any, myGid: 
 export function clearFriendsListCache(): void {
     friendsListCache = null;
     friendsListCacheTime = 0;
+}
+
+// ============ 好友申请管理 (供面板使用) ============
+
+/**
+ * 获取好友申请列表 (供面板)
+ * 返回结构化的申请信息数组
+ */
+export async function getFriendApplicationsList(): Promise<{ applications: any[]; blockApplications: boolean }> {
+    try {
+        const reply: any = await getApplications();
+        const applications: any[] = reply.applications || [];
+        const list: any[] = applications.map((app: any) => ({
+            gid: toNum(app.gid),
+            name: String(app.name || '').trim() || `GID:${toNum(app.gid)}`,
+            avatarUrl: String(app.avatar_url || '').trim(),
+            level: toNum(app.level),
+            timeAt: toNum(app.time_at),
+            openId: String(app.open_id || '').trim(),
+        }));
+        return {
+            applications: list,
+            blockApplications: !!reply.block_applications,
+        };
+    } catch (e: any) {
+        logWarn('好友', `获取好友申请列表失败: ${e.message}`, {
+            module: 'friend',
+            event: '获取好友申请',
+            result: 'error',
+            error: e.message,
+        });
+        return { applications: [], blockApplications: false };
+    }
+}
+
+/**
+ * 同意好友申请 (供面板使用)
+ */
+export async function acceptFriendApplications(gids: number[]): Promise<{ ok: boolean; accepted: number; message: string }> {
+    const targetGids: number[] = Array.isArray(gids)
+        ? gids.map((g: any) => toNum(g)).filter((g: number) => g > 0)
+        : [];
+    if (targetGids.length === 0) {
+        return { ok: false, accepted: 0, message: '缺少有效的 gid' };
+    }
+    try {
+        const reply: any = await acceptFriends(targetGids);
+        const friends: any[] = (reply && reply.friends) || [];
+        const names: string = friends
+            .map((f: any) => f.name || f.remark || `GID:${toNum(f.gid)}`)
+            .join(', ');
+        log('好友', `已同意好友申请 ${friends.length} 个${names ? `: ${names}` : ''}`, {
+            event: 'friend_application_accepted',
+            module: 'friend',
+            meta: { gids: targetGids, count: friends.length },
+        });
+        // 清空好友列表缓存以便下次刷新拉取最新数据
+        clearFriendsListCache();
+        return {
+            ok: true,
+            accepted: friends.length,
+            message: friends.length > 0
+                ? `已同意 ${friends.length} 个好友申请`
+                : '申请已处理',
+        };
+    } catch (e: any) {
+        logWarn('好友', `同意好友申请失败: ${e.message}`, {
+            event: 'friend_application_accept_failed',
+            module: 'friend',
+            meta: { gids: targetGids, error: e.message },
+        });
+        return { ok: false, accepted: 0, message: e?.message || '同意好友申请失败' };
+    }
+}
+
+/**
+ * 拒绝好友申请 (供面板使用)
+ */
+export async function rejectFriendApplications(gids: number[]): Promise<{ ok: boolean; rejected: number; message: string }> {
+    const targetGids: number[] = Array.isArray(gids)
+        ? gids.map((g: any) => toNum(g)).filter((g: number) => g > 0)
+        : [];
+    if (targetGids.length === 0) {
+        return { ok: false, rejected: 0, message: '缺少有效的 gid' };
+    }
+    try {
+        await rejectFriends(targetGids);
+        log('好友', `已拒绝好友申请 ${targetGids.length} 个`, {
+            event: 'friend_application_rejected',
+            module: 'friend',
+            meta: { gids: targetGids, count: targetGids.length },
+        });
+        return {
+            ok: true,
+            rejected: targetGids.length,
+            message: `已拒绝 ${targetGids.length} 个好友申请`,
+        };
+    } catch (e: any) {
+        logWarn('好友', `拒绝好友申请失败: ${e.message}`, {
+            event: 'friend_application_reject_failed',
+            module: 'friend',
+            meta: { gids: targetGids, error: e.message },
+        });
+        return { ok: false, rejected: 0, message: e?.message || '拒绝好友申请失败' };
+    }
 }
 

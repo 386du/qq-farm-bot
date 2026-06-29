@@ -10,7 +10,7 @@ const { getAutomation, getPreferredSeed, getConfigSnapshot, applyConfigSnapshot,
 const { checkAndClaimEmails } = require('../services/email');
 const { getEmailDailyState } = require('../services/email');
 const { checkFarm, startFarmCheckLoop, stopFarmCheckLoop, refreshFarmCheckLoop, getLandsDetail, getAvailableSeeds, runFarmOperation, runFertilizerByConfig } = require('../services/farm');
-const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation, checkAndAcceptApplicationsOnce } = require('../services/friend');
+const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation, checkAndAcceptApplicationsOnce, getFriendApplicationsList, acceptFriendApplications, rejectFriendApplications } = require('../services/friend');
 const { getInteractRecords } = require('../services/interact');
 const { processInviteCodes } = require('../services/invite');
 const { autoBuyOrganicFertilizer, autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState } = require('../services/mall');
@@ -660,6 +660,15 @@ async function handleApiCall(msg: any): Promise<void> {
                 break;
             case 'doFriendOp':
                 result = await doFriendOperation(args[0], args[1]);
+                break;
+            case 'getFriendApplications':
+                result = await getFriendApplicationsList();
+                break;
+            case 'acceptFriendApplications':
+                result = await acceptFriendApplications(args[0]);
+                break;
+            case 'rejectFriendApplications':
+                result = await rejectFriendApplications(args[0]);
                 break;
             case 'getSeeds':
                 result = await getAvailableSeeds();

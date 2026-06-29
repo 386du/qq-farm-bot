@@ -106,6 +106,69 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // ============ 好友申请管理 API ============
+
+    // 获取好友申请列表
+    app.get('/api/friend-applications', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+
+        try {
+            const data = await ctx.provider.getFriendApplications(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // 批量同意好友申请
+    app.post('/api/friend-applications/accept', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+
+        const gids = (req.body || {}).gids;
+        if (!Array.isArray(gids) || gids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+
+        try {
+            const data = await ctx.provider.acceptFriendApplications(id, gids);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // 批量拒绝好友申请
+    app.post('/api/friend-applications/reject', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+
+        const gids = (req.body || {}).gids;
+        if (!Array.isArray(gids) || gids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+
+        try {
+            const data = await ctx.provider.rejectFriendApplications(id, gids);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // API: 好友黑名单
     app.get('/api/friend-blacklist', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);

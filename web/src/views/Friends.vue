@@ -29,6 +29,10 @@ const {
   friendsListCacheTtlSec,
   knownFriendSettingsLoading,
   knownFriendSettingsSaving,
+  applications,
+  applicationsLoading,
+  applicationsError,
+  applicationActionLoading,
 } = storeToRefs(friendStore)
 const { status, loading: statusLoading, realtimeConnected } = storeToRefs(statusStore)
 
@@ -86,6 +90,7 @@ function openGidListModal() {
 
 const TABS = [
   { key: 'friends', label: '好友列表', icon: '👥' },
+  { key: 'applications', label: '好友申请', icon: '📨' },
   { key: 'blacklist', label: '好友黑名单', icon: '🚫' },
   { key: 'visitors', label: '最近访客', icon: '👀' },
 ] as const
@@ -249,6 +254,7 @@ async function loadData() {
       friendStore.fetchFriends(currentAccountId.value)
       friendStore.fetchBlacklist(currentAccountId.value)
       friendStore.fetchInteractRecords(currentAccountId.value)
+      friendStore.fetchApplications(currentAccountId.value)
       if (isQqAccount.value) {
         friendStore.fetchKnownFriendSettings(currentAccountId.value)
       }
@@ -583,6 +589,155 @@ async function handleBatchAddKnownFriendGids() {
     toast.success(`已批量添加 ${result.addedCount} 个 GID`)
   }
 }
+
+// ============ 好友申请 ============
+
+const applicationAvatarErrorKeys = ref<Set<string>>(new Set())
+
+function getApplicationAvatar(app: any) {
+  const direct = String(app?.avatarUrl || '').trim()
+  if (direct)
+    return direct
+  return ''
+}
+
+function getApplicationAvatarKey(app: any) {
+  const key = String(app?.gid || '').trim()
+  return key ? `app:${key}` : ''
+}
+
+function canShowApplicationAvatar(app: any) {
+  const key = getApplicationAvatarKey(app)
+  if (!key)
+    return false
+  return !!getApplicationAvatar(app) && !applicationAvatarErrorKeys.value.has(key)
+}
+
+function handleApplicationAvatarError(app: any) {
+  const key = getApplicationAvatarKey(app)
+  if (!key)
+    return
+  applicationAvatarErrorKeys.value.add(key)
+}
+
+function formatApplicationTime(timestamp: number) {
+  const ts = Number(timestamp) || 0
+  if (!ts)
+    return '--'
+
+  const date = new Date(ts * 1000)
+  if (Number.isNaN(date.getTime()))
+    return '--'
+
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diff >= 0 && diff < minute)
+    return '刚刚'
+  if (diff >= minute && diff < hour)
+    return `${Math.floor(diff / minute)} 分钟前`
+  if (diff >= hour && diff < day)
+    return `${Math.floor(diff / hour)} 小时前`
+  if (diff >= day && diff < 7 * day)
+    return `${Math.floor(diff / day)} 天前`
+
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
+async function refreshApplications() {
+  if (!currentAccountId.value)
+    return
+  await friendStore.fetchApplications(currentAccountId.value)
+}
+
+async function handleAcceptApplication(app: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(app?.gid) || 0
+  if (!gid)
+    return
+  const name = String(app?.name || `GID:${gid}`).trim()
+  confirmAction(`确定同意 ${name} 的好友申请吗?`, async () => {
+    const result = await friendStore.acceptApplications(currentAccountId.value!, [gid])
+    if (result.ok) {
+      toast.success(result.message || `已同意 ${name} 的好友申请`)
+      // 同意后刷新好友列表，确保新好友出现在列表中
+      await friendStore.fetchFriends(currentAccountId.value!, true)
+    }
+    else {
+      toast.error(result.message || '同意好友申请失败')
+    }
+    return result
+  })
+}
+
+async function handleRejectApplication(app: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(app?.gid) || 0
+  if (!gid)
+    return
+  const name = String(app?.name || `GID:${gid}`).trim()
+  confirmAction(`确定拒绝 ${name} 的好友申请吗?`, async () => {
+    const result = await friendStore.rejectApplications(currentAccountId.value!, [gid])
+    if (result.ok)
+      toast.success(result.message || `已拒绝 ${name} 的好友申请`)
+    else
+      toast.error(result.message || '拒绝好友申请失败')
+    return result
+  })
+}
+
+async function handleAcceptAllApplications() {
+  if (!currentAccountId.value)
+    return
+  const gids = applications.value.map(app => Number(app.gid)).filter(Boolean)
+  if (gids.length === 0) {
+    toast.info('没有可处理的好友申请')
+    return
+  }
+  confirmAction(`确定一键同意 ${gids.length} 个好友申请吗?`, async () => {
+    const result = await friendStore.acceptApplications(currentAccountId.value!, gids)
+    if (result.ok) {
+      toast.success(result.message || `已同意 ${gids.length} 个好友申请`)
+      await friendStore.fetchFriends(currentAccountId.value!, true)
+    }
+    else {
+      toast.error(result.message || '批量同意失败')
+    }
+    return result
+  })
+}
+
+async function handleRejectAllApplications() {
+  if (!currentAccountId.value)
+    return
+  const gids = applications.value.map(app => Number(app.gid)).filter(Boolean)
+  if (gids.length === 0) {
+    toast.info('没有可处理的好友申请')
+    return
+  }
+  confirmAction(`确定一键拒绝 ${gids.length} 个好友申请吗?此操作不可撤销。`, async () => {
+    const result = await friendStore.rejectApplications(currentAccountId.value!, gids)
+    if (result.ok)
+      toast.success(result.message || `已拒绝 ${gids.length} 个好友申请`)
+    else
+      toast.error(result.message || '批量拒绝失败')
+    return result
+  })
+}
 </script>
 
 <template>
@@ -604,6 +759,9 @@ async function handleBatchAddKnownFriendGids() {
         </div>
         <div v-if="activeTab === 'friends' && friends.length" class="text-sm text-gray-500">
           共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ filteredFriends.length.toLocaleString('zh-CN') }}</span>/{{ friends.length.toLocaleString('zh-CN') }} 名好友
+        </div>
+        <div v-if="activeTab === 'applications'" class="text-sm text-gray-500">
+          共 <span class="text-blue-600 font-bold dark:text-blue-400">{{ applications.length.toLocaleString('zh-CN') }}</span> 个申请
         </div>
         <div v-if="activeTab === 'blacklist'" class="text-sm text-gray-500">
           共 <span class="text-red-600 font-bold dark:text-red-400">{{ blacklist.length.toLocaleString('zh-CN') }}</span> 人
@@ -645,6 +803,13 @@ async function handleBatchAddKnownFriendGids() {
             >
               {{ blacklist.length.toLocaleString('zh-CN') }}
             </span>
+            <span
+              v-if="tab.key === 'applications' && applications.length > 0"
+              class="animate-pulse-glow rounded-full px-1.5 py-0.5 text-xs font-bold"
+              :class="activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'"
+            >
+              {{ applications.length.toLocaleString('zh-CN') }}
+            </span>
             <div
               v-if="activeTab === tab.key"
               class="pointer-events-none absolute inset-0"
@@ -655,7 +820,7 @@ async function handleBatchAddKnownFriendGids() {
       </div>
     </div>
 
-    <div v-if="loading || statusLoading || interactLoading" class="animate-stagger-3 flex animate-fade-in-up justify-center py-12">
+    <div v-if="loading || statusLoading || interactLoading || applicationsLoading" class="animate-stagger-3 flex animate-fade-in-up justify-center py-12">
       <span class="animate-spin text-4xl">⏳</span>
     </div>
 
@@ -958,6 +1123,112 @@ async function handleBatchAddKnownFriendGids() {
         </template>
       </div>
 
+      <div v-else-if="activeTab === 'applications'" class="space-y-4">
+        <div class="farm-card-enhanced animate-stagger-3 mb-1 flex flex-wrap animate-fade-in-up items-center gap-2 p-3">
+          <div class="flex flex-1 items-center gap-2">
+            <span class="text-lg">📨</span>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              在此查看并处理向你发起的好友申请，可单独或批量同意/拒绝。
+            </p>
+          </div>
+          <button
+            class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+            :disabled="applicationsLoading || applicationActionLoading"
+            @click="refreshApplications"
+          >
+            🔄 刷新
+          </button>
+          <button
+            v-if="applications.length > 0"
+            class="cartoon-btn rounded-xl bg-green-100 px-3 py-1.5 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50 dark:hover:bg-green-900/50"
+            :disabled="applicationActionLoading"
+            @click="handleAcceptAllApplications"
+          >
+            ✅ 全部同意
+          </button>
+          <button
+            v-if="applications.length > 0"
+            class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+            :disabled="applicationActionLoading"
+            @click="handleRejectAllApplications"
+          >
+            ❌ 全部拒绝
+          </button>
+        </div>
+
+        <div v-if="!!applicationsError" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-6 text-center text-sm text-red-600 dark:text-red-300" style="background: linear-gradient(145deg, #fef2f2 0%, #fee2e2 100%);">
+          <span class="text-2xl">⚠️</span>
+          <div class="mt-2">
+            {{ applicationsError }}
+          </div>
+        </div>
+
+        <div v-else-if="applications.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
+          <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+            📭
+          </div>
+          <div class="text-lg font-display">
+            暂无好友申请
+          </div>
+          <div class="mt-1 text-sm text-gray-400">
+            新的好友申请会显示在这里
+          </div>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div
+            v-for="(app, idx) in applications"
+            :key="app.gid"
+            class="farm-card-enhanced flex animate-fade-in-up items-center gap-3 p-4 transition-all duration-300 hover:scale-[1.01]"
+            :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
+          >
+            <div class="relative h-12 w-12 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-blue-200/50 dark:bg-gray-700 dark:ring-blue-700/30">
+              <img
+                v-if="canShowApplicationAvatar(app)"
+                :src="getApplicationAvatar(app)"
+                class="h-full w-full object-cover"
+                loading="lazy"
+                @error="handleApplicationAvatarError(app)"
+              >
+              <span v-else class="text-xl text-gray-400">👤</span>
+              <div class="animate-online-pulse absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-blue-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="mb-1 flex flex-wrap items-center gap-2">
+                <span class="max-w-full truncate text-base text-gray-800 font-bold dark:text-gray-100">
+                  {{ app.name || `GID:${app.gid}` }}
+                </span>
+                <span v-if="Number(app.level) > 0" class="level-badge" style="font-size: 10px; padding: 2px 8px;">
+                  Lv.{{ app.level }}
+                </span>
+                <span class="text-xs text-gray-400 font-mono">
+                  GID {{ app.gid }}
+                </span>
+              </div>
+              <div class="text-xs text-gray-400">
+                🕐 {{ formatApplicationTime(app.timeAt) }}
+              </div>
+            </div>
+            <div class="shrink-0 flex gap-2">
+              <button
+                class="cartoon-btn rounded-xl bg-green-100 px-3 py-2 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50 dark:hover:bg-green-900/50"
+                :disabled="applicationActionLoading"
+                @click="handleAcceptApplication(app, $event)"
+              >
+                ✅ 同意
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+                :disabled="applicationActionLoading"
+                @click="handleRejectApplication(app, $event)"
+              >
+                ❌ 拒绝
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div v-else-if="activeTab === 'blacklist'" class="space-y-4">
         <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
           <div class="flex items-center gap-2">
@@ -967,7 +1238,6 @@ async function handleBatchAddKnownFriendGids() {
             </p>
           </div>
         </div>
-
         <div v-if="blacklist.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
           <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
             🚫

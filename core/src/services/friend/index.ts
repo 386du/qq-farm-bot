@@ -24,4 +24,7 @@ export {
     doFriendOperation,
     getFriendLandsDetail,
     getFriendsList,
+    getFriendApplicationsList,
+    acceptFriendApplications,
+    rejectFriendApplications,
 } from './visit-strategy';

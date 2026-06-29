@@ -14,6 +14,15 @@ export interface KnownFriendSettings {
   friendsListCacheTtlSec: number
 }
 
+export interface FriendApplication {
+  gid: number
+  name: string
+  avatarUrl: string
+  level: number
+  timeAt: number
+  openId: string
+}
+
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<any[]>([])
   const loading = ref(false)
@@ -29,6 +38,12 @@ export const useFriendStore = defineStore('friend', () => {
   const friendsListCacheTtlSec = ref(60)
   const knownFriendSettingsLoading = ref(false)
   const knownFriendSettingsSaving = ref(false)
+
+  const applications = ref<FriendApplication[]>([])
+  const applicationsLoading = ref(false)
+  const applicationsError = ref('')
+  const blockApplications = ref(false)
+  const applicationActionLoading = ref(false)
 
   function buildPlantSummaryFromDetail(lands: any[], summary: any) {
     let stealNum = 0
@@ -319,6 +334,90 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  async function fetchApplications(accountId: string) {
+    if (!accountId)
+      return
+    applicationsLoading.value = true
+    applicationsError.value = ''
+    try {
+      const res = await api.get('/api/friend-applications', {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data.ok) {
+        const data = res.data.data || {}
+        applications.value = Array.isArray(data.applications) ? data.applications : []
+        blockApplications.value = !!data.blockApplications
+      }
+      else {
+        applicationsError.value = res.data.error || '加载好友申请失败'
+        applications.value = []
+      }
+    }
+    catch (e: any) {
+      applicationsError.value = e?.response?.data?.error || e?.message || '加载好友申请失败'
+      applications.value = []
+    }
+    finally {
+      applicationsLoading.value = false
+    }
+  }
+
+  async function acceptApplications(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return { ok: false, message: '参数无效' }
+    applicationActionLoading.value = true
+    try {
+      const res = await api.post('/api/friend-applications/accept', { gids }, {
+        headers: { 'x-account-id': accountId },
+      })
+      const data = res.data?.data || {}
+      if (res.data.ok) {
+        // 从列表中移除已处理的申请
+        const processedSet = new Set(gids.map(Number))
+        applications.value = applications.value.filter(app => !processedSet.has(Number(app.gid)))
+      }
+      return {
+        ok: !!res.data.ok,
+        message: data.message || (res.data.ok ? '已同意好友申请' : '操作失败'),
+        accepted: data.accepted || 0,
+      }
+    }
+    catch (e: any) {
+      return { ok: false, message: e?.response?.data?.error || e?.message || '同意好友申请失败' }
+    }
+    finally {
+      applicationActionLoading.value = false
+    }
+  }
+
+  async function rejectApplications(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return { ok: false, message: '参数无效' }
+    applicationActionLoading.value = true
+    try {
+      const res = await api.post('/api/friend-applications/reject', { gids }, {
+        headers: { 'x-account-id': accountId },
+      })
+      const data = res.data?.data || {}
+      if (res.data.ok) {
+        // 从列表中移除已处理的申请
+        const processedSet = new Set(gids.map(Number))
+        applications.value = applications.value.filter(app => !processedSet.has(Number(app.gid)))
+      }
+      return {
+        ok: !!res.data.ok,
+        message: data.message || (res.data.ok ? '已拒绝好友申请' : '操作失败'),
+        rejected: data.rejected || 0,
+      }
+    }
+    catch (e: any) {
+      return { ok: false, message: e?.response?.data?.error || e?.message || '拒绝好友申请失败' }
+    }
+    finally {
+      applicationActionLoading.value = false
+    }
+  }
+
   return {
     friends,
     loading,
@@ -333,6 +432,11 @@ export const useFriendStore = defineStore('friend', () => {
     friendsListCacheTtlSec,
     knownFriendSettingsLoading,
     knownFriendSettingsSaving,
+    applications,
+    applicationsLoading,
+    applicationsError,
+    blockApplications,
+    applicationActionLoading,
     fetchFriends,
     fetchBlacklist,
     toggleBlacklist,
@@ -346,5 +450,8 @@ export const useFriendStore = defineStore('friend', () => {
     removeKnownFriendGid,
     batchAddKnownFriendGids,
     removeUnsyncedKnownFriendGids,
+    fetchApplications,
+    acceptApplications,
+    rejectApplications,
   }
 })
