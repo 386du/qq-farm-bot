@@ -106,9 +106,10 @@ async function fetchSolarTerms() {
 
 // 抽奖按钮点击
 function onDrawClick(activityId: number, operateType: number) {
+  const count = operateType === 9 ? 4 : 1
   // drawInfo 未加载或免费次数还有，直接抽
   if (!drawInfo.value || freeRemain.value > 0) {
-    doOperate(activityId, operateType)
+    doOperate(activityId, operateType, count)
     return
   }
   // 免费用完，需要付费确认
@@ -120,7 +121,8 @@ function onDrawClick(activityId: number, operateType: number) {
 // 确认付费抽奖
 function confirmPaidDraw() {
   showPaidConfirm.value = false
-  doOperate(pendingActivityId.value, pendingDrawType.value)
+  const count = paidDrawCount(pendingDrawType.value)
+  doOperate(pendingActivityId.value, pendingDrawType.value, count)
 }
 
 // 付费次数
@@ -133,13 +135,14 @@ function paidDrawCount(operateType: number): number {
 }
 
 // 活动操作
-async function doOperate(activityId: number, operateType: number) {
+async function doOperate(activityId: number, operateType: number, param: number = 1) {
   operateLoading.value = true
   operateResult.value = null
   try {
     const { data } = await api.post('/api/activity/operate', {
       activityId,
       operateType,
+      param,
     }, {
       headers: { 'x-account-id': getAccountId() },
     })
