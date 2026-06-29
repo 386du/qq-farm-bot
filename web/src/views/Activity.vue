@@ -144,9 +144,19 @@ function onDrawClick(activityId: number, count: number) {
 }
 
 // 确认付费抽奖
-function confirmPaidDraw() {
+async function confirmPaidDraw() {
   showPaidConfirm.value = false
-  doOperate(pendingActivityId.value, 7, pendingDrawType.value)
+  const count = pendingDrawType.value
+  // 付费时服务器可能不接受 param=4，改为逐次单抽
+  if (count > 1) {
+    for (let i = 0; i < count; i++) {
+      await doOperate(pendingActivityId.value, 7, 1)
+      if (operateResult.value?.result !== 0) break
+    }
+  }
+  else {
+    await doOperate(pendingActivityId.value, 7, 1)
+  }
 }
 
 // 活动操作
