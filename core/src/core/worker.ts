@@ -740,9 +740,24 @@ async function handleApiCall(msg: any): Promise<void> {
             case 'getSeasonInfo': {
                 const { sendMsgAsync } = require('../utils/network');
                 const { types } = require('../utils/proto');
+                const { parseBattlePass } = require('../services/activity');
                 const body = types.GetSeasonInfoRequest.encode(types.GetSeasonInfoRequest.create({})).finish();
                 const { body: replyBody } = await sendMsgAsync('gamepb.seasonpb.SeasonService', 'GetSeasonInfo', body);
-                result = types.GetSeasonInfoReply.decode(replyBody);
+                const info = types.GetSeasonInfoReply.decode(replyBody);
+                if (info && info.battle_pass && Buffer.isBuffer(info.battle_pass)) {
+                    const bp = parseBattlePass(info.battle_pass);
+                    if (bp) {
+                        info.level = bp.currentLevel;
+                        info.score = bp.currentScore;
+                        info.scoreNeed = bp.levelUpScore;
+                        info.maxLevel = bp.maxLevel;
+                        info.isPremium = bp.isPremium;
+                        info.battlePass = bp;
+                    }
+                    info.battlePassRaw = info.battle_pass.toString('hex');
+                    info.battle_pass = undefined;
+                }
+                result = info;
                 break;
             }
             default:

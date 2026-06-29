@@ -1,4 +1,3 @@
-export {};
 /**
  * 活动服务 - 获取活动列表、参与活动、领取奖励
  */
@@ -222,6 +221,119 @@ function parseRewards(rewards: Buffer | null): any[] {
 }
 
 /**
+ * 解析 SeasonInfo.battle_pass (protobuf 二进制)
+ * field 1: season_id / group_id
+ * field 2: current_level
+ * field 3: current_score
+ * field 4: current_level_score
+ * field 5: level_up_score
+ * field 6: max_level
+ * field 7: is_premium
+ * field 8: levels[]
+ */
+function parseBattlePass(buf: Buffer | string | null): any {
+    if (!buf) return null;
+    const data = Buffer.isBuffer(buf) ? buf : Buffer.from(buf as string, 'hex');
+    if (data.length === 0) return null;
+
+    function readVarint(b: Buffer, off: number) {
+        let result = 0; let shift = 0; let pos = off;
+        while (pos < b.length) {
+            const byte = b[pos]; pos++;
+            result |= (byte & 0x7F) << shift;
+            if ((byte & 0x80) === 0) break;
+            shift += 7;
+        }
+        return pos <= b.length ? { value: result >>> 0, next: pos } : null;
+    }
+
+    function parseRewardItem(b: Buffer, start: number, end: number): any {
+        const item: any = {};
+        let off = start;
+        while (off < end) {
+            const tag = readVarint(b, off);
+            if (!tag) break;
+            const fn = tag.value >> 3; const wt = tag.value & 0x7;
+            if (wt === 0) {
+                const v = readVarint(b, tag.next);
+                if (!v) break;
+                if (fn === 1) item.itemId = v.value;
+                else if (fn === 2) item.count = v.value;
+                off = v.next;
+            } else if (wt === 2) {
+                const len = readVarint(b, tag.next);
+                if (!len) break;
+                off = len.next + len.value;
+            } else if (wt === 5) { off = tag.next + 4; }
+            else if (wt === 1) { off = tag.next + 8; }
+            else break;
+        }
+        return item;
+    }
+
+    function parseLevel(b: Buffer, start: number, end: number): any {
+        const level: any = { level: 0, freeReward: null, premiumRewards: [] };
+        let off = start;
+        while (off < end) {
+            const tag = readVarint(b, off);
+            if (!tag) break;
+            const fn = tag.value >> 3; const wt = tag.value & 0x7;
+            if (wt === 0) {
+                const v = readVarint(b, tag.next);
+                if (!v) break;
+                if (fn === 1) level.level = v.value;
+                off = v.next;
+            } else if (wt === 2) {
+                const len = readVarint(b, tag.next);
+                if (!len) break;
+                if (fn === 2) {
+                    level.freeReward = parseRewardItem(b, len.next, len.next + len.value);
+                } else if (fn === 3) {
+                    level.premiumRewards.push(parseRewardItem(b, len.next, len.next + len.value));
+                }
+                off = len.next + len.value;
+            } else if (wt === 5) { off = tag.next + 4; }
+            else if (wt === 1) { off = tag.next + 8; }
+            else break;
+        }
+        return level;
+    }
+
+    const config: any = { levels: [] };
+    let off = 0;
+    while (off < data.length) {
+        const tag = readVarint(data, off);
+        if (!tag) break;
+        const fn = tag.value >> 3; const wt = tag.value & 0x7;
+        if (wt === 0) {
+            const v = readVarint(data, tag.next);
+            if (!v) break;
+            if (fn === 1) config.seasonId = v.value;
+            else if (fn === 2) config.currentLevel = v.value;
+            else if (fn === 3) config.currentScore = v.value;
+            else if (fn === 4) config.currentLevelScore = v.value;
+            else if (fn === 5) config.levelUpScore = v.value;
+            else if (fn === 6) config.maxLevel = v.value;
+            else if (fn === 7) config.isPremium = v.value;
+            off = v.next;
+        } else if (wt === 2 && fn === 8) {
+            const len = readVarint(data, tag.next);
+            if (!len) break;
+            config.levels.push(parseLevel(data, len.next, len.next + len.value));
+            off = len.next + len.value;
+        } else if (wt === 2) {
+            const len = readVarint(data, tag.next);
+            if (!len) break;
+            off = len.next + len.value;
+        } else if (wt === 5) { off = tag.next + 4; }
+        else if (wt === 1) { off = tag.next + 8; }
+        else break;
+    }
+
+    return config;
+}
+
+/**
  * 获取活动组中的所有活动
  */
 async function getActivitiesInGroup(groupId: number): Promise<any[]> {
@@ -323,6 +435,7 @@ module.exports = {
     getActivitiesInGroup,
     claimActivityReward,
     autoClaimActivityRewards,
+    parseBattlePass: parseBattlePass,
     // 常量
     ACTIVITY_TYPE_LOTTERY,
     ACTIVITY_TYPE_SHOP,

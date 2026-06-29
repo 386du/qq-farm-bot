@@ -6,6 +6,22 @@ const { getAccId, checkAccountAccess, handleApiError } = require('./middleware')
 
 function mountActivityRoutes(app: Application, ctx: AdminContext): void {
 
+    // 获取货币余额（点券/金币/背包）
+    app.get('/api/activity/currency', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: 'Forbidden' });
+        }
+        try {
+            const status = await ctx.provider.getStatus(id);
+            const bag = await ctx.provider.getBag(id);
+            res.json({ ok: true, data: { status, bag } });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // 获取活动组
     app.get('/api/activity/group/:groupId', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
