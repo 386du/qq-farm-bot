@@ -748,6 +748,32 @@ onMounted(() => {
                 未获得奖励
               </template>
             </div>
+            <!-- 深度调试：显示服务器返回的原始字段 -->
+            <div v-if="operateResult._debug" class="deep-debug">
+              <div class="debug-header">
+                深度调试信息 (服务器返回的原始字段结构)
+              </div>
+              <div class="debug-section">
+                <div class="debug-label">尝试参数: op={{ operateResult._debug.triedOp }}, param={{ operateResult._debug.triedParam }}</div>
+                <div class="debug-label">解析的 result: {{ operateResult._debug.result }} (注意: 可能是 echo 的 operate_type)</div>
+                <div class="debug-label">奖励数: {{ operateResult._debug.rewardsCount }}</div>
+              </div>
+              <div v-if="operateResult._debug.scannedFields" class="debug-section">
+                <div class="debug-label">服务器返回的所有字段 (field/wireType/value):</div>
+                <div v-for="(f, i) in operateResult._debug.scannedFields" :key="i" class="debug-field-row">
+                  <span class="debug-field-num">f{{ f.field }}</span>
+                  <span class="debug-field-wt">wt{{ f.wireType }}</span>
+                  <span class="debug-field-val">{{ f.value !== undefined ? f.value : `len=${f.length}` }}</span>
+                </div>
+              </div>
+              <div v-if="operateResult._debug.drawInfo" class="debug-section">
+                <div class="debug-label">抽奖配置 drawInfo:</div>
+                <pre class="debug-pre">{{ JSON.stringify(operateResult._debug.drawInfo, null, 2) }}</pre>
+              </div>
+              <div class="debug-hint">
+                请把"服务器返回的所有字段"那几行读给我，我就能找到真正的 result 字段位置
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1981,6 +2007,66 @@ onMounted(() => {
   font-weight: 400;
   opacity: 0.7;
   margin-left: 4px;
+}
+
+.deep-debug {
+  margin-top: 12px;
+  padding: 12px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #d1d5db;
+}
+
+.debug-header {
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.debug-section {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #374151;
+}
+
+.debug-label {
+  color: #9ca3af;
+  margin: 2px 0;
+}
+
+.debug-field-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-family: monospace;
+}
+
+.debug-field-num {
+  color: #60a5fa;
+  min-width: 50px;
+}
+
+.debug-field-wt {
+  color: #a78bfa;
+  min-width: 50px;
+}
+
+.debug-field-val {
+  color: #f9faf9;
+  word-break: break-all;
+}
+
+.debug-pre {
+  background: #111827;
+  color: #6ee7b7;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  overflow-x: auto;
+  margin: 4px 0;
 }
 
 .result-status:not(.status-0) {

@@ -38,6 +38,60 @@ async function getActivityGroup(groupId: number): Promise<any> {
 }
 
 /**
+ * 扫描 protobuf 原始字节，列出所有顶层字段
+ * 用于调试服务器返回的真实结构
+ */
+function scanProtoFields(buf: Buffer): any[] {
+    const fields: any[] = [];
+    let off = 0;
+    while (off < buf.length) {
+        const tag = readVarint(buf, off);
+        if (!tag) break;
+        const fieldNum = tag.value >> 3;
+        const wireType = tag.value & 0x7;
+        const field: any = { field: fieldNum, wireType, offset: off };
+        if (wireType === 0) {
+            // varint
+            const v = readVarint(buf, tag.next);
+            if (!v) break;
+            field.value = v.value;
+            field.valueStr = v.value <= 0xffffffff ? v.value : '0x' + v.value.toString(16);
+            off = v.next;
+        } else if (wireType === 2) {
+            // length-delimited
+            const len = readVarint(buf, tag.next);
+            if (!len) break;
+            const data = buf.slice(len.next, len.next + len.value);
+            field.length = len.value;
+            // 尝试当字符串
+            try {
+                const str = data.toString('utf8');
+                if (/^[\x20-\x7e]+$/.test(str)) {
+                    field.value = str;
+                } else {
+                    field.value = '<bytes len=' + len.value + '>';
+                }
+            } catch {
+                field.value = '<bytes len=' + len.value + '>';
+            }
+            off = len.next + len.value;
+        } else if (wireType === 5) {
+            // 32-bit
+            field.value = buf.readUInt32LE(tag.next);
+            off = tag.next + 4;
+        } else if (wireType === 1) {
+            // 64-bit
+            field.value = '0x' + buf.slice(tag.next, tag.next + 8).toString('hex');
+            off = tag.next + 8;
+        } else {
+            break;
+        }
+        fields.push(field);
+    }
+    return fields;
+}
+
+/**
  * 活动操作
  */
 async function operateActivity(activityId: number, operateType: number = 0, param: number = 0): Promise<any> {
@@ -53,6 +107,8 @@ async function operateActivity(activityId: number, operateType: number = 0, para
     // 解析 rewards 字段中的实际中奖奖品
     const rewards = parseRewards(reply.rewards);
     const result = Number(reply.result) || 0;
+    // 扫描原始字节，列出所有字段
+    const scannedFields = scanProtoFields(Buffer.isBuffer(replyBody) ? replyBody : Buffer.from(replyBody));
     console.log('[Activity] operateActivity:', {
         activityId, operateType, param, result,
         dataLen: reply.data?.length,
@@ -60,12 +116,13 @@ async function operateActivity(activityId: number, operateType: number = 0, para
         drawInfo,
         rewardCount: rewards.length,
         rewards,
+        scannedFields,
     });
     // 失败时输出更多上下文帮助定位
     if (result !== 0) {
         console.warn(`[Activity] 抽奖/操作失败 result=${result} activityId=${activityId} operateType=${operateType} param=${param} drawInfo=`, drawInfo);
     }
-    return { ...reply.toJSON(), drawInfo, rewards };
+    return { ...reply.toJSON(), drawInfo, rewards, _scannedFields: scannedFields };
 }
 
 // 缓存：activityId -> 成功的 (operateType, param) 组合
@@ -78,6 +135,7 @@ const drawParamCache: Map<number, { operateType: number, param: number }> = new 
 async function drawAuto(activityId: number, count: number = 1): Promise<any> {
     const tryCount = count > 1 ? 4 : 1;
     let lastResult: any = null;
+    let debugInfo: any = null;
 
     // 候选参数组合：按经验排序，op=7 param=0 最可能成功
     const candidates: { operateType: number, param: number }[] = [
@@ -107,6 +165,17 @@ async function drawAuto(activityId: number, count: number = 1): Promise<any> {
                 const result = Number(reply.result) || 0;
                 lastResult = reply;
                 const rewards = reply.rewards || [];
+                // 收集第一次尝试的调试信息
+                if (!debugInfo) {
+                    debugInfo = {
+                        triedOp: c.operateType,
+                        triedParam: c.param,
+                        result,
+                        rewardsCount: rewards.length,
+                        scannedFields: reply._scannedFields,
+                        drawInfo: reply.drawInfo,
+                    };
+                }
                 // result=0 且有奖励 = 成功
                 if (result === 0 && rewards.length > 0) {
                     drawParamCache.set(activityId, { operateType: c.operateType, param: c.param });
@@ -125,12 +194,19 @@ async function drawAuto(activityId: number, count: number = 1): Promise<any> {
                 console.log(`[Activity] drawAuto 尝试失败: op=${c.operateType} param=${c.param} result=${result}, 换下一个组合`);
             } catch (e: any) {
                 console.warn(`[Activity] drawAuto 异常: op=${c.operateType} param=${c.param} err=${e.message}`);
+                if (!debugInfo) {
+                    debugInfo = { triedOp: c.operateType, triedParam: c.param, error: e.message };
+                }
             }
         }
         if (!success) {
             console.warn(`[Activity] drawAuto 所有组合均失败，最后结果:`, lastResult);
             break;
         }
+    }
+    // 失败时附加调试信息
+    if (lastResult) {
+        lastResult._debug = debugInfo;
     }
     return lastResult;
 }
