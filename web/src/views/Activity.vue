@@ -28,6 +28,11 @@ const seasonInfo = ref<any>(null)
 // 节令数据
 const solarTerms = ref<any[]>([])
 
+// 商店数据 (改用 ShopService 获取真实商品)
+const shopProfiles = ref<any[]>([])
+const shopGoodsList = ref<Record<string, any[]>>({})  // shopId -> 商品列表
+const shopLoading = ref(false)
+
 // 货币/背包
 const basicInfo = ref<any>(null)
 const bagItems = ref<any[]>([])
@@ -82,19 +87,6 @@ function parseExtra(extra: any): any {
     return extra
   try { return JSON.parse(extra) }
   catch { return null }
-}
-
-// extra 原始内容转 hex (用于调试无法解析为 JSON 的 extra)
-function extraRawHex(extra: any): string {
-  if (!extra) return ''
-  if (typeof extra === 'string') {
-    // 尝试转 hex
-    return Array.from(extra).map((c: string) => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ').slice(0, 500)
-  }
-  if (extra instanceof Uint8Array || Array.isArray(extra)) {
-    return Array.from(extra).map((b: number) => b.toString(16).padStart(2, '0')).join(' ').slice(0, 500)
-  }
-  return String(extra).slice(0, 500)
 }
 
 // 把 result 状态码转成中文提示
@@ -205,10 +197,40 @@ async function fetchSolarTerms() {
   catch {}
 }
 
+// 获取商店列表与商品
+async function fetchShopData() {
+  shopLoading.value = true
+  try {
+    const { data } = await api.get('/api/shop/profiles', {
+      headers: { 'x-account-id': getAccountId() },
+    })
+    if (data.ok) {
+      const profiles = data.data?.shop_profiles || []
+      shopProfiles.value = profiles
+      // 拉取每个商店的商品
+      for (const p of profiles) {
+        try {
+          const shopId = Number(p.shop_id)
+          const { data: shopData } = await api.get(`/api/shop/${shopId}`, {
+            headers: { 'x-account-id': getAccountId() },
+          })
+          if (shopData.ok) {
+            shopGoodsList.value[shopId] = shopData.data?.goods_list || []
+          }
+        }
+        catch {}
+      }
+    }
+  }
+  catch {}
+  shopLoading.value = false
+}
+
 // 抽奖按钮点击
 function onDrawClick(activityId: number, count: number) {
   // drawInfo 未加载或免费次数还有，直接抽
   if (!drawInfo.value || freeRemain.value >= count) {
+    // 免费抽: param=count (1=单抽, 4=连抽)
     doOperate(activityId, OPERATE_DRAW, count)
     return
   }
@@ -218,19 +240,19 @@ function onDrawClick(activityId: number, count: number) {
   showPaidConfirm.value = true
 }
 
-// 确认付费抽奖 (param=2 表示使用点券抽奖)
+// 确认付费抽奖 (付费时 param=0，让服务器自动用点券)
 async function confirmPaidDraw() {
   showPaidConfirm.value = false
   const count = pendingDrawType.value
-  // 付费连抽逐次单抽，每次 param=2 表示用点券
+  // 付费连抽逐次单抽，每次 param=0 让服务器自动扣点券
   if (count > 1) {
     for (let i = 0; i < count; i++) {
-      await doOperate(pendingActivityId.value, OPERATE_DRAW, 2)
+      await doOperate(pendingActivityId.value, OPERATE_DRAW, 0)
       if (operateResult.value?.result !== 0) break
     }
   }
   else {
-    await doOperate(pendingActivityId.value, OPERATE_DRAW, 2)
+    await doOperate(pendingActivityId.value, OPERATE_DRAW, 0)
   }
 }
 
@@ -299,6 +321,55 @@ async function claimBattlePass(levelIds: number[], label = '领取战令奖励')
   operateLoading.value = false
 }
 
+// 购买商店商品 (ShopService.BuyGoods)
+async function buyShopGoods(shopId: number, goods: any) {
+  const goodsId = Number(goods.id || goods.goods_id)
+  const price = Number(goods.price || 0)
+  const num = 1
+  if (!goodsId) {
+    toast.error('商品 ID 无效')
+    return
+  }
+  operateLoading.value = true
+  try {
+    const { data } = await api.post('/api/shop/buy', {
+      goodsId,
+      num,
+      price,
+    }, {
+      headers: { 'x-account-id': getAccountId() },
+    })
+    if (data.ok) {
+      const getItems = data.data?.get_items || []
+      if (getItems.length > 0) {
+        toast.success(`购买成功: 获得 ${getItems.map((it: any) => `${it.itemId || it.item_id} x${it.count || it.num || 1}`).join(', ')}`)
+      }
+      else {
+        toast.success('购买成功')
+      }
+      // 刷新该商店的商品 (更新 bought_num 和 unlocked)
+      try {
+        const { data: shopData } = await api.get(`/api/shop/${shopId}`, {
+          headers: { 'x-account-id': getAccountId() },
+        })
+        if (shopData.ok) {
+          shopGoodsList.value = { ...shopGoodsList.value, [shopId]: shopData.data?.goods_list || [] }
+        }
+      }
+      catch {}
+      await fetchCurrency()
+    }
+    else {
+      toast.error(data.error || '购买失败')
+    }
+  }
+  catch (e: any) {
+    const errData = e.response?.data
+    toast.error(friendlyError(errData?.error || e.message || '网络错误'))
+  }
+  operateLoading.value = false
+}
+
 // 一键领取所有已达成等级的战令奖励
 function claimAllBattlePass() {
   const levels = battlePassLevels.value
@@ -349,37 +420,10 @@ async function doOperate(activityId: number, operateType: number, param: number 
   operateLoading.value = false
 }
 
-// 按类型筛选活动
+// 抽奖活动 (活动组中 type=8)
 const lotteryActivities = computed(() =>
-  activities.value.filter(a => a.type === 8),
+  activities.value.filter(a => a.type === ACTIVITY_TYPE_LOTTERY),
 )
-const shopActivities = computed(() =>
-  activities.value.filter(a => a.type === 3),
-)
-
-// 从单个商店活动解析商品列表
-function parseShopGoods(act: any): any[] {
-  if (!act) return []
-  const extra = parseExtra(act.extra)
-  if (!extra) return []
-  // 尝试多种可能的商品字段名
-  const goods = extra.goods || extra.items || extra.shop || extra.products
-    || extra.exchangeItems || extra.shopItems || extra.commodities
-    || extra.exchange_list || extra.exchangeList || extra.list
-  if (Array.isArray(goods)) {
-    return goods.map((g: any, idx: number) => ({
-      id: g.id || g.itemId || g.item_id || g.goodsId || g.product_id || idx + 1,
-      name: g.name || g.itemName || g.item_name || g.title || `商品#${idx + 1}`,
-      icon: g.icon || g.image || g.img || g.itemId || g.id,
-      price: Number(g.price || g.cost || g.need || g.needCount || g.need_count || 0),
-      currency: g.currency || g.currencyName || g.currency_name || g.costType || g.cost_type || '荷露',
-      limit: g.limit ?? g.limitCount ?? g.limit_count ?? g.buyLimit ?? g.buy_limit ?? null,
-      bought: g.bought ?? g.buyCount ?? g.buy_count ?? g.purchased ?? 0,
-      param: g.param ?? g.index ?? g.idx ?? g.position ?? (idx + 1),
-    }))
-  }
-  return []
-}
 
 // 每日任务活动
 const dailyActivities = computed(() =>
@@ -463,6 +507,7 @@ onMounted(() => {
   fetchSeasonInfo()
   fetchSolarTerms()
   fetchCurrency()
+  fetchShopData()
 })
 </script>
 
@@ -721,51 +766,65 @@ onMounted(() => {
 
       <!-- 荷露商店 (兑换) -->
       <div v-if="activeTab === 'shop'" class="tab-content">
-        <div v-if="loading" class="loading">
+        <div class="shop-toolbar">
+          <button
+            class="btn btn-secondary btn-sm"
+            :disabled="shopLoading"
+            @click="fetchShopData"
+          >
+            🔄 刷新商店
+          </button>
+        </div>
+        <div v-if="shopLoading" class="loading">
           加载中...
         </div>
-        <div v-else-if="shopActivities.length === 0" class="empty">
-          暂无商店活动
+        <div v-else-if="shopProfiles.length === 0" class="empty">
+          暂无商店
         </div>
         <div v-else>
-          <div v-for="act in shopActivities" :key="act.activityId" class="shop-card">
+          <div v-for="shop in shopProfiles" :key="shop.shop_id" class="shop-card">
             <div class="card-title">
-              {{ act.name }}
+              {{ shop.shop_name }} <span class="shop-id">#{{ shop.shop_id }}</span>
             </div>
-            <div class="activity-info">
-              <div v-if="act.beginTime" class="info-row">
-                <span class="info-label">活动时间</span>
-                <span class="info-value">{{ formatDate(act.beginTime) }} ~ {{ formatDate(act.endTime) }}</span>
-              </div>
+            <div class="shop-type">
+              类型: {{ shop.shop_type === 1 ? '道具商店' : shop.shop_type === 2 ? '种子商店' : shop.shop_type === 3 ? '宠物商店' : `类型${shop.shop_type}` }}
             </div>
 
-            <div v-if="parseShopGoods(act).length" class="shop-goods">
-              <div v-for="g in parseShopGoods(act)" :key="g.id" class="goods-item">
+            <div v-if="(shopGoodsList[shop.shop_id] || []).length" class="shop-goods">
+              <div
+                v-for="g in (shopGoodsList[shop.shop_id] || [])"
+                :key="g.id"
+                class="goods-item"
+                :class="{ locked: !g.unlocked }"
+              >
                 <div class="goods-info">
-                  <div class="goods-name">{{ g.name }}</div>
+                  <div class="goods-name">
+                    物品 #{{ g.item_id }}
+                    <span v-if="!g.unlocked" class="locked-tag">🔒 未解锁</span>
+                  </div>
                   <div class="goods-price">
                     <span class="price-value">{{ formatNumber(g.price) }}</span>
-                    <span class="price-currency">{{ g.currency }}</span>
+                    <span class="price-currency">金币</span>
                   </div>
-                  <div v-if="g.limit !== null" class="goods-limit">
-                    限购 {{ g.bought }} / {{ g.limit }}
+                  <div class="goods-meta">
+                    <span>每次: x{{ g.item_count || 1 }}</span>
+                    <span v-if="g.limit_count > 0" class="goods-limit">
+                      限购 {{ g.bought_num || 0 }} / {{ g.limit_count }}
+                    </span>
+                    <span v-else class="goods-unlimited">不限购</span>
                   </div>
                 </div>
                 <button
-                  class="btn btn-primary"
-                  :disabled="operateLoading"
-                  @click="doOperate(act.activityId, 1, g.param)"
+                  class="btn btn-primary btn-sm"
+                  :disabled="operateLoading || !g.unlocked"
+                  @click="buyShopGoods(Number(shop.shop_id), g)"
                 >
-                  {{ operateLoading ? '兑换中...' : '兑换' }}
+                  {{ operateLoading ? '购买中...' : (g.unlocked ? '购买' : '未解锁') }}
                 </button>
               </div>
             </div>
             <div v-else class="shop-debug">
-              <div class="debug-title">未解析到商品，extra 原始数据：</div>
-              <pre>{{ JSON.stringify(parseExtra(act.extra), null, 2) }}</pre>
-              <div v-if="!parseExtra(act.extra)" class="debug-raw">
-                extra 无法解析为 JSON，原始内容(hex)：<br>{{ extraRawHex(act.extra) }}
-              </div>
+              <div class="debug-title">该商店暂无商品</div>
             </div>
           </div>
         </div>
@@ -1598,6 +1657,49 @@ onMounted(() => {
   color: #92400e;
   word-break: break-all;
   font-family: monospace;
+}
+
+.shop-toolbar {
+  margin-bottom: 12px;
+}
+
+.shop-id {
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+  font-weight: normal;
+}
+
+.shop-type {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 12px;
+}
+
+.goods-item.locked {
+  opacity: 0.6;
+  background: #f3f4f6;
+}
+
+.goods-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+  margin-top: 4px;
+}
+
+.goods-unlimited {
+  color: #10b981;
+}
+
+.locked-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #fbbf24;
+  color: #78350f;
+  margin-left: 6px;
 }
 
 .result-card {

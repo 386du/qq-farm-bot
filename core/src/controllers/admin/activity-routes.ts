@@ -117,6 +117,55 @@ function mountActivityRoutes(app: Application, ctx: AdminContext): void {
             handleApiError(res, e);
         }
     });
+
+    // 获取所有商店列表 (ShopService.ShopProfiles)
+    app.get('/api/shop/profiles', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: 'Forbidden' });
+        }
+        try {
+            const data = await ctx.provider.getShopProfiles(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // 获取商店商品列表 (ShopService.ShopInfo)
+    app.get('/api/shop/:shopId', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: 'Forbidden' });
+        }
+        try {
+            const data = await ctx.provider.getShopInfo(id, Number(req.params.shopId) || 0);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // 购买商店商品 (ShopService.BuyGoods)
+    app.post('/api/shop/buy', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: 'Forbidden' });
+        }
+        const { goodsId, num = 1, price = 0 } = req.body || {};
+        if (!goodsId) {
+            return res.status(400).json({ ok: false, error: '缺少 goodsId' });
+        }
+        try {
+            const data = await ctx.provider.buyGoods(id, Number(goodsId), Number(num), Number(price));
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
 }
 
 module.exports = { mountActivityRoutes };

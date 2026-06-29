@@ -728,6 +728,41 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = await getActivitiesInGroup(args[0]);
                 break;
             }
+            case 'getShopProfiles': {
+                const { sendMsgAsync } = require('../utils/network');
+                const { types } = require('../utils/proto');
+                const body = types.ShopProfilesRequest.encode(types.ShopProfilesRequest.create({})).finish();
+                const { body: replyBody } = await sendMsgAsync('gamepb.shoppb.ShopService', 'ShopProfiles', body);
+                const reply = types.ShopProfilesReply.decode(replyBody);
+                result = reply.toJSON();
+                break;
+            }
+            case 'getShopInfo': {
+                const { sendMsgAsync } = require('../utils/network');
+                const { types } = require('../utils/proto');
+                const { toLong } = require('../utils/utils');
+                const body = types.ShopInfoRequest.encode(types.ShopInfoRequest.create({
+                    shop_id: toLong(Number(args[0]) || 0),
+                })).finish();
+                const { body: replyBody } = await sendMsgAsync('gamepb.shoppb.ShopService', 'ShopInfo', body);
+                const reply = types.ShopInfoReply.decode(replyBody);
+                result = reply.toJSON();
+                break;
+            }
+            case 'buyGoods': {
+                const { sendMsgAsync } = require('../utils/network');
+                const { types } = require('../utils/proto');
+                const { toLong } = require('../utils/utils');
+                const body = types.BuyGoodsRequest.encode(types.BuyGoodsRequest.create({
+                    goods_id: toLong(Number(args[0]) || 0),
+                    num: toLong(Number(args[1]) || 1),
+                    price: toLong(Number(args[2]) || 0),
+                })).finish();
+                const { body: replyBody } = await sendMsgAsync('gamepb.shoppb.ShopService', 'BuyGoods', body);
+                const reply = types.BuyGoodsReply.decode(replyBody);
+                result = reply.toJSON();
+                break;
+            }
             case 'getActivityList': {
                 const { getActivityList: _getList } = require('../services/activity');
                 result = await _getList();

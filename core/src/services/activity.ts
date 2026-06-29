@@ -52,7 +52,19 @@ async function operateActivity(activityId: number, operateType: number = 0, para
     const drawInfo = parseDrawInfo(reply.data);
     // 解析 rewards 字段中的实际中奖奖品
     const rewards = parseRewards(reply.rewards);
-    console.log('[Activity] operateActivity:', { activityId, operateType, param, result: reply.result, dataLen: reply.data?.length, drawInfo, rewardCount: rewards.length });
+    const result = Number(reply.result) || 0;
+    console.log('[Activity] operateActivity:', {
+        activityId, operateType, param, result,
+        dataLen: reply.data?.length,
+        dataHex: reply.data ? reply.data.toString('hex').slice(0, 200) : '',
+        drawInfo,
+        rewardCount: rewards.length,
+        rewards,
+    });
+    // 失败时输出更多上下文帮助定位
+    if (result !== 0) {
+        console.warn(`[Activity] 抽奖/操作失败 result=${result} activityId=${activityId} operateType=${operateType} param=${param} drawInfo=`, drawInfo);
+    }
     return { ...reply.toJSON(), drawInfo, rewards };
 }
 
