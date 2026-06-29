@@ -142,6 +142,8 @@ function createDataProvider(options: DataProviderOptions) {
         // 活动
         getActivityGroup: (accountRef: string, groupId: number) => callWorkerApi(resolveAccountRefId(accountRef), 'getActivityGroup', groupId),
         getActivityList: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getActivityList'),
+        // 动态获取所有活动组的所有活动 (不依赖写死的 groupId)
+        getAllActivities: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getAllActivities'),
         operateActivity: (accountRef: string, activityId: number, operateType: number, param: number) => callWorkerApi(resolveAccountRefId(accountRef), 'operateActivity', activityId, operateType, param),
         drawAuto: (accountRef: string, activityId: number, count: number) => callWorkerApi(resolveAccountRefId(accountRef), 'drawAuto', activityId, count),
         getSolarTerms: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getSolarTerms'),

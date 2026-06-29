@@ -18,9 +18,8 @@ const ACTIVITY_TYPE_DAILY = 1    // 每日任务
 const ACTIVITY_TYPE_SHOP = 3     // 商店
 const ACTIVITY_TYPE_LOTTERY = 8  // 抽奖
 
-// 活动组数据
+// 活动组数据 (动态获取所有 group 的活动，不再写死 groupId)
 const activities = ref<any[]>([])
-const groupId = ref(2026060100)
 
 // 赛季数据
 const seasonInfo = ref<any>(null)
@@ -154,16 +153,16 @@ async function fetchCurrency() {
   catch {}
 }
 
-// 获取活动组
-async function fetchActivityGroup() {
+// 获取所有活动 (动态遍历所有 group_id，新活动自动显示)
+async function fetchActivities() {
   loading.value = true
   try {
-    const { data } = await api.get(`/api/activity/group/${groupId.value}`, {
+    const { data } = await api.get('/api/activity/all', {
       headers: { 'x-account-id': getAccountId() },
     })
     if (data.ok) {
       activities.value = data.data || []
-      // 从活动组中直接获取抽奖信息
+      // 从活动列表中取第一个抽奖活动，设置全局 drawInfo (用于结果展示)
       const lottery = activities.value.find(a => a.type === 8)
       if (lottery?.drawInfo) {
         drawInfo.value = lottery.drawInfo
@@ -175,19 +174,35 @@ async function fetchActivityGroup() {
 }
 
 // 轻量刷新抽奖次数 (不修改 loading 状态，避免抽奖中闪烁)
-async function refreshDrawInfo() {
+async function refreshDrawInfo(activityId?: number) {
   try {
-    const { data } = await api.get(`/api/activity/group/${groupId.value}`, {
+    const { data } = await api.get('/api/activity/all', {
       headers: { 'x-account-id': getAccountId() },
     })
     if (data.ok) {
-      const lottery = (data.data || []).find((a: any) => a.type === 8)
+      activities.value = data.data || []
+      // 优先用 activityId 对应的抽奖活动 drawInfo；否则用第一个抽奖活动
+      const target = activityId
+        ? activities.value.find((a: any) => a.activityId === activityId)
+        : null
+      const lottery = target || activities.value.find((a: any) => a.type === 8)
       if (lottery?.drawInfo) {
         drawInfo.value = lottery.drawInfo
       }
     }
   }
   catch {}
+}
+
+// 按活动读取剩余免费/付费次数 (每个抽奖活动各自独立)
+function actFreeRemain(act: any): number {
+  return act?.drawInfo?.freeRemaining ?? 0
+}
+function actPaidRemain(act: any): number {
+  return act?.drawInfo?.paidRemaining ?? 0
+}
+function actTotalRemain(act: any): number {
+  return actFreeRemain(act) + actPaidRemain(act)
 }
 
 // 获取赛季信息
@@ -246,13 +261,15 @@ async function fetchShopData() {
 }
 
 // 抽奖按钮点击
-async function onDrawClick(activityId: number, count: number) {
+async function onDrawClick(activityId: number, count: number, act: any) {
+  const free = actFreeRemain(act)
   // 免费次数足够 → 直接抽 (param=0 让服务器自动用免费次数)
-  if (!drawInfo.value || freeRemain.value >= count) {
+  if (free >= count) {
     if (count > 1) {
       // 连抽：逐次单抽，实时检查剩余次数
       for (let i = 0; i < count; i++) {
-        if (freeRemain.value < 1) break
+        const curAct = activities.value.find((a: any) => a.activityId === activityId)
+        if (actFreeRemain(curAct) < 1) break
         await doOperate(activityId, OPERATE_DRAW, 0)
         if (operateResult.value?.result !== 0) break
       }
@@ -435,9 +452,9 @@ async function doOperate(activityId: number, operateType: number, param: number 
         drawInfo.value = data.data.drawInfo
       }
       // 抽奖操作后强制刷新最新的免费/付费剩余次数
-      // (失败时服务器返回的 drawInfo 可能为空，需要重新拉取活动组)
+      // (失败时服务器返回的 drawInfo 可能为空，需要重新拉取活动)
       if (operateType === OPERATE_DRAW) {
-        await refreshDrawInfo()
+        await refreshDrawInfo(activityId)
       }
       // 刷新货币
       await fetchCurrency()
@@ -481,27 +498,6 @@ function activityTypeLabel(type: number): { text: string; color: string } {
   }
   return map[type] || { text: `类型${type}`, color: '#6b7280' }
 }
-
-// 总剩余次数
-const totalRemaining = computed(() => {
-  if (!drawInfo.value)
-    return '-'
-  return freeRemain.value + paidRemain.value
-})
-
-// 免费剩余 (只用 freeRemaining，不回退到 freeLimit)
-const freeRemain = computed(() => {
-  if (!drawInfo.value)
-    return 0
-  return drawInfo.value.freeRemaining ?? 0
-})
-
-// 付费剩余 (只用 paidRemaining，不回退到 paidLimit)
-const paidRemain = computed(() => {
-  if (!drawInfo.value)
-    return 0
-  return drawInfo.value.paidRemaining ?? 0
-})
 
 // 战令等级/积分（后端已解析 battle_pass）
 const battlePassLevel = computed(() => Number(seasonInfo.value?.level) || 1)
@@ -557,7 +553,7 @@ function toLongNumber(val: any): number {
 }
 
 onMounted(() => {
-  fetchActivityGroup()
+  fetchActivities()
   fetchSeasonInfo()
   fetchSolarTerms()
   fetchCurrency()
@@ -622,15 +618,15 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- 抽奖次数 -->
+            <!-- 抽奖次数 (按 act 各自显示) -->
             <div class="lottery-limits">
               <div class="limit-item">
                 <span class="limit-label">免费</span>
-                <span class="limit-value" :class="freeRemain > 0 ? 'free' : 'used'">{{ freeRemain }} / {{ drawInfo?.freeLimit ?? '-' }}</span>
+                <span class="limit-value" :class="actFreeRemain(act) > 0 ? 'free' : 'used'">{{ actFreeRemain(act) }} / {{ act?.drawInfo?.freeLimit ?? '-' }}</span>
               </div>
               <div class="limit-item">
                 <span class="limit-label">付费</span>
-                <span class="limit-value" :class="paidRemain > 0 ? 'paid' : 'used'">{{ paidRemain }} / {{ drawInfo?.paidLimit ?? '-' }}</span>
+                <span class="limit-value" :class="actPaidRemain(act) > 0 ? 'paid' : 'used'">{{ actPaidRemain(act) }} / {{ act?.drawInfo?.paidLimit ?? '-' }}</span>
               </div>
               <div class="limit-hint">
                 付费抽奖每次需要30点券
@@ -643,58 +639,34 @@ onMounted(() => {
             </div>
 
             <!-- 抽奖按钮 -->
-            <div v-if="totalRemaining > 0" class="card-actions">
+            <div v-if="actTotalRemain(act) > 0" class="card-actions">
               <button
                 class="btn btn-primary"
-                :disabled="operateLoading || (freeRemain + paidRemain) < 1"
-                @click="onDrawClick(act.activityId, 1)"
+                :disabled="operateLoading || actTotalRemain(act) < 1"
+                @click="onDrawClick(act.activityId, 1, act)"
               >
-                {{ operateLoading ? '抽奖中...' : (freeRemain > 0 ? '免费单抽' : '30点券单抽') }}
+                {{ operateLoading ? '抽奖中...' : (actFreeRemain(act) > 0 ? '免费单抽' : '30点券单抽') }}
               </button>
               <button
                 class="btn btn-accent"
-                :disabled="operateLoading || (freeRemain + paidRemain) < 4"
-                @click="onDrawClick(act.activityId, 4)"
+                :disabled="operateLoading || actTotalRemain(act) < 4"
+                @click="onDrawClick(act.activityId, 4, act)"
               >
-                {{ operateLoading ? '抽奖中...' : (freeRemain >= 4 ? '免费连抽' : '120点券连抽') }}
+                {{ operateLoading ? '抽奖中...' : (actFreeRemain(act) >= 4 ? '免费连抽' : '120点券连抽') }}
               </button>
             </div>
             <div v-else class="draw-empty">
               今日次数已用完
             </div>
 
-            <!-- 付费确认弹窗 -->
-            <Teleport to="body">
-              <div v-if="showPaidConfirm" class="modal-overlay" @click.self="showPaidConfirm = false">
-                <div class="modal-box">
-                  <div class="modal-title">
-                    确认抽奖
-                  </div>
-                  <div class="modal-body">
-                    当前免费次数已用完，将消耗点券。
-                    <br><br>
-                    本次抽奖将花费 <b>{{ pendingDrawType * 30 }}</b> 点券
-                  </div>
-                  <div class="modal-actions">
-                    <button class="btn btn-secondary" @click="showPaidConfirm = false">
-                      取消
-                    </button>
-                    <button class="btn btn-primary" @click="confirmPaidDraw">
-                      确认
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Teleport>
-
-            <!-- 奖品池 -->
-            <div v-if="drawInfo?.prizes?.length" class="prize-pool">
+            <!-- 奖品池 (按 act 各自显示) -->
+            <div v-if="act?.drawInfo?.prizes?.length" class="prize-pool">
               <div class="prize-title">
                 奖品池
               </div>
               <div class="prize-list">
                 <div
-                  v-for="(prize, i) in drawInfo.prizes"
+                  v-for="(prize, i) in act.drawInfo.prizes"
                   :key="i"
                   class="prize-item"
                   :class="`quality-${prize.quality}`"
@@ -720,6 +692,30 @@ onMounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- 付费确认弹窗 (移出 v-for，避免多个抽奖活动重复渲染) -->
+          <Teleport to="body">
+            <div v-if="showPaidConfirm" class="modal-overlay" @click.self="showPaidConfirm = false">
+              <div class="modal-box">
+                <div class="modal-title">
+                  确认抽奖
+                </div>
+                <div class="modal-body">
+                  当前免费次数已用完，将消耗点券。
+                  <br><br>
+                  本次抽奖将花费 <b>{{ pendingDrawType * 30 }}</b> 点券
+                </div>
+                <div class="modal-actions">
+                  <button class="btn btn-secondary" @click="showPaidConfirm = false">
+                    取消
+                  </button>
+                  <button class="btn btn-primary" @click="confirmPaidDraw">
+                    确认
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
 
           <!-- 抽奖结果 -->
           <div v-if="operateResult" class="result-card">

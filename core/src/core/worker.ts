@@ -728,6 +728,11 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = await getActivitiesInGroup(args[0]);
                 break;
             }
+            case 'getAllActivities': {
+                const { getAllActivities: _getAll } = require('../services/activity');
+                result = await _getAll();
+                break;
+            }
             case 'getShopProfiles': {
                 const { sendMsgAsync } = require('../utils/network');
                 const { types } = require('../utils/proto');

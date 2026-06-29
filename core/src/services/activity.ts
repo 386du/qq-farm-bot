@@ -524,6 +524,42 @@ async function getActivitiesInGroup(groupId: number): Promise<any[]> {
 }
 
 /**
+ * 获取所有活动组的所有活动 (动态遍历所有 group_id)
+ * 用于新活动自动显示 - 不再依赖写死的 groupId
+ */
+async function getAllActivities(): Promise<any[]> {
+    try {
+        const listReply = await getActivityList();
+        const listActivities = listReply.activities || [];
+        // 收集所有 group_id (去重)
+        const groupIds = new Set<number>();
+        for (const act of listActivities) {
+            const gid = toNum(act.group_id);
+            if (gid > 0) groupIds.add(gid);
+        }
+        console.log(`[Activity] getAllActivities: 发现 ${listActivities.length} 个活动, ${groupIds.size} 个 group_id`);
+
+        // 并发拉取每个 group 的详情
+        const allResults: any[] = [];
+        const groupArr = Array.from(groupIds);
+        const groupDetails = await Promise.all(
+            groupArr.map(gid => getActivitiesInGroup(gid).catch(() => []))
+        );
+        for (const acts of groupDetails) {
+            allResults.push(...acts);
+        }
+
+        // 按 sortOrder 排序
+        allResults.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        console.log(`[Activity] getAllActivities: 共获取 ${allResults.length} 个活动详情`);
+        return allResults;
+    } catch (e: any) {
+        log('活动', `获取所有活动失败: ${e.message}`);
+        return [];
+    }
+}
+
+/**
  * 领取活动奖励 (operate_type=1)
  */
 async function claimActivityReward(activityId: number): Promise<{ success: boolean; rewardCount: number }> {
@@ -582,6 +618,7 @@ module.exports = {
     operateActivity,
     drawAuto,
     getActivitiesInGroup,
+    getAllActivities,
     claimActivityReward,
     autoClaimActivityRewards,
     parseBattlePass: parseBattlePass,

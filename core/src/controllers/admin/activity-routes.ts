@@ -53,6 +53,21 @@ function mountActivityRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // 动态获取所有活动组的所有活动 (不依赖写死的 groupId)
+    app.get('/api/activity/all', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: 'Forbidden' });
+        }
+        try {
+            const data = await ctx.provider.getAllActivities(id);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // 活动操作（抽奖/兑换/领取）
     app.post('/api/activity/operate', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
