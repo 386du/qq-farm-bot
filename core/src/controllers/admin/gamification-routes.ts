@@ -121,59 +121,93 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
     });
 
     /**
-     * 当前账号成就
-     * GET /api/achievements/me
+     * 手动触发日报推送(管理员, 强制推送一次, 会跳过当天防重)
+     * POST /api/admin/report/push
      */
-    app.get('/api/achievements/me', (req: Request, res: Response) => {
+    app.post('/api/admin/report/push', async (req: Request, res: Response) => {
         try {
-            const id = getAccId(ctx, req);
-            if (!id) {
-                return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
-            }
-            const data = gamif.getAchievementsForAccount(id);
-            // 重新检查解锁(以防今日操作后未触发)
-            gamif.checkAndUnlock(id);
-            const refreshed = gamif.getAchievementsForAccount(id);
-            res.json({
-                ok: true,
-                data: {
-                    ...refreshed,
-                    all: gamif.listAllAchievements(),
-                },
+            const { sendPushooMessage } = require('../../services/push');
+            const result = await gamif.pushDailyReport({
+                force: true,
+                sendPushooMessage,
             });
+            res.json({ ok: true, data: result });
         } catch (e: any) {
             handleApiError(res, e);
         }
     });
 
     /**
-     * 全局成就列表(无需账号,显示所有可能的成就)
-     * GET /api/achievements/all
+     * 测试日报推送: 用当前配置 (或 body 里的 channel/endpoint/token) 立刻发一条测试消息
+     * POST /api/admin/report/test
+     * body: { channel?, endpoint?, token?, title?, content? } (可选覆盖配置)
      */
-    app.get('/api/achievements/all', (_req: Request, res: Response) => {
+    app.post('/api/admin/report/test', async (req: Request, res: Response) => {
         try {
-            res.json({ ok: true, data: gamif.listAllAchievements() });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
-
-    /**
-     * 手动触发昨日数据 rollup(管理员)
-     * POST /api/admin/achievements/rollup
-     */
-    app.post('/api/admin/achievements/rollup', (req: Request, res: Response) => {
-        try {
-            const yesterdayKey = gamif.getYesterdayKey();
-            const accounts = getAccountList(ctx);
-            let count = 0;
-            for (const acc of accounts) {
-                if (acc && acc.id) {
-                    gamif.rollupDaily(String(acc.id), yesterdayKey);
-                    count += 1;
+            const { sendPushooMessage } = require('../../services/push');
+            const override: any = req.body || {};
+            // 优先 body 覆盖, 否则读日报配置 -> 全局下线提醒
+            const store = require('../../models/store');
+            let cfg: any = null;
+            const daily = store.getDailyReportPush ? store.getDailyReportPush() : null;
+            if (daily && daily.enabled && daily.channel) {
+                cfg = daily;
+            }
+            else {
+                const reminder = store.getOfflineReminder ? store.getOfflineReminder('') : null;
+                if (reminder && reminder.channel) {
+                    cfg = reminder;
                 }
             }
-            res.json({ ok: true, data: { rolledUp: count, date: yesterdayKey } });
+
+            const channel: string = String(override.channel || (cfg && cfg.channel) || '').trim().toLowerCase();
+            const endpoint: string = String(override.endpoint || (cfg && cfg.endpoint) || '').trim();
+            const token: string = String(override.token || (cfg && cfg.token) || '').trim();
+            const title: string = String(override.title || (cfg && cfg.title) || '🌾 农场日报测试').trim();
+            const content: string = String(override.content || '这是一条测试推送, 如果你看到这条消息说明配置正确 ✅').trim();
+
+            if (!channel) {
+                return res.json({ ok: false, error: '未配置推送渠道, 请在 设置 → 日报推送 配置或先在 下线提醒 配 channel' });
+            }
+            if (channel !== 'webhook' && !token) {
+                return res.json({ ok: false, error: `渠道 ${channel} 必须填 token` });
+            }
+            if (channel === 'webhook' && !endpoint) {
+                return res.json({ ok: false, error: 'webhook 渠道必须填 endpoint' });
+            }
+
+            const result = await sendPushooMessage({ channel, endpoint, token, title, content });
+            res.json({ ok: !!result.ok, data: result });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    /**
+     * 获取日报推送配置
+     * GET /api/admin/daily-report-push
+     */
+    app.get('/api/admin/daily-report-push', (_req: Request, res: Response) => {
+        try {
+            const store = require('../../models/store');
+            const cfg = store.getDailyReportPush ? store.getDailyReportPush() : null;
+            res.json({ ok: true, data: cfg });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    /**
+     * 更新日报推送配置
+     * POST /api/admin/daily-report-push
+     * body: { enabled?, channel?, endpoint?, token?, title? }
+     */
+    app.post('/api/admin/daily-report-push', (req: Request, res: Response) => {
+        try {
+            const store = require('../../models/store');
+            const body: any = req.body || {};
+            const cfg = store.setDailyReportPush(body);
+            res.json({ ok: true, data: cfg });
         } catch (e: any) {
             handleApiError(res, e);
         }

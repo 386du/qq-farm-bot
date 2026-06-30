@@ -1,11 +1,10 @@
 export {};
 /**
- * 游戏化模块 - 跨账号排行、每日日报、成就系统
+ * 游戏化模块 - 跨账号排行、每日日报
  *
  * 数据存储：
  *   data/gamification/leaderboard-{dateKey}.json   每日排行榜
  *   data/gamification/reports-{dateKey}.json       每日汇总报告
- *   data/gamification/achievements.json            成就状态(按账号)
  *   data/gamification/notif-log.json               推送日志(避免重复推送)
  */
 
@@ -42,7 +41,6 @@ function nowMs(): number {
 // ============== 路径 ==============
 
 const GAMIF_DIR = path.join(path.dirname(getDataFile('store.json')), 'gamification');
-const ACHIEVEMENTS_FILE = path.join(GAMIF_DIR, 'achievements.json');
 const NOTIF_LOG_FILE = path.join(GAMIF_DIR, 'notif-log.json');
 
 function getLeaderboardFile(dateKey: string): string {
@@ -360,528 +358,92 @@ function markNotified(key: string): void {
 
 // ============== 每日推送 ==============
 
-async function pushDailyReport(opts: { force?: boolean; sendPushooMessage?: any; log?: (tag: string, msg: string, extra?: any) => void } = {}): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
+/**
+ * 解析推送渠道配置: 优先日报独立配置, 回退到全局下线提醒, 都没配返回 null
+ */
+function resolveReportPushConfig(): { channel: string; endpoint: string; token: string; title: string } | null {
+    try {
+        // 1. 优先: 日报独立推送配置
+        const dailyCfg = store.getDailyReportPush ? store.getDailyReportPush() : null;
+        if (dailyCfg && dailyCfg.enabled && dailyCfg.channel && (dailyCfg.token || dailyCfg.channel === 'webhook')) {
+            return {
+                channel: String(dailyCfg.channel).trim().toLowerCase(),
+                endpoint: String(dailyCfg.endpoint || '').trim(),
+                token: String(dailyCfg.token || '').trim(),
+                title: String(dailyCfg.title || '🌾 农场日报').trim(),
+            };
+        }
+
+        // 2. 回退: 全局下线提醒配置(确保日报到得了)
+        const reminder = store.getOfflineReminder ? store.getOfflineReminder('') : null;
+        if (reminder && reminder.channel) {
+            return {
+                channel: String(reminder.channel).trim().toLowerCase(),
+                endpoint: String(reminder.endpoint || '').trim(),
+                token: String(reminder.token || '').trim(),
+                title: '🌾 农场日报',
+            };
+        }
+    } catch (e: any) {
+        // 解析配置失败, 当成未配置
+    }
+    return null;
+}
+
+async function pushDailyReport(opts: { force?: boolean; sendPushooMessage?: any; log?: (tag: string, msg: string, extra?: any) => void } = {}): Promise<{ ok: boolean; skipped?: boolean; error?: string; reason?: string }> {
     const log = opts.log || (() => {});
     const sendPush = opts.sendPushooMessage;
 
     const dateKey = getYesterdayKey();
     const notifKey = `daily-report:${dateKey}`;
     if (!opts.force && hasNotified(notifKey)) {
-        return { ok: true, skipped: true };
+        return { ok: true, skipped: true, reason: '已推送过该日期的日报' };
     }
 
     try {
         const report = generateReport(dateKey);
         if (report.totalAccounts === 0) {
-            return { ok: true, skipped: true };
+            return { ok: true, skipped: true, reason: '账号为空, 无需推送' };
         }
 
-        // 优先用全局离线提醒配置
-        const reminder = store.getOfflineReminder ? store.getOfflineReminder('') : null;
-        const cfg = reminder && reminder.channel
-            ? {
-                channel: reminder.channel,
-                endpoint: reminder.endpoint,
-                token: reminder.token,
-                title: `🌾 农场日报 (${dateKey})`,
-                content: renderReportText(report),
+        const cfg = resolveReportPushConfig();
+        if (!cfg) {
+            log('错误', '日报推送失败: 未配置推送渠道 (请在 设置 → 日报推送 中配置)', { module: 'gamification' });
+            return { ok: false, error: '未配置推送渠道, 请在 设置 → 日报推送 中配置 channel/endpoint/token' };
+        }
+
+        if (sendPush) {
+            try {
+                const result = await sendPush({
+                    channel: cfg.channel,
+                    endpoint: cfg.endpoint,
+                    token: cfg.token,
+                    title: cfg.title,
+                    content: renderReportText(report),
+                });
+                if (result && result.ok) {
+                    markNotified(notifKey);
+                    log('系统', `已推送日报 (${dateKey}) -> ${cfg.channel}`, { module: 'gamification' });
+                    return { ok: true };
+                }
+                const errMsg = (result && (result.msg || result.code)) || '推送失败';
+                log('错误', `日报推送失败: ${errMsg}`, { module: 'gamification', channel: cfg.channel });
+                return { ok: false, error: String(errMsg) };
+            } catch (pushErr: any) {
+                log('错误', `日报推送异常: ${pushErr && pushErr.message ? pushErr.message : String(pushErr)}`, { module: 'gamification' });
+                return { ok: false, error: pushErr && pushErr.message ? pushErr.message : String(pushErr) };
             }
-            : null;
-
-        if (sendPush && cfg) {
-            await sendPush({
-                channel: cfg.channel,
-                endpoint: cfg.endpoint,
-                token: cfg.token,
-                title: cfg.title,
-                content: cfg.content,
-            });
-            markNotified(notifKey);
-            log('系统', `已推送日报 (${dateKey})`, { module: 'gamification' });
-            return { ok: true };
         }
 
-        // 没有推送配置: 仅记录通知
+        // 没有 sendPush 函数时, 仅记录
         markNotified(notifKey);
         log('系统', `日报已生成 (${dateKey}),未配置推送渠道`, { module: 'gamification' });
         return { ok: true };
     } catch (e: any) {
-        return { ok: false, error: e && e.message ? e.message : String(e) };
+        const msg = e && e.message ? e.message : String(e);
+        log('错误', `日报推送异常: ${msg}`, { module: 'gamification' });
+        return { ok: false, error: msg };
     }
-}
-
-// ============== 成就系统 ==============
-
-interface AchievementDef {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    category: 'streak' | 'farming' | 'steal' | 'fertilize' | 'social' | 'special';
-    check: (ctx: AchievementContext) => boolean;
-    reward?: { theme?: string; title?: string };
-    hidden?: boolean;
-}
-
-interface AchievementContext {
-    accountId: string;
-    todayStats: Record<string, number>;
-    todayGold: number;
-    todayExp: number;
-    todayHarvest: number;
-    todaySteal: number;
-    todayFertilize: number;
-    todayPlant: number;
-    consecutiveDays: number;       // 连续登录天数
-    totalHarvest: number;
-    totalSteal: number;
-    totalFertilize: number;
-    totalGold: number;
-    totalDaysActive: number;
-    inviteesCount: number;
-}
-
-interface AchievementRecord {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    category: string;
-    unlockedAt: number;
-    reward?: { theme?: string; title?: string };
-}
-
-interface AccountAchievements {
-    accountId: string;
-    consecutiveDays: number;
-    lastActiveDate: string;
-    totalHarvest: number;
-    totalSteal: number;
-    totalFertilize: number;
-    totalGold: number;
-    totalExp: number;
-    totalDaysActive: number;
-    achievements: AchievementRecord[];
-    invitedUsers: number;
-    updatedAt: number;
-}
-
-interface AchievementsFile {
-    accounts: Record<string, AccountAchievements>;
-}
-
-// 成就定义
-const ACHIEVEMENT_DEFS: AchievementDef[] = [
-    {
-        id: 'first-harvest',
-        name: '初次收获',
-        description: '收获第一株作物',
-        icon: '🌱',
-        category: 'farming',
-        check: ctx => ctx.totalHarvest >= 1,
-    },
-    {
-        id: 'harvest-10',
-        name: '小有所成',
-        description: '累计收获 10 次作物',
-        icon: '🌾',
-        category: 'farming',
-        check: ctx => ctx.totalHarvest >= 10,
-    },
-    {
-        id: 'harvest-100',
-        name: '农场主',
-        description: '累计收获 100 次作物',
-        icon: '👨‍🌾',
-        category: 'farming',
-        check: ctx => ctx.totalHarvest >= 100,
-    },
-    {
-        id: 'harvest-1000',
-        name: '农场大亨',
-        description: '累计收获 1000 次作物',
-        icon: '🏆',
-        category: 'farming',
-        reward: { title: '农场大亨' },
-        check: ctx => ctx.totalHarvest >= 1000,
-    },
-    {
-        id: 'steal-first',
-        name: '初出茅庐',
-        description: '第一次偷菜',
-        icon: '🥷',
-        category: 'steal',
-        check: ctx => ctx.totalSteal >= 1,
-    },
-    {
-        id: 'steal-50',
-        name: '偷菜达人',
-        description: '累计偷菜 50 次',
-        icon: '🦊',
-        category: 'steal',
-        check: ctx => ctx.totalSteal >= 50,
-    },
-    {
-        id: 'steal-500',
-        name: '偷菜之王',
-        description: '累计偷菜 500 次',
-        icon: '👑',
-        category: 'steal',
-        reward: { theme: 'autumn-harvest' },
-        check: ctx => ctx.totalSteal >= 500,
-    },
-    {
-        id: 'fertilize-100',
-        name: '化肥大师',
-        description: '累计施肥 100 次',
-        icon: '🧪',
-        category: 'fertilize',
-        check: ctx => ctx.totalFertilize >= 100,
-    },
-    {
-        id: 'fertilize-1000',
-        name: '化肥狂魔',
-        description: '累计施肥 1000 次',
-        icon: '⚗️',
-        category: 'fertilize',
-        check: ctx => ctx.totalFertilize >= 1000,
-    },
-    {
-        id: 'streak-3',
-        name: '初来乍到',
-        description: '连续 3 天上线',
-        icon: '📅',
-        category: 'streak',
-        check: ctx => ctx.consecutiveDays >= 3,
-    },
-    {
-        id: 'streak-7',
-        name: '周周见',
-        description: '连续 7 天上线',
-        icon: '🗓️',
-        category: 'streak',
-        check: ctx => ctx.consecutiveDays >= 7,
-    },
-    {
-        id: 'streak-30',
-        name: '连挂 30 天',
-        description: '连续 30 天上线,你是真正的农场守护者',
-        icon: '🌟',
-        category: 'streak',
-        reward: { theme: 'spring-sakura' },
-        check: ctx => ctx.consecutiveDays >= 30,
-    },
-    {
-        id: 'streak-100',
-        name: '百日传奇',
-        description: '连续 100 天上线',
-        icon: '💎',
-        category: 'streak',
-        hidden: true,
-        check: ctx => ctx.consecutiveDays >= 100,
-    },
-    {
-        id: 'gold-10000',
-        name: '万元户',
-        description: '累计获得 10,000 金币',
-        icon: '💰',
-        category: 'farming',
-        check: ctx => ctx.totalGold >= 10000,
-    },
-    {
-        id: 'gold-100000',
-        name: '富翁',
-        description: '累计获得 100,000 金币',
-        icon: '🤑',
-        category: 'farming',
-        reward: { theme: 'winter-snow' },
-        check: ctx => ctx.totalGold >= 100000,
-    },
-    {
-        id: 'invite-1',
-        name: '社交达人',
-        description: '成功邀请 1 位好友',
-        icon: '🤝',
-        category: 'social',
-        check: ctx => ctx.inviteesCount >= 1,
-    },
-    {
-        id: 'invite-5',
-        name: '人脉王',
-        description: '成功邀请 5 位好友',
-        icon: '👥',
-        category: 'social',
-        check: ctx => ctx.inviteesCount >= 5,
-    },
-    {
-        id: 'daily-boss',
-        name: '今日劳模',
-        description: '单日收获 50+ 作物',
-        icon: '💪',
-        category: 'farming',
-        check: ctx => ctx.todayHarvest >= 50,
-        hidden: true,
-    },
-];
-
-function loadAchievements(): AchievementsFile {
-    ensureGamifDir();
-    return readJsonFile(ACHIEVEMENTS_FILE, () => ({ accounts: {} })) || { accounts: {} };
-}
-
-function saveAchievements(file: AchievementsFile): void {
-    ensureGamifDir();
-    try {
-        writeJsonFileAtomic(ACHIEVEMENTS_FILE, file);
-    } catch (e: any) {
-        gamifLogger.warn('保存成就失败', { error: e.message });
-    }
-}
-
-function getAccountAchievements(accountId: string): AccountAchievements {
-    const file = loadAchievements();
-    if (!file.accounts[accountId]) {
-        file.accounts[accountId] = {
-            accountId,
-            consecutiveDays: 0,
-            lastActiveDate: '',
-            totalHarvest: 0,
-            totalSteal: 0,
-            totalFertilize: 0,
-            totalGold: 0,
-            totalExp: 0,
-            totalDaysActive: 0,
-            achievements: [],
-            invitedUsers: 0,
-            updatedAt: nowMs(),
-        };
-    }
-    return file.accounts[accountId];
-}
-
-/**
- * 计算成就上下文
- */
-function buildContext(accountId: string): AchievementContext {
-    const acc = getAccountAchievements(accountId);
-    const todayKey = getTodayKey();
-    const today = loadPersistedStats(accountId);
-    const todayOps = (today && today.date === todayKey && today.operations) ? today.operations : {};
-
-    // 邀请数
-    let inviteesCount = 0;
-    try {
-        const inviteRecords = JSON.parse(fs.readFileSync(getDataFile('invite-records.json'), 'utf8') || '{"records":[]}');
-        if (Array.isArray(inviteRecords.records)) {
-            inviteesCount = inviteRecords.records.filter((r: any) => r.inviter === accountId).length;
-        }
-    } catch {
-        // ignore
-    }
-
-    return {
-        accountId,
-        todayStats: todayOps,
-        todayGold: Number(todayOps.gold) || 0,
-        todayExp: Number(todayOps.exp) || 0,
-        todayHarvest: Number(todayOps.harvest) || 0,
-        todaySteal: Number(todayOps.steal) || 0,
-        todayFertilize: Number(todayOps.fertilize) || 0,
-        todayPlant: Number(todayOps.plant) || 0,
-        consecutiveDays: acc.consecutiveDays,
-        totalHarvest: acc.totalHarvest,
-        totalSteal: acc.totalSteal,
-        totalFertilize: acc.totalFertilize,
-        totalGold: acc.totalGold,
-        totalDaysActive: acc.totalDaysActive,
-        inviteesCount: acc.invitedUsers || inviteesCount,
-    };
-}
-
-/**
- * 检查并解锁成就
- * 返回新解锁的成就列表
- */
-function checkAndUnlock(accountId: string): AchievementRecord[] {
-    const file = loadAchievements();
-    const acc = file.accounts[accountId] || (file.accounts[accountId] = {
-        accountId,
-        consecutiveDays: 0,
-        lastActiveDate: '',
-        totalHarvest: 0,
-        totalSteal: 0,
-        totalFertilize: 0,
-        totalGold: 0,
-        totalExp: 0,
-        totalDaysActive: 0,
-        achievements: [],
-        invitedUsers: 0,
-        updatedAt: nowMs(),
-    });
-
-    // 更新累计数据
-    const todayKey = getTodayKey();
-    const today = loadPersistedStats(accountId);
-    if (today && today.date === todayKey && today.operations) {
-        const ops = today.operations;
-        acc.totalHarvest = Math.max(acc.totalHarvest, 0) + 0; // 不能直接累加,会重复
-        // 这里改成"今日增量"累加, 但 stats 已经是今日累计值, 所以读取历史需要对比
-    }
-
-    const ctx = buildContext(accountId);
-    const unlockedIds = new Set(acc.achievements.map(a => a.id));
-    const newUnlocks: AchievementRecord[] = [];
-
-    for (const def of ACHIEVEMENT_DEFS) {
-        if (unlockedIds.has(def.id)) continue;
-        if (def.check(ctx)) {
-            const rec: AchievementRecord = {
-                id: def.id,
-                name: def.name,
-                description: def.description,
-                icon: def.icon,
-                category: def.category,
-                unlockedAt: nowMs(),
-                reward: def.reward,
-            };
-            acc.achievements.push(rec);
-            newUnlocks.push(rec);
-            gamifLogger.info(`账号 ${accountId} 解锁成就: ${def.name}`, { module: 'gamification' });
-        }
-    }
-
-    if (newUnlocks.length > 0) {
-        acc.updatedAt = nowMs();
-        saveAchievements(file);
-    }
-
-    return newUnlocks;
-}
-
-/**
- * 每日聚合, 更新累计数据
- * (应当在每天定时任务中调用,接收昨天的数据)
- */
-function rollupDaily(accountId: string, dateKey: string): void {
-    const file = loadAchievements();
-    const acc = file.accounts[accountId] || (file.accounts[accountId] = {
-        accountId,
-        consecutiveDays: 0,
-        lastActiveDate: '',
-        totalHarvest: 0,
-        totalSteal: 0,
-        totalFertilize: 0,
-        totalGold: 0,
-        totalExp: 0,
-        totalDaysActive: 0,
-        achievements: [],
-        invitedUsers: 0,
-        updatedAt: nowMs(),
-    });
-
-    // 读取昨天的 stats 文件
-    const statsFile = path.join(path.dirname(getDataFile('store.json')), 'stats', `${accountId}.json`);
-    let yestOps: Record<string, number> = {};
-    try {
-        if (fs.existsSync(statsFile)) {
-            const data = JSON.parse(fs.readFileSync(statsFile, 'utf8'));
-            if (data.date === dateKey) yestOps = data.operations || {};
-        }
-    } catch {
-        // ignore
-    }
-
-    const harvest = Number(yestOps.harvest) || 0;
-    const steal = Number(yestOps.steal) || 0;
-    const fertilize = Number(yestOps.fertilize) || 0;
-    const gold = Number(yestOps.gold) || 0;
-    const exp = Number(yestOps.exp) || 0;
-
-    // 更新累计(只有当天有数据才计入)
-    const active = harvest > 0 || steal > 0 || fertilize > 0 || gold > 0;
-    if (active) {
-        acc.totalHarvest += harvest;
-        acc.totalSteal += steal;
-        acc.totalFertilize += fertilize;
-        acc.totalGold += gold;
-        acc.totalExp += exp;
-        acc.totalDaysActive += 1;
-
-        // 连续天数
-        if (!acc.lastActiveDate) {
-            acc.consecutiveDays = 1;
-        } else {
-            const last = new Date(acc.lastActiveDate);
-            const cur = new Date(dateKey);
-            const diffDays = Math.floor((cur.getTime() - last.getTime()) / (24 * 60 * 60 * 1000));
-            if (diffDays === 1) {
-                acc.consecutiveDays += 1;
-            } else if (diffDays > 1) {
-                acc.consecutiveDays = 1;
-            }
-            // diffDays === 0: 同一天不重复累计
-        }
-        acc.lastActiveDate = dateKey;
-    } else {
-        // 没有任何操作 -> 连续天数清零
-        if (acc.lastActiveDate && acc.lastActiveDate !== dateKey) {
-            const last = new Date(acc.lastActiveDate);
-            const cur = new Date(dateKey);
-            const diffDays = Math.floor((cur.getTime() - last.getTime()) / (24 * 60 * 60 * 1000));
-            if (diffDays > 1) acc.consecutiveDays = 0;
-        }
-    }
-
-    acc.updatedAt = nowMs();
-    saveAchievements(file);
-
-    // 检查解锁
-    checkAndUnlock(accountId);
-}
-
-/**
- * 获取账号的成就列表(用户态)
- */
-function getAchievementsForAccount(accountId: string): {
-    achievements: AchievementRecord[];
-    total: number;
-    locked: number;
-    consecutiveDays: number;
-    totalHarvest: number;
-    totalSteal: number;
-    totalFertilize: number;
-    totalGold: number;
-    totalDaysActive: number;
-} {
-    const acc = getAccountAchievements(accountId);
-    const total = ACHIEVEMENT_DEFS.filter(d => !d.hidden || acc.achievements.some(a => a.id === d.id)).length;
-    return {
-        achievements: acc.achievements,
-        total,
-        locked: Math.max(0, total - acc.achievements.length),
-        consecutiveDays: acc.consecutiveDays,
-        totalHarvest: acc.totalHarvest,
-        totalSteal: acc.totalSteal,
-        totalFertilize: acc.totalFertilize,
-        totalGold: acc.totalGold,
-        totalDaysActive: acc.totalDaysActive,
-    };
-}
-
-/**
- * 获取所有成就定义(供前端展示)
- */
-function listAllAchievements(): AchievementDef[] {
-    return ACHIEVEMENT_DEFS.map(d => ({
-        id: d.id,
-        name: d.name,
-        description: d.description,
-        icon: d.icon,
-        category: d.category,
-        reward: d.reward,
-        hidden: d.hidden,
-        check: undefined as any, // 不暴露 check 函数
-    }));
 }
 
 // ============== 导出 ==============
@@ -897,12 +459,6 @@ module.exports = {
     loadReport,
     renderReportText,
     pushDailyReport,
-
-    // 成就
-    checkAndUnlock,
-    rollupDaily,
-    getAchievementsForAccount,
-    listAllAchievements,
 
     // 工具
     getDateKey,

@@ -1,4 +1,4 @@
-import type { AccountConfig, AutomationConfig, BagSeedFallbackStrategy, FertilizerLandType, GlobalConfig, IntervalConfig, OfflineReminder, PlantingStrategy, QuietHoursConfig, YybConfig } from '../../types/config';
+import type { AccountConfig, AutomationConfig, BagSeedFallbackStrategy, DailyReportPush, FertilizerLandType, GlobalConfig, IntervalConfig, OfflineReminder, PlantingStrategy, QuietHoursConfig, YybConfig } from '../../types/config';
 export {};
 
 const fs = require('node:fs');
@@ -404,6 +404,14 @@ let accountFallbackConfig: AccountConfig = {
     friendsListCacheTtlSec: DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
 };
 
+const DEFAULT_DAILY_REPORT_PUSH: DailyReportPush = {
+    enabled: false,
+    channel: 'webhook',
+    endpoint: '',
+    token: '',
+    title: '🌾 农场日报',
+};
+
 const globalConfig: GlobalConfig = {
     accountConfigs: {},
     defaultAccountConfig: cloneAccountConfig(DEFAULT_ACCOUNT_CONFIG),
@@ -421,6 +429,7 @@ const globalConfig: GlobalConfig = {
     },
     announcementReadRecords: {},
     systemConfig: null,
+    dailyReportPush: { ...DEFAULT_DAILY_REPORT_PUSH },
 };
 
 function resolveAccountId(accountId: unknown): string {
@@ -513,6 +522,10 @@ function loadGlobalConfig(): void {
                     },
                 };
             }
+
+            if (data.dailyReportPush && typeof data.dailyReportPush === 'object') {
+                globalConfig.dailyReportPush = data.dailyReportPush as DailyReportPush;
+            }
         }
     } catch (e: any) {
         console.error('加载配置失败:', e.message);
@@ -535,6 +548,7 @@ module.exports = {
     DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
     DEFAULT_OFFLINE_REMINDER,
     DEFAULT_YYB_CONFIG,
+    DEFAULT_DAILY_REPORT_PUSH,
     DEFAULT_ACCOUNT_CONFIG,
     ALLOWED_AUTOMATION_KEYS,
     // Mutable shared state (by reference)

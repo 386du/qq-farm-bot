@@ -100,7 +100,7 @@ function valueLabel() {
 }
 
 async function regenerateReport() {
-  if (!confirm('确认要重新生成昨日日报数据吗? (不会推送, 仅刷新 Dashboard 顶栏显示)')) return
+  if (!confirm('确认要重新生成昨日日报数据吗?')) return
   try {
     const dateKey = (() => {
       const d = new Date()
@@ -116,20 +116,6 @@ async function regenerateReport() {
     }
   } catch (e: any) {
     toast.error(e.message || '生成失败')
-  }
-}
-
-async function rollupNow() {
-  if (!confirm('确认要立即 rollup 昨日数据并检查新成就吗?')) return
-  try {
-    const res = await api.post('/api/admin/achievements/rollup')
-    if (res.data.ok) {
-      toast.success(`已处理 ${res.data.data.rolledUp} 个账号`)
-    } else {
-      toast.error(res.data.error || '操作失败')
-    }
-  } catch (e: any) {
-    toast.error(e.message || '操作失败')
   }
 }
 
@@ -317,15 +303,8 @@ onMounted(() => {
           >
             📊 重新生成昨日日报
           </button>
-          <button
-            class="rounded-xl px-4 py-2 text-sm font-bold transition-all hover:scale-105"
-            style="background: color-mix(in srgb, var(--theme-primary) 15%, transparent)"
-            @click="rollupNow()"
-          >
-            🔄 Rollup 昨日
-          </button>
         </div>
-        <p class="text-xs opacity-50 mt-2">* Rollup 会重新计算成就, 重新生成会刷新 Dashboard 顶栏日报数据</p>
+        <p class="text-xs opacity-50 mt-2">* 重新生成会刷新 Dashboard 顶栏日报数据, 推送配置请到「设置」</p>
       </div>
     </div>
   </div>

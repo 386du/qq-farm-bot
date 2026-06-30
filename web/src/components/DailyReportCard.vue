@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import api from '@/api'
+import { useToastStore } from '@/stores/toast'
+import { useUserStore } from '@/stores/user'
 
+const userStore = useUserStore()
+const toast = useToastStore()
 const loading = ref(false)
+const sending = ref(false)
 const report = ref<any>(null)
 
 async function fetch() {
@@ -16,6 +21,23 @@ async function fetch() {
     // ignore
   } finally {
     loading.value = false
+  }
+}
+
+async function pushNow() {
+  sending.value = true
+  try {
+    const res = await api.post('/api/admin/report/push')
+    if (res.data.ok && res.data.data?.ok) {
+      toast.success('已推送昨日日报')
+    } else {
+      const err = res.data.data?.error || res.data.error
+      toast.error(err || '推送失败')
+    }
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error || e.message || '推送失败')
+  } finally {
+    sending.value = false
   }
 }
 
@@ -33,13 +55,20 @@ onMounted(() => {
     <div class="absolute -right-2 -top-2 text-5xl opacity-10">🌾</div>
     <div class="relative z-10">
       <div class="flex items-center justify-between mb-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="text-xl">🌾</span>
-            <h3 class="font-black text-base">昨日农场日报</h3>
-            <span class="text-xs opacity-60">{{ report.date }}</span>
-          </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🌾</span>
+          <h3 class="font-black text-base">昨日农场日报</h3>
+          <span class="text-xs opacity-60">{{ report.date }}</span>
         </div>
+        <button
+          v-if="userStore.isAdminPanelUser"
+          class="rounded-lg px-2.5 py-1 text-xs font-bold transition-all hover:scale-105"
+          style="background: var(--theme-gradient); color: white"
+          :disabled="sending"
+          @click="pushNow()"
+        >
+          {{ sending ? '推送中…' : '📤 立即推送' }}
+        </button>
       </div>
 
       <div class="grid grid-cols-4 gap-2 mb-3">

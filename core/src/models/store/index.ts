@@ -46,6 +46,8 @@ module.exports = {
     getOfflineReminder: globalConfig.getOfflineReminder,
     setOfflineReminder: globalConfig.setOfflineReminder,
     deleteUserOfflineReminder: globalConfig.deleteUserOfflineReminder,
+    getDailyReportPush: globalConfig.getDailyReportPush,
+    setDailyReportPush: globalConfig.setDailyReportPush,
     getYybConfig: globalConfig.getYybConfig,
     setYybConfig: globalConfig.setYybConfig,
     deleteUserYybConfig: globalConfig.deleteUserYybConfig,

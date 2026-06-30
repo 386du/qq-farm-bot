@@ -797,11 +797,22 @@ async function saveAutomationSettings() {
 const passwordSaving = ref(false)
 const offlineSaving = ref(false)
 const offlineTesting = ref(false)
+const dailyReportSaving = ref(false)
+const dailyReportTesting = ref(false)
+const dailyReportSending = ref(false)
 
 const passwordForm = ref({
   old: '',
   new: '',
   confirm: '',
+})
+
+const localDailyReport = ref({
+  enabled: false,
+  channel: 'webhook',
+  endpoint: '',
+  token: '',
+  title: '🌾 农场日报',
 })
 
 const localOffline = ref({
@@ -873,6 +884,13 @@ function openChannelDocs() {
   const url = currentChannelDocUrl.value
   if (!url)
     return
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function openDailyReportChannelDocs() {
+  const key = String(localDailyReport.value.channel || '').trim().toLowerCase()
+  const url = CHANNEL_DOCS[key]
+  if (!url) return
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
@@ -957,6 +975,76 @@ async function handleTestOffline() {
     offlineTesting.value = false
   }
 }
+
+async function loadDailyReport() {
+  try {
+    const { data } = await api.get('/api/admin/daily-report-push')
+    if (data?.ok && data.data) {
+      localDailyReport.value = {
+        enabled: !!data.data.enabled,
+        channel: String(data.data.channel || 'webhook'),
+        endpoint: String(data.data.endpoint || ''),
+        token: String(data.data.token || ''),
+        title: String(data.data.title || '🌾 农场日报'),
+      }
+    }
+  } catch (e) {
+    console.error('loadDailyReport failed', e)
+  }
+}
+
+async function handleSaveDailyReport() {
+  dailyReportSaving.value = true
+  try {
+    const { data } = await api.post('/api/admin/daily-report-push', localDailyReport.value)
+    if (data?.ok) {
+      showAlert('日报推送设置已保存', 'primary')
+    } else {
+      showAlert(`保存失败: ${data?.error || '未知错误'}`, 'danger')
+    }
+  } catch (e: any) {
+    showAlert(`保存失败: ${e?.response?.data?.error || e?.message || '请求失败'}`, 'danger')
+  } finally {
+    dailyReportSaving.value = false
+  }
+}
+
+async function handleTestDailyReport() {
+  dailyReportTesting.value = true
+  try {
+    const { data } = await api.post('/api/admin/report/test', localDailyReport.value)
+    if (data?.ok) {
+      showAlert('测试推送成功, 请检查接收端', 'primary')
+    } else {
+      const errMsg = data?.data?.msg || data?.error || '推送失败'
+      showAlert(`测试失败: ${errMsg}`, 'danger')
+    }
+  } catch (e: any) {
+    showAlert(`测试失败: ${e?.response?.data?.error || e?.message || '请求失败'}`, 'danger')
+  } finally {
+    dailyReportTesting.value = false
+  }
+}
+
+async function handleSendDailyReportNow() {
+  dailyReportSending.value = true
+  try {
+    const { data } = await api.post('/api/admin/report/push')
+    if (data?.ok && data.data?.ok) {
+      showAlert('已触发昨日日报推送', 'primary')
+    } else {
+      showAlert(`推送失败: ${data?.data?.error || data?.error || '未知错误'}`, 'danger')
+    }
+  } catch (e: any) {
+    showAlert(`推送失败: ${e?.response?.data?.error || e?.message || '请求失败'}`, 'danger')
+  } finally {
+    dailyReportSending.value = false
+  }
+}
+
+onMounted(() => {
+  loadDailyReport()
+})
 </script>
 
 <template>
@@ -1776,6 +1864,98 @@ async function handleTestOffline() {
                   @click="handleSaveOffline"
                 >
                   保存下线提醒设置
+                </BaseButton>
+              </div>
+            </div>
+
+            <div class="farm-card border border-gray-200 rounded-2xl bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
+              <h4 class="mb-3 flex items-center gap-2 text-base text-gray-900 font-bold dark:text-gray-100">
+                📊 日报推送
+                <span v-if="localDailyReport.enabled" class="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold" style="background: color-mix(in srgb, #10b981 20%, transparent); color: #10b981">已启用</span>
+                <span v-else class="ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold opacity-60" style="background: color-mix(in srgb, #f59e0b 20%, transparent); color: #f59e0b">未启用</span>
+              </h4>
+
+              <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                每天早上 9:00 自动推送昨日收菜/偷菜/化肥/金币数据。
+                启用后会用这里配置的渠道; 未启用时回退到「下线提醒」的渠道。
+                配置好以后点下方"测试推送"立即验证是否能收到。
+              </p>
+
+              <div class="space-y-3">
+                <BaseSwitch
+                  :model-value="localDailyReport.enabled"
+                  label="启用日报推送"
+                  @update:model-value="(v) => localDailyReport.enabled = !!v"
+                />
+
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div class="flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm text-gray-700 font-medium dark:text-gray-300">推送渠道</span>
+                      <BaseButton
+                        v-if="CHANNEL_DOCS[String(localDailyReport.channel || '').trim().toLowerCase()]"
+                        variant="text"
+                        size="sm"
+                        @click="openDailyReportChannelDocs"
+                      >
+                        官网
+                      </BaseButton>
+                    </div>
+                    <BaseSelect
+                      v-model="localDailyReport.channel"
+                      :options="channelOptions"
+                    />
+                  </div>
+                  <BaseInput
+                    v-model="localDailyReport.title"
+                    label="推送标题"
+                    type="text"
+                    placeholder="🌾 农场日报"
+                  />
+                </div>
+
+                <BaseInput
+                  v-model="localDailyReport.endpoint"
+                  label="接口地址 (仅 webhook)"
+                  type="text"
+                  :disabled="localDailyReport.channel !== 'webhook'"
+                />
+
+                <BaseInput
+                  v-model="localDailyReport.token"
+                  label="Token"
+                  type="text"
+                  placeholder="接收端 token"
+                />
+              </div>
+
+              <div class="mt-4 flex flex-wrap justify-end gap-2 border-t pt-3 dark:border-gray-700">
+                <BaseButton
+                  variant="secondary"
+                  size="sm"
+                  :loading="dailyReportTesting"
+                  :disabled="dailyReportSaving || dailyReportSending"
+                  @click="handleTestDailyReport"
+                >
+                  🧪 测试推送
+                </BaseButton>
+                <BaseButton
+                  variant="secondary"
+                  size="sm"
+                  :loading="dailyReportSending"
+                  :disabled="dailyReportSaving || dailyReportTesting"
+                  @click="handleSendDailyReportNow"
+                >
+                  📤 立即推送昨日
+                </BaseButton>
+                <BaseButton
+                  variant="primary"
+                  size="sm"
+                  :loading="dailyReportSaving"
+                  :disabled="dailyReportTesting || dailyReportSending"
+                  @click="handleSaveDailyReport"
+                >
+                  保存日报推送设置
                 </BaseButton>
               </div>
             </div>

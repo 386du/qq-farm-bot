@@ -124,6 +124,14 @@ export interface YybConfig {
   openIds: string[];
 }
 
+export interface DailyReportPush {
+  enabled: boolean;
+  channel: string;
+  endpoint: string;
+  token: string;
+  title: string;
+}
+
 export interface GlobalConfig {
   accountConfigs: Record<string, AccountConfig>;
   defaultAccountConfig: AccountConfig;
@@ -135,4 +143,5 @@ export interface GlobalConfig {
   announcement: Announcement;
   announcementReadRecords: Record<string, number>;
   systemConfig: SystemConfig | null;
+  dailyReportPush: DailyReportPush;
 }
