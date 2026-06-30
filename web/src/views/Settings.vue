@@ -647,6 +647,7 @@ const localAutomationSettings = ref({
     land_upgrade: true,
     friend_steal: false,
     friend_help: false,
+    friend_help_only_guard_dog: false,
     friend_bad: true,
     friend_help_exp_limit: false,
     friend_auto_accept: false,
@@ -687,6 +688,7 @@ function syncLocalAutomationSettings() {
         land_upgrade: false,
         friend_steal: false,
         friend_help: false,
+        friend_help_only_guard_dog: false,
         friend_bad: false,
         friend_help_exp_limit: false,
         friend_auto_accept: false,
@@ -711,6 +713,7 @@ function syncLocalAutomationSettings() {
         land_upgrade: false,
         friend_steal: false,
         friend_help: false,
+        friend_help_only_guard_dog: false,
         friend_bad: false,
         friend_help_exp_limit: false,
         friend_auto_accept: false,
@@ -1559,7 +1562,14 @@ async function handleTestOffline() {
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_help" label="自动帮忙" />
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_bad" label="自动捣乱" />
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_help_exp_limit" label="经验满不帮忙" />
+                <BaseSwitch
+                  v-model="localAutomationSettings.automation.friend_help_only_guard_dog"
+                  label="只帮护主犬好友"
+                />
               </div>
+              <p v-if="localAutomationSettings.automation.friend_help_only_guard_dog" class="text-xs text-blue-700 dark:text-blue-300">
+                开启后，仅对携带护主犬（brief_dog_info）的好友执行帮忙操作；未携带护主犬的好友会跳过帮忙，但偷菜/捣乱不受影响。
+              </p>
               <div class="flex flex-wrap items-center gap-4 pt-3">
                 <BaseSwitch v-model="localAutomationSettings.automation.friend_auto_accept" label="自动同意好友申请" />
                 <div v-if="localAutomationSettings.automation.friend_auto_accept" class="flex items-center gap-2">

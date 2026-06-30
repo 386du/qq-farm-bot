@@ -20,6 +20,7 @@ export interface AutomationConfig {
   land_upgrade: boolean;
   friend: boolean;
   friend_help_exp_limit: boolean;
+  friend_help_only_guard_dog: boolean;
   friend_steal: boolean;
   friend_help: boolean;
   friend_bad: boolean;

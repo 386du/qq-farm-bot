@@ -28,8 +28,16 @@ message EnterRequest {
 message EnterReply {
     gamepb.userpb.BasicInfo basic = 1;              // 好友基本信息
     repeated gamepb.plantpb.LandInfo lands = 2;     // 好友的所有土地
-    // field 3: brief_dog_info (不需要)
+    BriefDogInfo brief_dog_info = 3;                // 好友护主犬简要信息
     // field 4: nudge_info (不需要)
+}
+
+// 好友护主犬简要信息（用于"只帮护主犬"过滤）
+message BriefDogInfo {
+    int64 dog_id = 1;                  // 护主犬 ID（0 表示未携带）
+    int32 level = 2;                   // 护主犬等级
+    int64 protect_remain_sec = 3;      // 剩余护主时长(秒)
+    int64 status = 4;                  // 状态（1=正在护主）
 }
 
 // ============ 离开好友农场 ============

@@ -592,6 +592,39 @@ export async function doFriendOperation(friendGid: any, opType: string): Promise
     }
 }
 
+// ============ 护主犬过滤 ============
+
+/**
+ * 仅在开启"只帮护主犬好友"时，按服务端返回的 brief_dog_info 判断是否护主。
+ * 返回 true 表示当前好友未携带护主犬，帮忙操作应被跳过。
+ */
+function isFriendLackingGuardDog(enterReply: any, friendName: string): boolean {
+    if (!isAutomationOn('friend_help_only_guard_dog')) return false;
+    const brief: any = enterReply && enterReply.brief_dog_info;
+    if (!brief) {
+        log('好友', `${friendName}: 服务端未返回护主犬信息，已跳过帮忙`, {
+            module: 'friend',
+            event: '护主犬过滤',
+            result: 'no_dog_info',
+            friendName,
+        });
+        return true;
+    }
+    const dogId: number = toNum(brief.dog_id);
+    const status: number = toNum(brief.status);
+    // 服务端约定：dog_id > 0 且 status == 1 时表示好友正在护主
+    if (dogId > 0 && status === 1) return false;
+    log('好友', `${friendName}: 未携带护主犬，跳过帮忙`, {
+        module: 'friend',
+        event: '护主犬过滤',
+        result: 'no_guard_dog',
+        friendName,
+        dogId,
+        status,
+    });
+    return true;
+}
+
 // ============ 拜访好友 ============
 
 interface VisitResult {
@@ -628,6 +661,9 @@ export async function visitFriend(friend: any, totalActions: any, myGid: number,
     const plantBlacklist: number[] = getPlantBlacklist(accountId);
     const status: AnalyzeResult = analyzeFriendLands(lands, myGid, name, { plantBlacklist });
 
+    // 护主犬过滤：开启后仅对携带护主犬的好友执行帮忙；偷菜/捣乱不受影响
+    const skipHelpByGuardDog: boolean = isFriendLackingGuardDog(enterReply, name);
+
     // 执行操作
     const actions: string[] = [];
 
@@ -637,6 +673,8 @@ export async function visitFriend(friend: any, totalActions: any, myGid: number,
     if (!stopWhenExpLimit) schedulerRef().setCanGetHelpExp(true);
     if (!helpEnabled) {
         // 自动帮忙关闭，直接跳过帮助操作
+    } else if (skipHelpByGuardDog) {
+        // 护主犬过滤命中
     } else if (stopWhenExpLimit && !schedulerRef().getCanGetHelpExp()) {
         // 今日已达到经验上限后停止帮忙
     } else {
@@ -889,6 +927,12 @@ export async function visitFriendForHelp(friend: any, totalActions: any, myGid: 
     if (lands.length === 0) {
         await leaveFriendFarm(gid);
         return;
+    }
+
+    // 护主犬过滤：开启后仅对携带护主犬的好友执行帮忙
+    if (isFriendLackingGuardDog(enterReply, name)) {
+        await leaveFriendFarm(gid);
+        return { acted: false, entered: true };
     }
 
     const status: AnalyzeResult = analyzeFriendLands(lands, myGid, name, {});

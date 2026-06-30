@@ -52,6 +52,7 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
         land_upgrade: true,
         friend: true,
         friend_help_exp_limit: true,
+        friend_help_only_guard_dog: false,
         friend_steal: true,
         friend_help: true,
         friend_bad: true,
