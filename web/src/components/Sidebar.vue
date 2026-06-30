@@ -487,7 +487,7 @@ async function copyToken() {
     <!-- Brand -->
     <div class="h-16 flex items-center justify-between border-b-3 border-[#8b6914]/15 px-6 dark:border-gray-700/40">
       <div class="flex items-center gap-3">
-        <span class="select-none text-2xl">🌱</span>
+        <div class="i-carbon-sprout text-2xl" :style="{ color: 'var(--theme-primary)' }" />
         <span class="text-lg text-[#3d2b1f] font-bold font-display dark:text-[#f0c040]">
           QQ农场智能助手
         </span>
@@ -747,10 +747,10 @@ async function copyToken() {
             background: `linear-gradient(90deg, color-mix(in srgb, var(--theme-primary) 15%, transparent) 0%, color-mix(in srgb, var(--theme-primary) 5%, transparent) 100%)`,
           }"
         />
-        <span
-          class="relative z-10 select-none text-xl transition-all duration-300"
-          :class="isActiveRoute(item.path) ? 'scale-110' : 'group-hover:scale-110 group-hover:rotate-6'"
-        >{{ item.icon }}</span>
+        <div
+          class="relative z-10 text-xl transition-all duration-300"
+          :class="[item.icon, isActiveRoute(item.path) ? 'scale-110' : 'group-hover:scale-110 group-hover:rotate-6']"
+        />
         <span class="font-body relative z-10 font-bold">{{ item.label }}</span>
         <div
           v-if="isActiveRoute(item.path)"
@@ -847,8 +847,9 @@ async function copyToken() {
           borderColor: 'color-mix(in srgb, var(--theme-primary) 25%, transparent)',
         }"
       >
-        <div class="mb-1 px-2 py-1 text-center text-xs font-bold" :style="{ color: 'var(--theme-primary)' }">
-          🎨 选择主题
+        <div class="mb-1 flex items-center justify-center gap-1 px-2 py-1 text-center text-xs font-bold" :style="{ color: 'var(--theme-primary)' }">
+          <div class="i-carbon-color-palette text-xs" />
+          <span>选择主题</span>
         </div>
         <div class="grid grid-cols-4 gap-1.5">
           <button

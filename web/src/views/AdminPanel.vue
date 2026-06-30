@@ -26,7 +26,7 @@ const tabs = [
   { key: 'dashboard', label: '仪表盘', icon: 'i-carbon-dashboard', permission: 'dashboard:read' },
   { key: 'card', label: '卡密', icon: 'i-carbon-ticket', permission: 'card:*' },
   { key: 'user', label: '用户', icon: 'i-carbon-user-admin', permission: 'user:read' },
-  { key: 'account', label: '账号', icon: 'i-carbon-server', permission: 'account:read' },
+  { key: 'account', label: '账号', icon: 'i-carbon-cloud', permission: 'account:read' },
   { key: 'session', label: '会话', icon: 'i-carbon-events', permission: 'session:read' },
   { key: 'log', label: '日志', icon: 'i-carbon-document', permission: 'log:read' },
   { key: 'system', label: '系统', icon: 'i-carbon-settings', permission: 'system:*' },

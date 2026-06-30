@@ -45,11 +45,11 @@ watch(() => route.path, () => {
           : 'opacity-60 hover:opacity-100'"
         :style="{ color: isActive(item.path) ? 'var(--theme-primary)' : 'var(--theme-text)' }"
       >
-        <span
-          :class="isActive(item.path) ? 'bottom-nav-icon-bounce' : ''"
+        <div
+          :class="[item.icon, isActive(item.path) ? 'bottom-nav-icon-bounce' : '']"
           class="text-xl transition-transform"
           :style="isActive(item.path) ? 'transform: scale(1.1)' : ''"
-        >{{ item.icon }}</span>
+        />
         <span class="scale-90 font-bold">{{ item.label }}</span>
         <div
           v-if="isActive(item.path)"

@@ -87,7 +87,7 @@ const buttonStyle = computed(() => {
     v-bind="$attrs"
     @click="!disabled && !loading && emit('click', $event)"
   >
-    <span v-if="loading" class="mr-2 animate-spin">⏳</span>
+    <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-2 animate-spin text-base" />
     <slot />
   </component>
 </template>
