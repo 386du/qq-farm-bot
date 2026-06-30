@@ -340,6 +340,38 @@ function addFriendToBlacklist(accountId: unknown, gid: unknown): boolean {
     return true;
 }
 
+function getFriendGuardDogGids(accountId?: unknown): number[] {
+    return [...(getAccountConfigSnapshot(accountId).friendGuardDogGids || [])];
+}
+
+function setFriendGuardDogGids(accountId: unknown, list: unknown[]): number[] {
+    const current = getAccountConfigSnapshot(accountId);
+    const next = normalizeAccountConfig(current, sharedState.accountFallbackConfig);
+    next.friendGuardDogGids = Array.isArray(list) ? list.map(Number).filter(n => Number.isFinite(n) && n > 0) : [];
+    setAccountConfigSnapshot(accountId, next);
+    return [...next.friendGuardDogGids];
+}
+
+function addFriendGuardDogGid(accountId: unknown, gid: unknown): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getFriendGuardDogGids(accountId);
+    if (current.includes(gidNum)) return false;
+    const newList = [...current, gidNum];
+    setFriendGuardDogGids(accountId, newList);
+    return true;
+}
+
+function removeFriendGuardDogGid(accountId: unknown, gid: unknown): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getFriendGuardDogGids(accountId);
+    if (!current.includes(gidNum)) return false;
+    const newList = current.filter((g: number) => g !== gidNum);
+    setFriendGuardDogGids(accountId, newList);
+    return true;
+}
+
 function getStealDelaySeconds(accountId?: unknown): number {
     return Math.max(0, Math.min(300, Number(getAccountConfigSnapshot(accountId).stealDelaySeconds) || 0));
 }
@@ -430,6 +462,10 @@ module.exports = {
     getFriendBlacklist,
     setFriendBlacklist,
     addFriendToBlacklist,
+    getFriendGuardDogGids,
+    setFriendGuardDogGids,
+    addFriendGuardDogGid,
+    removeFriendGuardDogGid,
     getStealDelaySeconds,
     getPlantOrderRandom,
     getPlantDelaySeconds,

@@ -29,6 +29,7 @@ export const useFriendStore = defineStore('friend', () => {
   const friendLands = ref<Record<string, any[]>>({})
   const friendLandsLoading = ref<Record<string, boolean>>({})
   const blacklist = ref<BlacklistItem[]>([])
+  const guardDogFriends = ref<BlacklistItem[]>([])
   const interactRecords = ref<any[]>([])
   const interactLoading = ref(false)
   const interactError = ref('')
@@ -193,6 +194,53 @@ export const useFriendStore = defineStore('friend', () => {
     }
     catch (e: any) {
       return { ok: false, count: 0, error: e?.response?.data?.error || e?.message || '批量拉白失败' }
+    }
+  }
+
+  async function fetchGuardDogFriends(accountId: string) {
+    if (!accountId)
+      return
+    try {
+      const res = await api.get('/api/friend-guard-dog-gids', {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data.ok) {
+        guardDogFriends.value = res.data.data || []
+      }
+    }
+    catch { /* ignore */ }
+  }
+
+  async function addGuardDogFriend(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return
+    const res = await api.post('/api/friend-guard-dog-gids/add', { gid }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogFriends.value = res.data.data || []
+    }
+  }
+
+  async function removeGuardDogFriend(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return
+    const res = await api.post('/api/friend-guard-dog-gids/remove', { gid }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogFriends.value = res.data.data || []
+    }
+  }
+
+  async function clearGuardDogFriends(accountId: string) {
+    if (!accountId)
+      return
+    const res = await api.post('/api/friend-guard-dog-gids/clear', {}, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogFriends.value = []
     }
   }
 
@@ -424,6 +472,7 @@ export const useFriendStore = defineStore('friend', () => {
     friendLands,
     friendLandsLoading,
     blacklist,
+    guardDogFriends,
     interactRecords,
     interactLoading,
     interactError,
@@ -442,6 +491,10 @@ export const useFriendStore = defineStore('friend', () => {
     toggleBlacklist,
     batchAddBlacklist,
     batchRemoveBlacklist,
+    fetchGuardDogFriends,
+    addGuardDogFriend,
+    removeGuardDogFriend,
+    clearGuardDogFriends,
     fetchInteractRecords,
     fetchFriendLands,
     operate,

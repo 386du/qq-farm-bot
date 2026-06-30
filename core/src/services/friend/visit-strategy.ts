@@ -10,6 +10,7 @@ const {
     getFriendBlacklist,
     getPlantBlacklist,
     getFriendsListCacheTtlSec,
+    addFriendGuardDogGid,
 } = require('../../models/store');
 const { getUserState } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
@@ -506,7 +507,8 @@ export async function doFriendOperation(friendGid: any, opType: string): Promise
     try {
         const lands: any[] = enterReply.lands || [];
         const state: any = getUserState();
-        const plantBlacklist: number[] = getPlantBlacklist(state.accountId);
+        const currentAccountId: any = state.accountId;
+        const plantBlacklist: number[] = getPlantBlacklist(currentAccountId);
         const status: AnalyzeResult = analyzeFriendLands(lands, state.gid, '', { plantBlacklist });
         let count: number = 0;
 
@@ -536,7 +538,7 @@ export async function doFriendOperation(friendGid: any, opType: string): Promise
 
         if (opType === 'farming' || opType === 'water' || opType === 'weed' || opType === 'bug') {
             // 护主犬过滤：开启后，仅对携带护主犬的好友执行帮忙类手动操作
-            if (isFriendLackingGuardDog(enterReply, `GID:${gid}`)) {
+            if (isFriendLackingGuardDog(enterReply, `GID:${gid}`, gid, currentAccountId)) {
                 return { ok: true, opType, count: 0, message: '已开启只帮护主犬，该好友未携带护主犬，跳过' };
             }
             const landIds: number[] = opType === 'farming'
@@ -610,8 +612,9 @@ const GUARD_DOG_IDS: ReadonlySet<number> = new Set<number>([
 /**
  * 仅在开启"只帮护主犬好友"时，按服务端返回的 brief_dog_info 判断是否护主。
  * 返回 true 表示当前好友未携带护主犬，帮忙操作应被跳过。
+ * 若检测到携带护主犬，会自动登记到该账号的"护主犬好友"清单。
  */
-function isFriendLackingGuardDog(enterReply: any, friendName: string): boolean {
+function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any, accountId?: any): boolean {
     if (!isAutomationOn('friend_help_only_guard_dog')) return false;
     const brief: any = enterReply && enterReply.brief_dog_info;
     if (!brief) {
@@ -646,6 +649,13 @@ function isFriendLackingGuardDog(enterReply: any, friendName: string): boolean {
             friendName,
             dogIds,
         });
+        // 自动登记到"护主犬好友"清单（去重）
+        try {
+            const gidNum: number = toNum(gid);
+            if (gidNum > 0) {
+                addFriendGuardDogGid(accountId, gidNum);
+            }
+        } catch { /* ignore */ }
         return false;
     }
     // 命中字段但不含护主犬 → 静默跳过，不打日志（避免噪音）
@@ -689,7 +699,7 @@ export async function visitFriend(friend: any, totalActions: any, myGid: number,
     const status: AnalyzeResult = analyzeFriendLands(lands, myGid, name, { plantBlacklist });
 
     // 护主犬过滤：开启后仅对携带护主犬的好友执行帮忙；偷菜/捣乱不受影响
-    const skipHelpByGuardDog: boolean = isFriendLackingGuardDog(enterReply, name);
+    const skipHelpByGuardDog: boolean = isFriendLackingGuardDog(enterReply, name, gid, accountId);
 
     // 执行操作
     const actions: string[] = [];
@@ -957,7 +967,7 @@ export async function visitFriendForHelp(friend: any, totalActions: any, myGid: 
     }
 
     // 护主犬过滤：开启后仅对携带护主犬的好友执行帮忙
-    if (isFriendLackingGuardDog(enterReply, name)) {
+    if (isFriendLackingGuardDog(enterReply, name, gid, accountId)) {
         await leaveFriendFarm(gid);
         return { acted: false, entered: true };
     }
