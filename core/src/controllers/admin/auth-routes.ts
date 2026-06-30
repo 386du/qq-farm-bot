@@ -176,15 +176,15 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
 
     // 注册接口
     app.post('/api/register', (req: Request, res: Response) => {
-        const { username, password, cardCode } = req.body || {};
+        const { username, password, cardCode, inviteCode } = req.body || {};
         if (!username || !password || !cardCode) {
             return res.status(400).json({ ok: false, error: '请填写完整信息' });
         }
-        const result = userStore.registerUser(username, password, cardCode);
+        const result = userStore.registerUser(username, password, cardCode, inviteCode);
         if (!result.ok) {
             return res.status(400).json(result);
         }
-        res.json({ ok: true, data: result.user });
+        res.json({ ok: true, data: result.user, inviteError: result.inviteError });
     });
 
     // 获取登录日志

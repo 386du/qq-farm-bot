@@ -38,6 +38,7 @@ const ROLE_PERMISSIONS: Record<Role, RoleDefinition> = {
       'announcement:*',
       'session:read',
       'session:delete',
+      'invite:*',
     ],
   },
   viewer: {

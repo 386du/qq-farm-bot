@@ -20,11 +20,11 @@ export {
 } from './scheduler';
 
 export {
+    acceptFriendApplications,
     clearFriendsListCache,
     doFriendOperation,
+    getFriendApplicationsList,
     getFriendLandsDetail,
     getFriendsList,
-    getFriendApplicationsList,
-    acceptFriendApplications,
     rejectFriendApplications,
 } from './visit-strategy';

@@ -15,6 +15,7 @@ const isLogin = ref(true)
 const username = ref('')
 const password = ref('')
 const cardCode = ref('')
+const inviteCode = ref('')
 const error = ref('')
 const success = ref('')
 const loading = ref(false)
@@ -199,11 +200,15 @@ async function handleSubmit() {
       }
     }
     else {
-      const result = await userStore.register(username.value, password.value, cardCode.value)
+      const result = await userStore.register(username.value, password.value, cardCode.value, inviteCode.value)
       if (result.ok) {
         success.value = '注册成功，请登录'
+        if (result.inviteError) {
+          success.value += `（邀请码提示：${result.inviteError}）`
+        }
         isLogin.value = true
         cardCode.value = ''
+        inviteCode.value = ''
         password.value = ''
       }
       else {
@@ -467,6 +472,14 @@ async function handleRenew() {
 onMounted(() => {
   checkCardClaimStatus()
   fetchGameVersion()
+
+  // 从 URL 读取邀请码
+  const urlParams = new URLSearchParams(window.location.search)
+  const urlInviteCode = urlParams.get('invite')
+  if (urlInviteCode) {
+    inviteCode.value = urlInviteCode
+  }
+
   const savedUsername = localStorage.getItem('remembered_username')
   const savedPassword = localStorage.getItem('remembered_password')
   if (savedUsername) {
@@ -645,6 +658,19 @@ async function fetchGameVersion() {
             type="text"
             placeholder="请输入卡密"
             :required="!isLogin"
+          />
+        </div>
+
+        <div v-if="!isLogin" class="form-group">
+          <label class="form-label font-body">
+            <span class="label-icon">🎁</span>
+            邀请码（选填）
+          </label>
+          <BaseInput
+            id="inviteCode"
+            v-model="inviteCode"
+            type="text"
+            placeholder="有邀请码？填写可帮对方获得奖励"
           />
         </div>
 

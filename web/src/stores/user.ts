@@ -107,8 +107,8 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function register(username: string, password: string, cardCode: string) {
-    const res = await api.post('/api/register', { username, password, cardCode })
+  async function register(username: string, password: string, cardCode: string, inviteCode?: string) {
+    const res = await api.post('/api/register', { username, password, cardCode, inviteCode })
     return res.data
   }
 
@@ -151,10 +151,13 @@ export const useUserStore = defineStore('user', () => {
 
   function hasPermission(permission: string): boolean {
     const perms = userPermissions.value
-    if (perms.includes('*')) return true
-    if (perms.includes(permission)) return true
+    if (perms.includes('*'))
+      return true
+    if (perms.includes(permission))
+      return true
     const prefix = permission.split(':')[0]
-    if (perms.includes(`${prefix}:*`)) return true
+    if (perms.includes(`${prefix}:*`))
+      return true
     return false
   }
 
@@ -250,6 +253,32 @@ export const useUserStore = defineStore('user', () => {
     return res.data
   }
 
+  // 邀请码功能
+  async function getInviteInfo() {
+    const res = await api.get('/api/invite/me')
+    return res.data
+  }
+
+  async function claimInviteReward(count: number) {
+    const res = await api.post('/api/invite/claim', { count })
+    return res.data
+  }
+
+  async function getInviteConfig() {
+    const res = await api.get('/api/admin/invite/config')
+    return res.data
+  }
+
+  async function setInviteConfig(config: { enabled: boolean, rules: any[] }) {
+    const res = await api.post('/api/admin/invite/config', config)
+    return res.data
+  }
+
+  async function getInviteRecords() {
+    const res = await api.get('/api/admin/invite/records')
+    return res.data
+  }
+
   return {
     token,
     userInfo,
@@ -287,5 +316,10 @@ export const useUserStore = defineStore('user', () => {
     getSessions,
     revokeSession,
     revokeUserSessions,
+    getInviteInfo,
+    claimInviteReward,
+    getInviteConfig,
+    setInviteConfig,
+    getInviteRecords,
   }
 })

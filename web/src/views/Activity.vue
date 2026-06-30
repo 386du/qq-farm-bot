@@ -9,14 +9,14 @@ const activeTab = ref<'lottery' | 'battlepass' | 'shop' | 'solar' | 'all'>('lott
 const loading = ref(false)
 
 // 操作类型常量 (与后端 services/activity.ts 保持一致)
-const OPERATE_CLAIM = 1          // 领取奖励
-const OPERATE_DRAW = 7           // 单抽
-const OPERATE_VIEW = 10          // 查看/进入活动
+const OPERATE_CLAIM = 1 // 领取奖励
+const OPERATE_DRAW = 7 // 单抽
+const OPERATE_VIEW = 10 // 查看/进入活动
 
 // 活动类型常量
-const ACTIVITY_TYPE_DAILY = 1    // 每日任务
-const ACTIVITY_TYPE_SHOP = 3     // 商店
-const ACTIVITY_TYPE_LOTTERY = 8  // 抽奖
+const ACTIVITY_TYPE_DAILY = 1 // 每日任务
+const ACTIVITY_TYPE_SHOP = 3 // 商店
+const ACTIVITY_TYPE_LOTTERY = 8 // 抽奖
 
 // 活动组数据 (动态获取所有 group 的活动，不再写死 groupId)
 const activities = ref<any[]>([])
@@ -29,7 +29,7 @@ const solarTerms = ref<any[]>([])
 
 // 商店数据 (改用 ShopService 获取真实商品)
 const shopProfiles = ref<any[]>([])
-const shopGoodsList = ref<Record<string, any[]>>({})  // shopId -> 商品列表
+const shopGoodsList = ref<Record<string, any[]>>({}) // shopId -> 商品列表
 const shopLoading = ref(false)
 
 // 货币/背包
@@ -67,18 +67,21 @@ function formatDate(ts: number): string {
 // 格式化数字
 function formatNumber(n: number | string | undefined): string {
   const num = Number(n)
-  if (!num && num !== 0) return '-'
-  if (num >= 100000000) return `${(num / 100000000).toFixed(1)}亿`
-  if (num >= 10000) return `${(num / 10000).toFixed(1)}万`
+  if (!num && num !== 0)
+    return '-'
+  if (num >= 100000000)
+    return `${(num / 100000000).toFixed(1)}亿`
+  if (num >= 10000)
+    return `${(num / 10000).toFixed(1)}万`
   return num.toLocaleString('zh-CN')
 }
 
 // 货币配置
-const currencyConfig: Record<string, { icon: string; color: string }> = {
-  '点券': { icon: '💎', color: '#3b82f6' },
-  '金币': { icon: '🪙', color: '#f59e0b' },
-  '荷露': { icon: '🌸', color: '#ec4899' },
-  '助威粽叶': { icon: '🍃', color: '#22c55e' },
+const currencyConfig: Record<string, { icon: string, color: string }> = {
+  点券: { icon: '💎', color: '#3b82f6' },
+  金币: { icon: '🪙', color: '#f59e0b' },
+  荷露: { icon: '🌸', color: '#ec4899' },
+  助威粽叶: { icon: '🍃', color: '#22c55e' },
 }
 
 // 解析 extra JSON
@@ -109,11 +112,16 @@ function resultText(result: number | string): string {
 
 // 错误信息简单中文化
 function friendlyError(msg: string): string {
-  if (!msg) return '操作失败'
-  if (msg.includes('code=1034016')) return '抽奖次数已用完'
-  if (msg.includes('code=1034005')) return '活动参数错误，请检查兑换参数或商品编号'
-  if (msg.includes('code=1000020')) return '请求参数错误'
-  if (msg.includes('Internal Server Error')) return '服务器内部错误，请刷新页面或查看日志'
+  if (!msg)
+    return '操作失败'
+  if (msg.includes('code=1034016'))
+    return '抽奖次数已用完'
+  if (msg.includes('code=1034005'))
+    return '活动参数错误，请检查兑换参数或商品编号'
+  if (msg.includes('code=1000020'))
+    return '请求参数错误'
+  if (msg.includes('Internal Server Error'))
+    return '服务器内部错误，请刷新页面或查看日志'
   return msg
 }
 
@@ -269,11 +277,14 @@ async function onDrawClick(activityId: number, count: number, act: any) {
       // 连抽：逐次单抽，实时检查剩余次数
       for (let i = 0; i < count; i++) {
         const curAct = activities.value.find((a: any) => a.activityId === activityId)
-        if (actFreeRemain(curAct) < 1) break
+        if (actFreeRemain(curAct) < 1)
+          break
         await doOperate(activityId, OPERATE_DRAW, 0)
-        if (operateResult.value?.result !== 0) break
+        if (operateResult.value?.result !== 0)
+          break
       }
-    } else {
+    }
+    else {
       await doOperate(activityId, OPERATE_DRAW, 0)
     }
     return
@@ -292,7 +303,8 @@ async function confirmPaidDraw() {
   if (count > 1) {
     for (let i = 0; i < count; i++) {
       await doOperate(pendingActivityId.value, OPERATE_DRAW, 0)
-      if (operateResult.value?.result !== 0) break
+      if (operateResult.value?.result !== 0)
+        break
     }
   }
   else {
@@ -490,8 +502,8 @@ const otherActivities = computed(() =>
 )
 
 // 活动类型标签
-function activityTypeLabel(type: number): { text: string; color: string } {
-  const map: Record<number, { text: string; color: string }> = {
+function activityTypeLabel(type: number): { text: string, color: string } {
+  const map: Record<number, { text: string, color: string }> = {
     1: { text: '每日任务', color: '#3b82f6' },
     3: { text: '商店', color: '#f59e0b' },
     8: { text: '抽奖', color: '#8b5cf6' },
@@ -507,14 +519,17 @@ const battlePassLevels = computed(() => seasonInfo.value?.battlePass?.levels || 
 
 // 战令状态文本
 function seasonStatusText(status: number): string {
-  if (status === 1) return '进行中'
-  if (status === 2) return '已结束/未开始'
+  if (status === 1)
+    return '进行中'
+  if (status === 2)
+    return '已结束/未开始'
   return `状态${status}`
 }
 
 // 格式化奖励物品
 function formatReward(reward: any): string {
-  if (!reward) return ''
+  if (!reward)
+    return ''
   const name = reward.itemName || `物品#${reward.itemId}`
   return `${name} x${reward.count || 1}`
 }
@@ -527,24 +542,31 @@ function toItemId(val: any): number {
 // 根据物品/种子 id 取图片地址
 function getItemImage(val: any): string {
   const id = toItemId(val)
-  if (id <= 0) return ''
+  if (id <= 0)
+    return ''
   return `/game-config/seed_images_named/${id}.png`
 }
 
 // 物品名称：优先用后端返回的 item_name / itemName，否则用 seedName，否则用 #id
 function getItemName(item: any, idVal?: any): string {
-  if (!item) return ''
-  if (item.item_name || item.itemName) return item.item_name || item.itemName
-  if (item.seedName) return item.seedName
+  if (!item)
+    return ''
+  if (item.item_name || item.itemName)
+    return item.item_name || item.itemName
+  if (item.seedName)
+    return item.seedName
   const id = toItemId(idVal ?? item.item_id ?? item.itemId ?? item.seedId)
   return id > 0 ? `物品#${id}` : '未知物品'
 }
 
 // 把 protobuf long 对象 {low, high} 转成数字
 function toLongNumber(val: any): number {
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') return Number(val) || 0
+  if (val === null || val === undefined)
+    return 0
+  if (typeof val === 'number')
+    return val
+  if (typeof val === 'string')
+    return Number(val) || 0
   if (typeof val === 'object' && 'low' in val) {
     // 简单的 32 位处理，游戏 ID 通常不会超过 32 位
     return Number(val.low) || 0
@@ -750,12 +772,20 @@ onMounted(() => {
                 深度调试信息 (服务器返回的原始字段结构)
               </div>
               <div class="debug-section">
-                <div class="debug-label">尝试参数: op={{ operateResult._debug.triedOp }}, param={{ operateResult._debug.triedParam }}</div>
-                <div class="debug-label">解析的 result: {{ operateResult._debug.result }} (注意: 可能是 echo 的 operate_type)</div>
-                <div class="debug-label">奖励数: {{ operateResult._debug.rewardsCount }}</div>
+                <div class="debug-label">
+                  尝试参数: op={{ operateResult._debug.triedOp }}, param={{ operateResult._debug.triedParam }}
+                </div>
+                <div class="debug-label">
+                  解析的 result: {{ operateResult._debug.result }} (注意: 可能是 echo 的 operate_type)
+                </div>
+                <div class="debug-label">
+                  奖励数: {{ operateResult._debug.rewardsCount }}
+                </div>
               </div>
               <div v-if="operateResult._debug.scannedFields" class="debug-section">
-                <div class="debug-label">服务器返回的所有字段 (field/wireType/value):</div>
+                <div class="debug-label">
+                  服务器返回的所有字段 (field/wireType/value):
+                </div>
                 <div v-for="(f, i) in operateResult._debug.scannedFields" :key="i" class="debug-field-row">
                   <span class="debug-field-num">f{{ f.field }}</span>
                   <span class="debug-field-wt">wt{{ f.wireType }}</span>
@@ -763,7 +793,9 @@ onMounted(() => {
                 </div>
               </div>
               <div v-if="operateResult._debug.drawInfo" class="debug-section">
-                <div class="debug-label">抽奖配置 drawInfo:</div>
+                <div class="debug-label">
+                  抽奖配置 drawInfo:
+                </div>
                 <pre class="debug-pre">{{ JSON.stringify(operateResult._debug.drawInfo, null, 2) }}</pre>
               </div>
               <div class="debug-hint">
@@ -945,7 +977,9 @@ onMounted(() => {
               </div>
             </div>
             <div v-else class="shop-debug">
-              <div class="debug-title">该商店暂无商品</div>
+              <div class="debug-title">
+                该商店暂无商品
+              </div>
             </div>
           </div>
         </div>

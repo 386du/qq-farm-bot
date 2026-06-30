@@ -5,6 +5,7 @@ const { getDataFile, ensureDataDir } = require('../../config/runtime-paths');
 const auth = require('./auth');
 const ipBlacklist = require('../ip-blacklist');
 const tokenStore = require('./token-store');
+const invite = require('./invite');
 const { isValidRole } = require('../../controllers/admin/permissions');
 
 const USERS_FILE: string = getDataFile('users.json');
@@ -63,7 +64,9 @@ interface RegisterResult {
         role: string;
         card: UserCard | undefined;
         accountLimit: number;
+        inviteCode: string;
     };
+    inviteError?: string;
 }
 
 interface RenewResult {
@@ -240,7 +243,7 @@ function validateUser(username: string, password: string, ip: string = 'unknown'
     };
 }
 
-function registerUser(username: string, password: string, cardCode: string): RegisterResult {
+function registerUser(username: string, password: string, cardCode: string, inviteCode: string = ''): RegisterResult {
     loadUsers();
     loadCards();
 
@@ -301,12 +304,37 @@ function registerUser(username: string, password: string, cardCode: string): Reg
     card.usedBy = username;
     card.usedAt = now;
 
+    // 生成该用户的邀请码
+    let userInviteCode = '';
+    if (invite && typeof invite.ensureUserInviteCode === 'function') {
+        userInviteCode = invite.ensureUserInviteCode(username);
+    }
+
     saveUsers();
     saveCards();
 
+    // 处理邀请关系（非关键错误不影响注册）
+    let inviteError: string | undefined;
+    if (inviteCode && invite && typeof invite.recordInvite === 'function') {
+        const inviteResult = invite.recordInvite(inviteCode, username);
+        if (!inviteResult.ok) {
+            inviteError = inviteResult.error;
+        }
+    }
+
     auth.clearFailedAttempts(username);
 
-    return { ok: true, user: { username: newUser.username, role: newUser.role, card: newUser.card, accountLimit: newUser.accountLimit! } };
+    return {
+        ok: true,
+        user: {
+            username: newUser.username,
+            role: newUser.role,
+            card: newUser.card,
+            accountLimit: newUser.accountLimit!,
+            inviteCode: userInviteCode
+        },
+        inviteError
+    };
 }
 
 function renewUser(username: string, cardCode: string): RenewResult {
@@ -384,6 +412,11 @@ function getAllUsers(): Array<Pick<User, 'username' | 'role' | 'card' | 'account
         card: u.card,
         accountLimit: u.accountLimit || DEFAULT_ACCOUNT_LIMIT
     }));
+}
+
+function getAllUsersInternal(): User[] {
+    loadUsers();
+    return users;
 }
 
 function updateUser(username: string, updates: Partial<Pick<User, 'card'>> & { expiresAt?: number | null; enabled?: boolean }): Pick<User, 'username' | 'role' | 'card' | 'accountLimit'> | null {
@@ -731,6 +764,7 @@ module.exports = {
     registerUser,
     renewUser,
     getAllUsers,
+    getAllUsersInternal,
     updateUser,
     editUser,
     getAllCards,

@@ -55,7 +55,7 @@ function scanProtoFields(buf: Buffer): any[] {
             const v = readVarint(buf, tag.next);
             if (!v) break;
             field.value = v.value;
-            field.valueStr = v.value <= 0xffffffff ? v.value : '0x' + v.value.toString(16);
+            field.valueStr = v.value <= 0xFFFFFFFF ? v.value : `0x${  v.value.toString(16)}`;
             off = v.next;
         } else if (wireType === 2) {
             // length-delimited
@@ -66,13 +66,13 @@ function scanProtoFields(buf: Buffer): any[] {
             // 尝试当字符串
             try {
                 const str = data.toString('utf8');
-                if (/^[\x20-\x7e]+$/.test(str)) {
+                if (/^[\x20-\x7E]+$/.test(str)) {
                     field.value = str;
                 } else {
-                    field.value = '<bytes len=' + len.value + '>';
+                    field.value = `<bytes len=${  len.value  }>`;
                 }
             } catch {
-                field.value = '<bytes len=' + len.value + '>';
+                field.value = `<bytes len=${  len.value  }>`;
             }
             off = len.next + len.value;
         } else if (wireType === 5) {
@@ -81,7 +81,7 @@ function scanProtoFields(buf: Buffer): any[] {
             off = tag.next + 4;
         } else if (wireType === 1) {
             // 64-bit
-            field.value = '0x' + buf.slice(tag.next, tag.next + 8).toString('hex');
+            field.value = `0x${  buf.slice(tag.next, tag.next + 8).toString('hex')}`;
             off = tag.next + 8;
         } else {
             break;
@@ -621,7 +621,7 @@ module.exports = {
     getAllActivities,
     claimActivityReward,
     autoClaimActivityRewards,
-    parseBattlePass: parseBattlePass,
+    parseBattlePass,
     // 常量
     ACTIVITY_TYPE_LOTTERY,
     ACTIVITY_TYPE_SHOP,

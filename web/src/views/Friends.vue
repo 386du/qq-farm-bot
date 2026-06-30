@@ -1209,7 +1209,7 @@ async function handleRejectAllApplications() {
                 🕐 {{ formatApplicationTime(app.timeAt) }}
               </div>
             </div>
-            <div class="shrink-0 flex gap-2">
+            <div class="flex shrink-0 gap-2">
               <button
                 class="cartoon-btn rounded-xl bg-green-100 px-3 py-2 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50 dark:hover:bg-green-900/50"
                 :disabled="applicationActionLoading"

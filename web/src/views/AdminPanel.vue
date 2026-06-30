@@ -12,7 +12,7 @@ import { useUserStore } from '@/stores/user'
 const userStore = useUserStore()
 const toast = useToastStore()
 
-type AdminTab = 'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system' | 'session'
+type AdminTab = 'dashboard' | 'card' | 'user' | 'account' | 'log' | 'system' | 'session' | 'invite'
 
 const activeTab = ref<AdminTab>(
   (localStorage.getItem('admin-active-tab') as AdminTab) || 'dashboard',
@@ -30,6 +30,7 @@ const tabs = [
   { key: 'session', label: '会话', icon: 'i-carbon-events', permission: 'session:read' },
   { key: 'log', label: '日志', icon: 'i-carbon-document', permission: 'log:read' },
   { key: 'system', label: '系统', icon: 'i-carbon-settings', permission: 'system:*' },
+  { key: 'invite', label: '邀请', icon: 'i-carbon-gift', permission: 'invite:*' },
 ] as const
 
 const visibleTabs = computed(() => tabs.filter(tab => userStore.hasPermission(tab.permission)))
@@ -174,6 +175,121 @@ async function toggleCardClaimStatus(enabled: boolean | undefined) {
   finally {
     cardClaimLoading.value = false
   }
+}
+
+// ========== 邀请管理 ==========
+interface InviteRule {
+  count: number
+  rewardDays: number
+  rewardAccountLimit?: number
+  description?: string
+}
+
+interface InviteRecord {
+  inviter: string
+  invitee: string
+  invitedAt: number
+}
+
+const inviteConfig = ref({ enabled: true, rules: [] as InviteRule[] })
+const inviteRecords = ref<InviteRecord[]>([])
+const inviteLoading = ref(false)
+const inviteSaving = ref(false)
+const newInviteRule = ref<InviteRule>({ count: 1, rewardDays: 7, rewardAccountLimit: 0, description: '' })
+
+async function fetchInviteConfig() {
+  inviteLoading.value = true
+  try {
+    const result = await userStore.getInviteConfig()
+    if (result.ok) {
+      inviteConfig.value = result.data
+    }
+    else {
+      toast.error(result.error || '获取邀请配置失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e.message || '获取邀请配置失败')
+  }
+  finally {
+    inviteLoading.value = false
+  }
+}
+
+async function fetchInviteRecords() {
+  try {
+    const result = await userStore.getInviteRecords()
+    if (result.ok) {
+      inviteRecords.value = result.data
+    }
+  }
+  catch (e: any) {
+    toast.error(e.message || '获取邀请记录失败')
+  }
+}
+
+async function saveInviteConfig() {
+  inviteSaving.value = true
+  try {
+    const result = await userStore.setInviteConfig({
+      enabled: inviteConfig.value.enabled,
+      rules: inviteConfig.value.rules,
+    })
+    if (result.ok) {
+      inviteConfig.value = result.data
+      toast.success('邀请配置保存成功')
+    }
+    else {
+      toast.error(result.error || '保存失败')
+    }
+  }
+  catch (e: any) {
+    toast.error(e.message || '保存失败')
+  }
+  finally {
+    inviteSaving.value = false
+  }
+}
+
+function addInviteRule() {
+  const count = Math.max(1, Number.parseInt(String(newInviteRule.value.count), 10) || 1)
+  const rewardDays = Number.parseInt(String(newInviteRule.value.rewardDays), 10) || 0
+  const rewardAccountLimit = Number.parseInt(String(newInviteRule.value.rewardAccountLimit), 10) || 0
+
+  if (rewardDays <= 0 && rewardAccountLimit <= 0) {
+    toast.warning('奖励天数和账号额度至少填写一个')
+    return
+  }
+
+  const exists = inviteConfig.value.rules.find(r => r.count === count)
+  if (exists) {
+    toast.warning('该人数档位已存在')
+    return
+  }
+
+  inviteConfig.value.rules.push({
+    count,
+    rewardDays,
+    rewardAccountLimit,
+    description: newInviteRule.value.description || '',
+  })
+
+  inviteConfig.value.rules.sort((a, b) => a.count - b.count)
+
+  newInviteRule.value = { count: count + 1, rewardDays: 7, rewardAccountLimit: 0, description: '' }
+}
+
+function removeInviteRule(index: number) {
+  inviteConfig.value.rules.splice(index, 1)
+}
+
+function formatInviteReward(rule: InviteRule): string {
+  const parts: string[] = []
+  if (rule.rewardDays > 0)
+    parts.push(`+${rule.rewardDays} 天`)
+  if (rule.rewardAccountLimit && rule.rewardAccountLimit > 0)
+    parts.push(`+${rule.rewardAccountLimit} 额度`)
+  return parts.join('、') || '无'
 }
 
 async function createCard() {
@@ -1734,6 +1850,8 @@ onMounted(() => {
   fetchCardClaimStatus()
   fetchBackup()
   fetchIpBlacklist()
+  fetchInviteConfig()
+  fetchInviteRecords()
 })
 
 onUnmounted(() => {
@@ -1766,6 +1884,10 @@ watch(activeTab, (tab) => {
   }
   else {
     stopSessionsTimer()
+  }
+  if (tab === 'invite') {
+    fetchInviteConfig()
+    fetchInviteRecords()
   }
 })
 </script>
@@ -2688,7 +2810,7 @@ watch(activeTab, (tab) => {
                     <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
                       <button
                         v-if="session.token === currentToken"
-                        class="text-gray-400 cursor-not-allowed"
+                        class="cursor-not-allowed text-gray-400"
                         disabled
                       >
                         当前会话
@@ -2975,7 +3097,7 @@ watch(activeTab, (tab) => {
                 >
                 <button
                   v-if="auditEventFilter || auditUsernameFilter || auditIpFilter"
-                  class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   @click="resetAuditFilters"
                 >
                   重置
@@ -3053,7 +3175,7 @@ watch(activeTab, (tab) => {
                         <td class="whitespace-nowrap px-3 py-2.5 text-right">
                           <button
                             v-if="log.details && Object.keys(log.details).length > 0"
-                            class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                             @click="toggleAuditLogExpanded(log.id)"
                           >
                             {{ isAuditLogExpanded(log.id) ? '收起' : '查看' }}
@@ -3643,6 +3765,175 @@ watch(activeTab, (tab) => {
                   </BaseButton>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 邀请管理 -->
+        <div v-else-if="activeTab === 'invite'" class="space-y-4">
+          <h3 class="text-lg text-gray-900 font-bold dark:text-gray-100">
+            邀请管理
+          </h3>
+
+          <div class="farm-card-enhanced p-5">
+            <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+              <div class="admin-section-icon">
+                <div class="i-carbon-gift" />
+              </div>
+              <span>奖励配置</span>
+              <div class="admin-section-divider" />
+            </h4>
+
+            <div class="mb-4 flex items-center gap-3">
+              <BaseSwitch
+                v-model="inviteConfig.enabled"
+                label="启用邀请功能"
+              />
+            </div>
+
+            <div class="space-y-3">
+              <div
+                v-for="(rule, index) in inviteConfig.rules"
+                :key="rule.count"
+                class="flex flex-col gap-2 rounded-xl bg-gray-50 p-3 dark:bg-gray-800/50"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <BaseInput
+                    v-model.number="rule.count"
+                    type="number"
+                    label="邀请人数"
+                    min="1"
+                    class="w-28"
+                  />
+                  <BaseInput
+                    v-model.number="rule.rewardDays"
+                    type="number"
+                    label="奖励天数"
+                    min="0"
+                    class="w-28"
+                  />
+                  <BaseInput
+                    v-model.number="rule.rewardAccountLimit"
+                    type="number"
+                    label="奖励额度"
+                    min="0"
+                    class="w-28"
+                  />
+                  <BaseInput
+                    v-model="rule.description"
+                    label="说明（可选）"
+                    type="text"
+                    class="min-w-[160px] flex-1"
+                  />
+                  <button
+                    class="mt-5 rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
+                    title="删除"
+                    @click="removeInviteRule(index)"
+                  >
+                    <div class="i-carbon-trash-can" />
+                  </button>
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  奖励：{{ formatInviteReward(rule) }}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+              <p class="mb-2 text-sm text-gray-700 font-medium dark:text-gray-300">
+                新增档位
+              </p>
+              <div class="flex flex-wrap items-end gap-2">
+                <BaseInput
+                  v-model.number="newInviteRule.count"
+                  type="number"
+                  label="邀请人数"
+                  min="1"
+                  class="w-24"
+                />
+                <BaseInput
+                  v-model.number="newInviteRule.rewardDays"
+                  type="number"
+                  label="奖励天数"
+                  min="0"
+                  class="w-24"
+                />
+                <BaseInput
+                  v-model.number="newInviteRule.rewardAccountLimit"
+                  type="number"
+                  label="奖励额度"
+                  min="0"
+                  class="w-24"
+                />
+                <BaseInput
+                  v-model="newInviteRule.description"
+                  label="说明（可选）"
+                  type="text"
+                  class="min-w-[140px] flex-1"
+                />
+                <BaseButton variant="secondary" size="sm" @click="addInviteRule">
+                  添加
+                </BaseButton>
+              </div>
+            </div>
+
+            <div class="mt-4 flex justify-end">
+              <BaseButton
+                variant="primary"
+                size="sm"
+                :loading="inviteSaving"
+                @click="saveInviteConfig"
+              >
+                保存配置
+              </BaseButton>
+            </div>
+          </div>
+
+          <div class="farm-card-enhanced p-5">
+            <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+              <div class="admin-section-icon">
+                <div class="i-carbon-user-multiple" />
+              </div>
+              <span>邀请记录</span>
+              <div class="admin-section-divider" />
+            </h4>
+
+            <div v-if="inviteRecords.length === 0" class="py-6 text-center text-gray-500">
+              暂无邀请记录
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-200 dark:border-gray-700">
+                    <th class="px-3 py-2 text-left text-gray-700 dark:text-gray-300">
+                      邀请人
+                    </th>
+                    <th class="px-3 py-2 text-left text-gray-700 dark:text-gray-300">
+                      被邀请人
+                    </th>
+                    <th class="px-3 py-2 text-left text-gray-700 dark:text-gray-300">
+                      邀请时间
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="record in inviteRecords"
+                    :key="`${record.inviter}-${record.invitee}-${record.invitedAt}`"
+                    class="border-b border-gray-100 dark:border-gray-800"
+                  >
+                    <td class="px-3 py-2">
+                      {{ record.inviter }}
+                    </td>
+                    <td class="px-3 py-2">
+                      {{ record.invitee }}
+                    </td>
+                    <td class="px-3 py-2 text-gray-500 dark:text-gray-400">
+                      {{ formatDate(record.invitedAt) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

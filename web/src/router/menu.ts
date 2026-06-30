@@ -37,6 +37,13 @@ export const menuRoutes: MenuItem[] = [
     component: () => import('@/views/Friends.vue'),
   },
   {
+    path: 'invite',
+    name: 'invite',
+    label: '邀请',
+    icon: 'i-carbon-gift',
+    component: () => import('@/views/Invite.vue'),
+  },
+  {
     path: 'analytics',
     name: 'analytics',
     label: '分析',

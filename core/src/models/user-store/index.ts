@@ -2,6 +2,7 @@ export {};
 const auth = require('./auth');
 const users = require('./users');
 const cardClaim = require('./card-claim');
+const invite = require('./invite');
 
 // Initialize default admin on load
 users.initDefaultAdmin();
@@ -34,4 +35,15 @@ module.exports = {
     claimCardByUA: cardClaim.claimCardByUA,
     getCardClaimRecords: cardClaim.getCardClaimRecords,
     clearExpiredClaimRecords: cardClaim.clearExpiredClaimRecords,
+
+    // Invite
+    ensureUserInviteCode: invite.ensureUserInviteCode,
+    findUserByInviteCode: invite.findUserByInviteCode,
+    getUserInviteInfo: invite.getUserInviteInfo,
+    getAvailableRewards: invite.getAvailableRewards,
+    getRewardState: invite.getRewardState,
+    claimInviteReward: invite.claimReward,
+    getAllInviteRecords: invite.getAllInviteRecords,
+    getInviteConfig: invite.getInviteConfig,
+    setInviteConfig: invite.setInviteConfig,
 };

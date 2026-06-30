@@ -21,6 +21,7 @@ const { mountFarmRoutes } = require('./farm-routes');
 const { mountFriendRoutes } = require('./friend-routes');
 const { mountAdminRoutes } = require('./admin-routes');
 const { mountActivityRoutes } = require('./activity-routes');
+const { mountInviteRoutes } = require('./invite-routes');
 const {
     setupSocketIO,
     emitRealtimeStatus: _emitStatus,
@@ -78,6 +79,7 @@ function startAdminServer(dataProvider: any): void {
     mountAdminRoutes(app, ctx);
     mountAccountRoutes(app, ctx);
     mountActivityRoutes(app, ctx);
+    mountInviteRoutes(app, ctx);
 
     // SPA fallback
     app.get('*', (req: any, res: any) => {
