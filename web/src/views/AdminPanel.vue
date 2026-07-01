@@ -1390,6 +1390,10 @@ function formatAuditDetails(details?: Record<string, any>): string {
 const systemConfigSaving = ref(false)
 const systemConfigLoading = ref(false)
 
+// 协议版本独立保存
+const clientVersionDraft = ref('')
+const clientVersionSaving = ref(false)
+
 const localSystemConfig = ref({
   serverUrl: '',
   clientVersion: '',
@@ -1404,6 +1408,20 @@ const localSystemConfig = ref({
     deviceId: 'DESKTOP-PC<WPC>',
     userAgent: '',
   },
+})
+
+// 监听顶层 clientVersion 变化，同步到 deviceInfo.clientVersion（保持与原实现一致）
+watch(() => localSystemConfig.value.clientVersion, (val) => {
+  if (localSystemConfig.value.deviceInfo.clientVersion !== val) {
+    localSystemConfig.value.deviceInfo.clientVersion = val
+  }
+})
+
+// 监听 deviceInfo.clientVersion 变化，同步到顶层 clientVersion
+watch(() => localSystemConfig.value.deviceInfo.clientVersion, (val) => {
+  if (localSystemConfig.value.clientVersion !== val) {
+    localSystemConfig.value.clientVersion = val
+  }
 })
 
 const defaultSystemConfig = ref({
@@ -1562,6 +1580,85 @@ async function handleResetSystemConfig() {
     systemConfigSaving.value = false
   }
 }
+
+// 单独保存协议版本（仅修改 clientVersion，其它字段保持原样）
+async function handleSaveClientVersion() {
+  const value = String(clientVersionDraft.value || '').trim()
+  if (!value) {
+    showAlert('请输入客户端版本号', 'danger')
+    return
+  }
+  clientVersionSaving.value = true
+  try {
+    const payload = {
+      ...localSystemConfig.value,
+      clientVersion: value,
+      deviceInfo: {
+        ...localSystemConfig.value.deviceInfo,
+        clientVersion: value,
+      },
+    }
+    const { data } = await api.post('/api/admin/system-config', payload)
+    if (data?.ok) {
+      const saved = data.data.saved
+      localSystemConfig.value = {
+        ...localSystemConfig.value,
+        clientVersion: saved.clientVersion || value,
+        deviceInfo: saved.deviceInfo
+          ? { ...saved.deviceInfo }
+          : { ...localSystemConfig.value.deviceInfo, clientVersion: value },
+      }
+      clientVersionDraft.value = saved.clientVersion || value
+      showAlert('客户端版本已保存并立即生效', 'primary')
+    }
+    else {
+      showAlert(data?.error || '保存失败', 'danger')
+    }
+  }
+  catch (e: any) {
+    showAlert(`保存失败: ${e.message || '未知错误'}`, 'danger')
+  }
+  finally {
+    clientVersionSaving.value = false
+  }
+}
+
+// 协议版本恢复为默认值
+async function handleResetClientVersion() {
+  clientVersionSaving.value = true
+  try {
+    const { data } = await api.post('/api/admin/system-config/reset')
+    if (data?.ok) {
+      const saved = data.data.saved
+      const newVer = saved.clientVersion || ''
+      localSystemConfig.value = {
+        ...localSystemConfig.value,
+        clientVersion: newVer,
+        deviceInfo: saved.deviceInfo
+          ? { ...saved.deviceInfo }
+          : { ...localSystemConfig.value.deviceInfo, clientVersion: newVer },
+      }
+      clientVersionDraft.value = newVer
+      showAlert('客户端版本已恢复为默认值', 'primary')
+    }
+    else {
+      showAlert(data?.error || '恢复失败', 'danger')
+    }
+  }
+  catch (e: any) {
+    showAlert(`恢复失败: ${e.message || '未知错误'}`, 'danger')
+  }
+  finally {
+    clientVersionSaving.value = false
+  }
+}
+
+// 当系统配置加载完成后，同步 clientVersionDraft
+watch(() => localSystemConfig.value.clientVersion, (val) => {
+  if (clientVersionDraft.value !== val) {
+    clientVersionDraft.value = val
+  }
+})
 
 // ========== 数据备份与恢复 ==========
 interface BackupData {
@@ -3261,6 +3358,61 @@ watch(activeTab, (tab) => {
           </h3>
 
           <div class="space-y-4">
+            <!-- 协议版本配置：模拟的客户端版本号，用于服务端协议校验 -->
+            <div class="farm-card-enhanced p-5">
+              <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+                <div class="admin-section-icon">
+                  <div class="i-carbon-tag" />
+                </div>
+                <span>协议版本配置</span>
+                <div class="admin-section-divider" />
+              </h4>
+
+              <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-700 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+                <div class="mb-1 font-semibold">
+                  客户端版本
+                </div>
+                <p>
+                  模拟的客户端版本号，用于服务端协议校验。所有账号的请求都会携带该版本号，
+                  修改保存后将立即生效，无需重启服务。建议与服务端当前允许的最新版本保持一致。
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <BaseInput
+                  v-model="clientVersionDraft"
+                  label="客户端版本"
+                  type="text"
+                  :placeholder="defaultSystemConfig.clientVersion || '如：1.12.0.4_20260609'"
+                  class="md:col-span-2"
+                />
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  当前已生效版本：<span class="font-mono font-semibold" style="color: var(--theme-text)">{{ localSystemConfig.clientVersion || '未设置' }}</span>
+                </div>
+                <div class="flex gap-2">
+                  <BaseButton
+                    variant="secondary"
+                    size="sm"
+                    :loading="clientVersionSaving"
+                    @click="handleResetClientVersion"
+                  >
+                    恢复默认
+                  </BaseButton>
+                  <BaseButton
+                    variant="primary"
+                    size="sm"
+                    :loading="clientVersionSaving"
+                    @click="handleSaveClientVersion"
+                  >
+                    保存版本
+                  </BaseButton>
+                </div>
+              </div>
+            </div>
+
             <div class="farm-card-enhanced p-5">
               <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
                 <div class="admin-section-icon">
