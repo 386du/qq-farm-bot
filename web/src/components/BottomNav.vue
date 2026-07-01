@@ -61,7 +61,9 @@ function triggerViewTransition(_path: string) {
 function handlePointer(e: PointerEvent, item: typeof visibleItems.value[number] | typeof centerEntry) {
   const target = e.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
-  const key = `__fab__` in item ? '__fab__' : (item.path || 'home')
+  // 通过 key 区分 FAB：centerEntry 有 key='__fab__'，普通菜单项没有
+  const isFabEntry = 'isFab' in item && item.isFab === true
+  const key = isFabEntry ? '__fab__' : (item.path || 'home')
   ripplePos.value = {
     ...ripplePos.value,
     [key]: {
@@ -70,10 +72,10 @@ function handlePointer(e: PointerEvent, item: typeof visibleItems.value[number] 
       key: Date.now() + Math.random(),
     },
   }
-  if ('path' in item && !item.isFab) {
+  if (!isFabEntry) {
     triggerViewTransition(item.path)
   }
-  // 600ms 后清除这个 ripple
+  // 650ms 后清除这个 ripple
   setTimeout(() => {
     const next = { ...ripplePos.value }
     delete next[key]
