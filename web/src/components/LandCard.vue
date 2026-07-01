@@ -450,7 +450,7 @@ function landTypeBadgeClass(level: number) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.35) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
   animation: progress-shimmer 2.5s ease-in-out infinite;
   border-radius: var(--theme-radius-md, 8px);
 }

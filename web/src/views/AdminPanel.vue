@@ -4274,19 +4274,20 @@ watch(activeTab, (tab) => {
 .admin-status-dot.status-online::after {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
-  border: 2px solid #22c55e;
+  border: 1px solid #22c55e;
   animation: status-ring-pulse 2s ease-out infinite;
+  opacity: 0.6;
 }
 
 @keyframes status-ring-pulse {
   0% {
-    transform: scale(0.8);
-    opacity: 1;
+    transform: scale(0.85);
+    opacity: 0.6;
   }
   100% {
-    transform: scale(1.8);
+    transform: scale(1.5);
     opacity: 0;
   }
 }
