@@ -747,41 +747,45 @@ body {
   }
 }
 
-/* 底部导航容器 — 圆角/背景透明度由 --bn-* CSS 变量驱动（BottomNav.vue） */
+/* 底部导航容器 — 圆角/背景透明度由 --bn-* CSS 变量驱动（BottomNav.vue）
+   背景使用 var(--theme-bg) + 透明度，自动跟随主题色变化 */
 .bn-container {
-  background-color: rgb(255 255 255 / var(--bn-light-alpha, 0.1));
+  background-color: color-mix(in srgb, var(--theme-bg, white) var(--bn-light-alpha, 10%), transparent);
 }
 
 .dark .bn-container {
-  background-color: rgb(17 24 39 / var(--bn-dark-alpha, 0.5));
+  background-color: color-mix(in srgb, var(--theme-bg, #111827) var(--bn-dark-alpha, 50%), transparent);
 }
 
-/* 底部导航选中项 */
+/* 底部导航选中项 — 跟侧栏保持一致：主题色 + 渐变背景 + 顶部横线（侧栏左竖线的镜像） */
 .bottom-nav-item-active {
   position: relative;
   background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--theme-primary) 18%, transparent) 0%,
-    color-mix(in srgb, var(--theme-primary) 6%, transparent) 100%
+    0deg,
+    color-mix(in srgb, var(--theme-primary) 22%, transparent) 0%,
+    color-mix(in srgb, var(--theme-primary) 8%, transparent) 100%
   );
   border-radius: 16px;
   animation: nav-item-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, white 35%, transparent),
-    0 2px 8px color-mix(in srgb, var(--theme-primary) 18%, transparent);
+    0 2px 8px color-mix(in srgb, var(--theme-primary) 22%, transparent);
 }
 
-.bottom-nav-item-active::before {
-  content: '';
+/* 顶部横线 — 镜像侧栏的左竖线，宽度 24px、高度 3px，圆角胶囊 */
+.bottom-nav-indicator {
   position: absolute;
-  top: 2px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 22px;
+  height: 3px;
+  border-radius: 9999px;
   background: var(--theme-primary);
-  box-shadow: 0 0 6px var(--theme-primary);
+  box-shadow: 0 0 8px var(--theme-primary);
+  animation:
+    nav-indicator-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    nav-indicator-pulse 2.2s ease-out 0.5s infinite;
 }
 
 /* 激活态的图标 — Q 弹多段弹跳（缩放 + 轻微旋转 + 弹起） */
@@ -790,22 +794,6 @@ body {
   display: inline-block;
   transform-origin: center bottom;
   filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent));
-}
-
-/* 激活态指示点 — 顶部小圆点，带光晕脉冲 */
-.bottom-nav-indicator {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--theme-primary);
-  box-shadow: 0 0 6px var(--theme-primary);
-  animation:
-    nav-indicator-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-    nav-indicator-pulse 2s ease-out 0.4s infinite;
 }
 
 .bottom-nav-icon {
@@ -854,7 +842,7 @@ body {
   }
 }
 
-/* 指示点进入：横向拉伸 + 弹性 */
+/* 顶部横线进入：横向拉伸 + 弹性 */
 @keyframes nav-indicator-in {
   0% {
     opacity: 0;
@@ -873,17 +861,17 @@ body {
   }
 }
 
-/* 指示点光晕脉冲：呼吸效果 */
+/* 横线光晕脉冲：呼吸效果 */
 @keyframes nav-indicator-pulse {
   0% {
     box-shadow:
       0 0 0 0 color-mix(in srgb, var(--theme-primary) 60%, transparent),
-      0 0 6px var(--theme-primary);
+      0 0 8px var(--theme-primary);
   }
   100% {
     box-shadow:
       0 0 0 8px color-mix(in srgb, var(--theme-primary) 0%, transparent),
-      0 0 6px var(--theme-primary);
+      0 0 8px var(--theme-primary);
   }
 }
 

@@ -39,8 +39,8 @@ const borderClass = computed(() => navStyle.value.showTopBorder ? 'border-t bord
 /** 容器内联样式：圆角 + 背景透明度（亮 / 暗） */
 const containerStyle = computed(() => ({
   borderRadius: `${navStyle.value.borderRadius}px`,
-  '--bn-light-alpha': navStyle.value.backgroundOpacity / 100,
-  '--bn-dark-alpha': navStyle.value.backgroundOpacityDark / 100,
+  '--bn-light-alpha': `${navStyle.value.backgroundOpacity}%`,
+  '--bn-dark-alpha': `${navStyle.value.backgroundOpacityDark}%`,
 }) as Record<string, string | number>)
 </script>
 

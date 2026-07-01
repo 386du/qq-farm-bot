@@ -109,8 +109,8 @@ const iconSizeOptions = [
 const navPreviewBorderClass = computed(() => localBottomNavStyle.value.showTopBorder ? 'border-t border-white/40' : '')
 const navPreviewStyle = computed(() => ({
   borderRadius: `${localBottomNavStyle.value.borderRadius}px`,
-  '--bn-light-alpha': localBottomNavStyle.value.backgroundOpacity / 100,
-  '--bn-dark-alpha': localBottomNavStyle.value.backgroundOpacityDark / 100,
+  '--bn-light-alpha': `${localBottomNavStyle.value.backgroundOpacity}%`,
+  '--bn-dark-alpha': `${localBottomNavStyle.value.backgroundOpacityDark}%`,
 } as Record<string, string | number>))
 const navPreviewIconSize = computed(() => {
   switch (localBottomNavStyle.value.iconSize) {
@@ -1948,11 +1948,11 @@ async function handleTestOffline() {
                       <div
                         v-for="item in previewNavItems"
                         :key="item.path"
-                        class="relative flex flex-col items-center justify-center px-1.5 py-1"
-                        :class="item.active ? 'text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
+                        class="relative flex flex-col items-center justify-center rounded-xl px-1.5 py-1 transition-all duration-200"
+                        :class="item.active ? 'bottom-nav-item-active text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
                       >
                         <div
-                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize]"
+                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize, item.active ? 'bottom-nav-icon-bounce' : '']"
                           :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
                         />
                         <span v-if="localBottomNavStyle.showLabel" class="text-[10px] font-medium">
