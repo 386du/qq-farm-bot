@@ -108,16 +108,15 @@ const iconSizeOptions = [
 
 const navPreviewBorderClass = computed(() => localBottomNavStyle.value.showTopBorder ? 'border-t border-white/40' : '')
 const navPreviewStyle = computed(() => ({
-  borderTopLeftRadius: `${localBottomNavStyle.value.borderRadius}px`,
-  borderTopRightRadius: `${localBottomNavStyle.value.borderRadius}px`,
+  borderRadius: `${localBottomNavStyle.value.borderRadius}px`,
   '--bn-light-alpha': localBottomNavStyle.value.backgroundOpacity / 100,
   '--bn-dark-alpha': localBottomNavStyle.value.backgroundOpacityDark / 100,
 } as Record<string, string | number>))
 const navPreviewIconSize = computed(() => {
   switch (localBottomNavStyle.value.iconSize) {
-    case 'sm': return 'text-xl'
-    case 'lg': return 'text-3xl'
-    default: return 'text-2xl'
+    case 'sm': return 'text-base'
+    case 'lg': return 'text-2xl'
+    default: return 'text-lg'
   }
 })
 
@@ -1927,32 +1926,43 @@ async function handleTestOffline() {
                   实时预览
                 </div>
                 <div
-                  class="relative h-24 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+                  class="relative h-28 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
                   style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%);"
                 >
-                  <div
-                    class="bn-container absolute inset-x-0 bottom-0 flex items-center justify-around px-2 pt-2 pb-3 backdrop-blur-md"
-                    :class="navPreviewBorderClass"
-                    :style="navPreviewStyle"
-                  >
+                  <!-- 模拟手机状态条 + 模拟内容 -->
+                  <div class="absolute inset-x-0 top-2 flex items-center justify-center gap-1 text-[10px] text-gray-600 opacity-50">
+                    <span>9:41</span>
+                    <span>·</span>
+                    <span>5G</span>
+                    <span>·</span>
+                    <span>100%</span>
+                  </div>
+
+                  <!-- 悬浮底栏预览 -->
+                  <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-3">
                     <div
-                      v-for="item in previewNavItems"
-                      :key="item.path"
-                      class="flex flex-col items-center justify-center px-2 py-1"
-                      :class="item.active ? 'text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
+                      class="bn-container pointer-events-auto flex w-full max-w-[220px] items-center justify-around border-t border-white/30 px-2 pt-2 pb-3 backdrop-blur-md dark:border-gray-700/50"
+                      :class="navPreviewBorderClass"
+                      :style="navPreviewStyle"
                     >
                       <div
-                        :class="[item.icon, 'mb-1 leading-none', navPreviewIconSize]"
-                        :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
-                      />
-                      <span v-if="localBottomNavStyle.showLabel" class="text-xs font-medium">
-                        {{ item.label }}
-                      </span>
-                      <div
-                        v-if="item.active"
-                        class="absolute top-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
-                        :style="{ backgroundColor: 'var(--theme-primary)', boxShadow: '0 0 6px var(--theme-primary)' }"
-                      />
+                        v-for="item in previewNavItems"
+                        :key="item.path"
+                        class="relative flex flex-col items-center justify-center px-1.5 py-1"
+                        :class="item.active ? 'text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
+                      >
+                        <div
+                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize]"
+                          :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
+                        />
+                        <span v-if="localBottomNavStyle.showLabel" class="text-[10px] font-medium">
+                          {{ item.label }}
+                        </span>
+                        <div
+                          v-if="item.active"
+                          class="bottom-nav-indicator"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
