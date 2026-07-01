@@ -21,6 +21,8 @@ export interface BottomNavStyle {
   backgroundOpacityDark: number
   /** 激活项显示文字标签（关闭后只显示图标） */
   showLabel: boolean
+  /** 激活时图标 Q 弹强度 0-100（0 = 无动画，100 = 满弹） */
+  bounceIntensity: number
 }
 
 const DEFAULT_BOTTOM_NAV_STYLE: BottomNavStyle = {
@@ -30,6 +32,7 @@ const DEFAULT_BOTTOM_NAV_STYLE: BottomNavStyle = {
   backgroundOpacity: 10,
   backgroundOpacityDark: 50,
   showLabel: true,
+  bounceIntensity: 100,
 }
 
 export type Theme = 'light-blue' | 'light-green' | 'light-pink' | 'dark-blue' | 'dark-purple' | 'dark-teal' | 'dark-orange' | 'dark-red' | 'farm-light' | 'farm-dark' | 'spring-sakura' | 'autumn-harvest' | 'winter-snow'

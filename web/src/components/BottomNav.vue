@@ -36,12 +36,16 @@ const iconSizeClass = computed(() => {
 })
 const borderClass = computed(() => navStyle.value.showTopBorder ? 'border-t border-white/20 dark:border-gray-700/50' : '')
 
-/** 容器内联样式：圆角 + 背景透明度（亮 / 暗） */
+/** 容器内联样式：圆角 + 背景透明度（亮 / 暗） + 弹跳强度 */
 const containerStyle = computed(() => ({
   borderRadius: `${navStyle.value.borderRadius}px`,
   '--bn-light-alpha': `${navStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${navStyle.value.backgroundOpacityDark}%`,
+  '--bn-bounce': (navStyle.value.bounceIntensity / 100).toString(),
 }) as Record<string, string | number>)
+
+/** 弹跳强度 > 0 时才应用 bounce class（强度 = 0 完全禁用） */
+const shouldBounce = computed(() => navStyle.value.bounceIntensity > 0)
 </script>
 
 <template>
@@ -64,7 +68,7 @@ const containerStyle = computed(() => ({
       >
         <div
           :key="`${item.path}-${isActive(item.path) ? 'a' : 'i'}`"
-          :class="[item.icon, 'mb-1 leading-none bottom-nav-icon', iconSizeClass, isActive(item.path) ? 'bottom-nav-icon-bounce' : '']"
+          :class="[item.icon, 'mb-1 leading-none bottom-nav-icon', iconSizeClass, isActive(item.path) && shouldBounce ? 'bottom-nav-icon-bounce' : '']"
         />
         <span v-if="navStyle.showLabel" class="text-xs font-medium">{{ item.label }}</span>
         <div

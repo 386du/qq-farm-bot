@@ -783,12 +783,11 @@ body {
   border-radius: 9999px;
   background: var(--theme-primary);
   box-shadow: 0 0 8px var(--theme-primary);
-  animation:
-    nav-indicator-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both,
-    nav-indicator-pulse 2.2s ease-out 0.5s infinite;
+  animation: nav-indicator-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-/* 激活态的图标 — Q 弹多段弹跳（缩放 + 轻微旋转 + 弹起） */
+/* 激活态的图标 — Q 弹多段弹跳（缩放 + 轻微旋转 + 弹起）
+   强度由 --bn-bounce (0~1) 控制，0 时所有 transform 退化为 0，等于无动画 */
 .bottom-nav-icon-bounce {
   animation: nav-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   display: inline-block;
@@ -818,27 +817,30 @@ body {
   }
 }
 
-/* 图标 Q 弹：先向上跳一下，再左右轻摆，然后落定 */
+/* 图标 Q 弹：先向上跳一下，再左右轻摆，然后落定
+   所有 transform/opacity 偏移量都乘以 var(--bn-bounce, 1)：
+   - 0 → 退化为静止状态（无动画）
+   - 1 → 完整 Q 弹 */
 @keyframes nav-bounce {
   0% {
-    transform: scale(0.7) translateY(0) rotate(0);
-    opacity: 0.4;
+    transform: scale(calc(1 - 0.3 * var(--bn-bounce, 1))) translateY(0) rotate(0);
+    opacity: calc(1 - 0.6 * var(--bn-bounce, 1));
   }
   25% {
-    transform: scale(1.35) translateY(-6px) rotate(-8deg);
+    transform: scale(calc(1 + 0.35 * var(--bn-bounce, 1))) translateY(calc(-6px * var(--bn-bounce, 1))) rotate(calc(-8deg * var(--bn-bounce, 1)));
     opacity: 1;
   }
   45% {
-    transform: scale(0.92) translateY(2px) rotate(4deg);
+    transform: scale(calc(1 - 0.08 * var(--bn-bounce, 1))) translateY(calc(2px * var(--bn-bounce, 1))) rotate(calc(4deg * var(--bn-bounce, 1)));
   }
   65% {
-    transform: scale(1.08) translateY(-2px) rotate(-2deg);
+    transform: scale(calc(1 + 0.08 * var(--bn-bounce, 1))) translateY(calc(-2px * var(--bn-bounce, 1))) rotate(calc(-2deg * var(--bn-bounce, 1)));
   }
   82% {
-    transform: scale(0.98) translateY(1px) rotate(1deg);
+    transform: scale(calc(1 - 0.02 * var(--bn-bounce, 1))) translateY(calc(1px * var(--bn-bounce, 1))) rotate(calc(1deg * var(--bn-bounce, 1)));
   }
   100% {
-    transform: scale(1.1) translateY(-1px) rotate(0);
+    transform: scale(calc(1 + 0.1 * var(--bn-bounce, 1))) translateY(calc(-1px * var(--bn-bounce, 1))) rotate(0);
   }
 }
 
@@ -858,20 +860,6 @@ body {
   100% {
     opacity: 1;
     transform: translateX(-50%) scaleX(1) scaleY(1);
-  }
-}
-
-/* 横线光晕脉冲：呼吸效果 */
-@keyframes nav-indicator-pulse {
-  0% {
-    box-shadow:
-      0 0 0 0 color-mix(in srgb, var(--theme-primary) 60%, transparent),
-      0 0 8px var(--theme-primary);
-  }
-  100% {
-    box-shadow:
-      0 0 0 8px color-mix(in srgb, var(--theme-primary) 0%, transparent),
-      0 0 8px var(--theme-primary);
   }
 }
 

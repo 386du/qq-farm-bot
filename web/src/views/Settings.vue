@@ -111,6 +111,7 @@ const navPreviewStyle = computed(() => ({
   borderRadius: `${localBottomNavStyle.value.borderRadius}px`,
   '--bn-light-alpha': `${localBottomNavStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${localBottomNavStyle.value.backgroundOpacityDark}%`,
+  '--bn-bounce': (localBottomNavStyle.value.bounceIntensity / 100).toString(),
 } as Record<string, string | number>))
 const navPreviewIconSize = computed(() => {
   switch (localBottomNavStyle.value.iconSize) {
@@ -119,6 +120,13 @@ const navPreviewIconSize = computed(() => {
     default: return 'text-lg'
   }
 })
+const navPreviewShouldBounce = computed(() => localBottomNavStyle.value.bounceIntensity > 0)
+
+/** 预览重播 — 改 key 强制重挂载，触发 CSS 动画 */
+const previewReplayKey = ref(0)
+function replayPreview() {
+  previewReplayKey.value++
+}
 
 function resetBottomNavStyleLocal() {
   appStore.resetBottomNavStyle()
@@ -1922,8 +1930,18 @@ async function handleTestOffline() {
 
               <!-- 实时预览 -->
               <div class="mb-5">
-                <div class="mb-2 text-xs text-gray-500 font-medium dark:text-gray-400">
-                  实时预览
+                <div class="mb-2 flex items-center justify-between">
+                  <div class="text-xs text-gray-500 font-medium dark:text-gray-400">
+                    实时预览
+                  </div>
+                  <button
+                    class="text-xs px-2 py-1 border rounded-md transition-colors hover:border-[var(--theme-primary)] hover:text-[color:var(--theme-primary)]"
+                    style="border-color: color-mix(in srgb, var(--theme-primary) 30%, transparent); color: var(--theme-primary);"
+                    @click="replayPreview"
+                  >
+                    <div class="i-carbon-play inline-block mr-0.5" />
+                    重新播放
+                  </button>
                 </div>
                 <div
                   class="relative h-28 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
@@ -1944,6 +1962,7 @@ async function handleTestOffline() {
                       class="bn-container pointer-events-auto flex w-full max-w-[220px] items-center justify-around border-t border-white/30 px-2 pt-2 pb-3 backdrop-blur-md dark:border-gray-700/50"
                       :class="navPreviewBorderClass"
                       :style="navPreviewStyle"
+                      :key="previewReplayKey"
                     >
                       <div
                         v-for="item in previewNavItems"
@@ -1952,7 +1971,7 @@ async function handleTestOffline() {
                         :class="item.active ? 'bottom-nav-item-active text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
                       >
                         <div
-                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize, item.active ? 'bottom-nav-icon-bounce' : '']"
+                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize, item.active && navPreviewShouldBounce ? 'bottom-nav-icon-bounce' : '']"
                           :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
                         />
                         <span v-if="localBottomNavStyle.showLabel" class="text-[10px] font-medium">
@@ -2055,6 +2074,32 @@ async function handleTestOffline() {
                       {{ opt.label }}
                     </div>
                   </button>
+                </div>
+              </div>
+
+              <!-- 弹跳强度 -->
+              <div class="mb-4">
+                <div class="mb-1.5 flex items-center justify-between">
+                  <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    弹跳强度
+                  </label>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ localBottomNavStyle.bounceIntensity === 0 ? '关闭' : `${localBottomNavStyle.bounceIntensity}%` }}
+                  </span>
+                </div>
+                <input
+                  v-model.number="localBottomNavStyle.bounceIntensity"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  class="w-full accent-current"
+                  :style="{ color: 'var(--theme-primary)' }"
+                >
+                <div class="mt-1 flex justify-between text-[10px] text-gray-400">
+                  <span>无动画</span>
+                  <span>轻弹</span>
+                  <span>Q 弹</span>
                 </div>
               </div>
 
