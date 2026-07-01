@@ -83,6 +83,49 @@ function resetNavItems() {
   appStore.resetBottomNav()
 }
 
+// ===== 底部栏外观设置 =====
+const localBottomNavStyle = ref({ ...appStore.bottomNavStyle })
+
+// 实时保存到 store
+watch(localBottomNavStyle, (val) => {
+  appStore.setBottomNavStyle(val)
+}, { deep: true })
+
+// 预览项（始终 5 个，固定第三个为激活）
+const previewNavItems = [
+  { path: '', label: '概览', icon: 'i-carbon-home', active: false },
+  { path: 'p', label: '个人', icon: 'i-carbon-wheat', active: false },
+  { path: 'a', label: '活动', icon: 'i-carbon-calendar', active: true },
+  { path: 'f', label: '好友', icon: 'i-carbon-user-multiple', active: false },
+  { path: 's', label: '设置', icon: 'i-carbon-settings', active: false },
+]
+
+const iconSizeOptions = [
+  { value: 'sm' as const, label: '小', icon: 'i-carbon-text-indent-less text-lg' },
+  { value: 'md' as const, label: '中', icon: 'i-carbon-text-indent text-2xl' },
+  { value: 'lg' as const, label: '大', icon: 'i-carbon-text-indent-more text-3xl' },
+]
+
+const navPreviewBorderClass = computed(() => localBottomNavStyle.value.showTopBorder ? 'border-t border-white/40' : '')
+const navPreviewStyle = computed(() => ({
+  borderTopLeftRadius: `${localBottomNavStyle.value.borderRadius}px`,
+  borderTopRightRadius: `${localBottomNavStyle.value.borderRadius}px`,
+  '--bn-light-alpha': localBottomNavStyle.value.backgroundOpacity / 100,
+  '--bn-dark-alpha': localBottomNavStyle.value.backgroundOpacityDark / 100,
+} as Record<string, string | number>))
+const navPreviewIconSize = computed(() => {
+  switch (localBottomNavStyle.value.iconSize) {
+    case 'sm': return 'text-xl'
+    case 'lg': return 'text-3xl'
+    default: return 'text-2xl'
+  }
+})
+
+function resetBottomNavStyleLocal() {
+  appStore.resetBottomNavStyle()
+  localBottomNavStyle.value = { ...appStore.bottomNavStyle }
+}
+
 const modalVisible = ref(false)
 const modalConfig = ref({
   title: '',
@@ -1863,6 +1906,164 @@ async function handleTestOffline() {
 
               <div class="mt-4 flex justify-end">
                 <BaseButton variant="secondary" size="sm" @click="resetNavItems">
+                  恢复默认
+                </BaseButton>
+              </div>
+            </div>
+
+            <!-- 悬浮底栏外观 -->
+            <div class="farm-card border border-gray-200 rounded-2xl bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
+              <h4 class="mb-3 flex items-center gap-2 text-base text-gray-900 font-bold dark:text-gray-100">
+                🎨 悬浮底栏外观
+              </h4>
+
+              <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                调整底部导航栏的圆角、背景透明度、图标大小等。设置会立即生效并自动保存。
+              </p>
+
+              <!-- 实时预览 -->
+              <div class="mb-5">
+                <div class="mb-2 text-xs text-gray-500 font-medium dark:text-gray-400">
+                  实时预览
+                </div>
+                <div
+                  class="relative h-24 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+                  style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%);"
+                >
+                  <div
+                    class="bn-container absolute inset-x-0 bottom-0 flex items-center justify-around px-2 pt-2 pb-3 backdrop-blur-md"
+                    :class="navPreviewBorderClass"
+                    :style="navPreviewStyle"
+                  >
+                    <div
+                      v-for="item in previewNavItems"
+                      :key="item.path"
+                      class="flex flex-col items-center justify-center px-2 py-1"
+                      :class="item.active ? 'text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
+                    >
+                      <div
+                        :class="[item.icon, 'mb-1 leading-none', navPreviewIconSize]"
+                        :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
+                      />
+                      <span v-if="localBottomNavStyle.showLabel" class="text-xs font-medium">
+                        {{ item.label }}
+                      </span>
+                      <div
+                        v-if="item.active"
+                        class="absolute top-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full"
+                        :style="{ backgroundColor: 'var(--theme-primary)', boxShadow: '0 0 6px var(--theme-primary)' }"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 圆角 -->
+              <div class="mb-4">
+                <div class="mb-1.5 flex items-center justify-between">
+                  <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    圆角
+                  </label>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ localBottomNavStyle.borderRadius }}px
+                  </span>
+                </div>
+                <input
+                  v-model.number="localBottomNavStyle.borderRadius"
+                  type="range"
+                  min="0"
+                  max="28"
+                  step="1"
+                  class="w-full accent-current"
+                  :style="{ color: 'var(--theme-primary)' }"
+                >
+                <div class="mt-1 flex justify-between text-[10px] text-gray-400">
+                  <span>直角</span>
+                  <span>大圆角</span>
+                </div>
+              </div>
+
+              <!-- 背景透明度 (亮色 / 暗色) -->
+              <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <div class="mb-1.5 flex items-center justify-between">
+                    <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                      背景透明度(亮色)
+                    </label>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ localBottomNavStyle.backgroundOpacity }}%
+                    </span>
+                  </div>
+                  <input
+                    v-model.number="localBottomNavStyle.backgroundOpacity"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    class="w-full accent-current"
+                    :style="{ color: 'var(--theme-primary)' }"
+                  >
+                </div>
+                <div>
+                  <div class="mb-1.5 flex items-center justify-between">
+                    <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                      背景透明度(暗色)
+                    </label>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                      {{ localBottomNavStyle.backgroundOpacityDark }}%
+                    </span>
+                  </div>
+                  <input
+                    v-model.number="localBottomNavStyle.backgroundOpacityDark"
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    class="w-full accent-current"
+                    :style="{ color: 'var(--theme-primary)' }"
+                  >
+                </div>
+              </div>
+
+              <!-- 图标大小 -->
+              <div class="mb-4">
+                <label class="mb-1.5 block text-sm text-gray-700 font-medium dark:text-gray-300">
+                  图标大小
+                </label>
+                <div class="flex gap-2">
+                  <button
+                    v-for="opt in iconSizeOptions"
+                    :key="opt.value"
+                    class="flex-1 border rounded-lg px-3 py-2 text-sm transition-all"
+                    :class="localBottomNavStyle.iconSize === opt.value
+                      ? 'border-[var(--theme-primary)] bg-[color-mix(in_srgb,var(--theme-primary)_10%,transparent)] font-bold text-[color:var(--theme-primary)]'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-600 dark:text-gray-300'"
+                    @click="localBottomNavStyle.iconSize = opt.value"
+                  >
+                    <div :class="opt.icon" class="mx-auto" />
+                    <div class="mt-0.5 text-xs">
+                      {{ opt.label }}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 显示选项 -->
+              <div class="space-y-2">
+                <BaseSwitch
+                  :model-value="localBottomNavStyle.showTopBorder"
+                  label="显示顶部边线"
+                  @update:model-value="(v) => localBottomNavStyle.showTopBorder = !!v"
+                />
+                <BaseSwitch
+                  :model-value="localBottomNavStyle.showLabel"
+                  label="显示文字标签"
+                  @update:model-value="(v) => localBottomNavStyle.showLabel = !!v"
+                />
+              </div>
+
+              <div class="mt-4 flex justify-end gap-2 border-t pt-3 dark:border-gray-700">
+                <BaseButton variant="secondary" size="sm" @click="resetBottomNavStyleLocal">
                   恢复默认
                 </BaseButton>
               </div>

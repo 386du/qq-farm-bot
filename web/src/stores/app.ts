@@ -4,6 +4,33 @@ import api from '@/api'
 
 const THEME_KEY = 'ui_theme'
 const BOTTOM_NAV_KEY = 'ui_bottom_nav'
+const BOTTOM_NAV_STYLE_KEY = 'ui_bottom_nav_style'
+
+export type BottomNavIconSize = 'sm' | 'md' | 'lg'
+
+export interface BottomNavStyle {
+  /** 外层圆角 0-28（px） */
+  borderRadius: number
+  /** 是否显示顶部边线 */
+  showTopBorder: boolean
+  /** 图标尺寸 sm=20 md=24 lg=28 */
+  iconSize: BottomNavIconSize
+  /** 背景透明度 0-100（%） */
+  backgroundOpacity: number
+  /** 暗色模式背景透明度 0-100（%） */
+  backgroundOpacityDark: number
+  /** 激活项显示文字标签（关闭后只显示图标） */
+  showLabel: boolean
+}
+
+const DEFAULT_BOTTOM_NAV_STYLE: BottomNavStyle = {
+  borderRadius: 16,
+  showTopBorder: true,
+  iconSize: 'md',
+  backgroundOpacity: 10,
+  backgroundOpacityDark: 50,
+  showLabel: true,
+}
 
 export type Theme = 'light-blue' | 'light-green' | 'light-pink' | 'dark-blue' | 'dark-purple' | 'dark-teal' | 'dark-orange' | 'dark-red' | 'farm-light' | 'farm-dark' | 'spring-sakura' | 'autumn-harvest' | 'winter-snow'
 
@@ -32,6 +59,45 @@ export const useAppStore = defineStore('app', () => {
 
   function saveBottomNav() {
     localStorage.setItem(BOTTOM_NAV_KEY, JSON.stringify(bottomNavVisible.value))
+  }
+
+  // ===== 底部栏外观 =====
+  function loadBottomNavStyle(): BottomNavStyle {
+    try {
+      const raw = localStorage.getItem(BOTTOM_NAV_STYLE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          return { ...DEFAULT_BOTTOM_NAV_STYLE, ...parsed }
+        }
+      }
+    }
+    catch {
+      // ignore
+    }
+    return { ...DEFAULT_BOTTOM_NAV_STYLE }
+  }
+
+  const bottomNavStyle = ref<BottomNavStyle>(loadBottomNavStyle())
+
+  function setBottomNavStyle(patch: Partial<BottomNavStyle>) {
+    bottomNavStyle.value = { ...bottomNavStyle.value, ...patch }
+    try {
+      localStorage.setItem(BOTTOM_NAV_STYLE_KEY, JSON.stringify(bottomNavStyle.value))
+    }
+    catch {
+      // ignore
+    }
+  }
+
+  function resetBottomNavStyle() {
+    bottomNavStyle.value = { ...DEFAULT_BOTTOM_NAV_STYLE }
+    try {
+      localStorage.setItem(BOTTOM_NAV_STYLE_KEY, JSON.stringify(bottomNavStyle.value))
+    }
+    catch {
+      // ignore
+    }
   }
 
   function isBottomNavVisible(path: string, defaultVisible = true): boolean {
@@ -319,9 +385,12 @@ export const useAppStore = defineStore('app', () => {
     showThemePanel,
     themes,
     bottomNavVisible,
+    bottomNavStyle,
     isBottomNavVisible,
     setBottomNavVisible,
     resetBottomNav,
+    setBottomNavStyle,
+    resetBottomNavStyle,
     applyTheme,
     toggleThemePanel,
     toggleDark,

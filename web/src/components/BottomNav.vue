@@ -24,34 +24,51 @@ function isActive(path: string) {
     return route.path === '/' || route.path === ''
   return route.path === `/${path}` || route.path.startsWith(`/${path}/`)
 }
+
+/** 外观设置（响应式） */
+const navStyle = computed(() => appStore.bottomNavStyle)
+const iconSizeClass = computed(() => {
+  switch (navStyle.value.iconSize) {
+    case 'sm': return 'text-xl'
+    case 'lg': return 'text-3xl'
+    default: return 'text-2xl'
+  }
+})
+const borderClass = computed(() => navStyle.value.showTopBorder ? 'border-t border-white/20 dark:border-gray-700/50' : '')
+
+/** 容器内联样式：圆角 + 背景透明度（亮 / 暗） */
+const containerStyle = computed(() => ({
+  borderTopLeftRadius: `${navStyle.value.borderRadius}px`,
+  borderTopRightRadius: `${navStyle.value.borderRadius}px`,
+  '--bn-light-alpha': navStyle.value.backgroundOpacity / 100,
+  '--bn-dark-alpha': navStyle.value.backgroundOpacityDark / 100,
+}) as Record<string, string | number>)
 </script>
 
 <template>
   <nav
     v-if="isLogin"
-    class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3 transition-colors duration-300 md:hidden"
+    class="bn-container fixed inset-x-0 bottom-0 z-40 flex items-center justify-around px-2 pt-2 pb-3 backdrop-blur-md transition-colors duration-300 md:hidden"
+    :class="borderClass"
+    :style="containerStyle"
     aria-label="主导航"
   >
-    <div
-      class="pointer-events-auto flex w-full max-w-md items-center justify-around rounded-2xl border border-white/30 bg-white/20 px-2 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/30 dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)]"
+    <RouterLink
+      v-for="item in visibleItems"
+      :key="item.path || 'home'"
+      :to="item.path ? `/${item.path}` : '/'"
+      class="relative flex flex-col items-center justify-center rounded-xl px-2 py-1 text-gray-600 transition-all duration-200 hover:text-[color:var(--theme-primary)] dark:text-gray-300"
+      :class="isActive(item.path) ? 'text-[color:var(--theme-primary)] bottom-nav-item-active' : ''"
     >
-      <RouterLink
-        v-for="item in visibleItems"
-        :key="item.path || 'home'"
-        :to="item.path ? `/${item.path}` : '/'"
-        class="relative flex flex-col items-center justify-center rounded-xl px-2 py-1 text-gray-600 transition-all duration-200 hover:text-[color:var(--theme-primary)] dark:text-gray-300"
-        :class="isActive(item.path) ? 'text-[color:var(--theme-primary)] bottom-nav-item-active' : ''"
-      >
-        <div
-          :key="`${item.path}-${isActive(item.path) ? 'a' : 'i'}`"
-          :class="[item.icon, 'mb-1 text-2xl leading-none bottom-nav-icon', isActive(item.path) ? 'bottom-nav-icon-bounce' : '']"
-        />
-        <span class="text-xs font-medium">{{ item.label }}</span>
-        <div
-          v-if="isActive(item.path)"
-          class="bottom-nav-indicator"
-        />
-      </RouterLink>
-    </div>
+      <div
+        :key="`${item.path}-${isActive(item.path) ? 'a' : 'i'}`"
+        :class="[item.icon, 'mb-1 leading-none bottom-nav-icon', iconSizeClass, isActive(item.path) ? 'bottom-nav-icon-bounce' : '']"
+      />
+      <span v-if="navStyle.showLabel" class="text-xs font-medium">{{ item.label }}</span>
+      <div
+        v-if="isActive(item.path)"
+        class="bottom-nav-indicator"
+      />
+    </RouterLink>
   </nav>
 </template>
