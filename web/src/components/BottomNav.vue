@@ -36,12 +36,13 @@ const iconSizeClass = computed(() => {
 })
 const borderClass = computed(() => navStyle.value.showTopBorder ? 'border-t border-white/20 dark:border-gray-700/50' : '')
 
-/** 容器内联样式：圆角 + 背景透明度（亮 / 暗） + 弹跳强度 */
+/** 容器内联样式：圆角 + 背景透明度（亮 / 暗） + 弹跳强度 + 磨砂 */
 const containerStyle = computed(() => ({
   borderRadius: `${navStyle.value.borderRadius}px`,
   '--bn-light-alpha': `${navStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${navStyle.value.backgroundOpacityDark}%`,
   '--bn-bounce': (navStyle.value.bounceIntensity / 100).toString(),
+  '--bn-blur': `${(navStyle.value.backdropBlur / 100) * 24}px`,
 }) as Record<string, string | number>)
 
 /** 弹跳强度 > 0 时才应用 bounce class（强度 = 0 完全禁用） */

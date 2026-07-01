@@ -321,7 +321,7 @@ onUnmounted(() => {
 
       <!-- Main Content Area -->
       <div class="flex flex-1 flex-col overflow-hidden">
-        <div class="custom-scrollbar flex flex-1 flex-col overflow-y-auto p-2 pb-24 md:p-6 sm:p-4 lg:pb-6">
+        <div class="custom-scrollbar flex flex-1 flex-col overflow-y-auto p-2 pb-28 md:p-6 sm:p-4 lg:pb-6">
           <HolidayBanner />
           <RouterView v-slot="{ Component, route }">
             <Transition name="slide-fade" mode="out-in">

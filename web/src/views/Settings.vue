@@ -112,6 +112,7 @@ const navPreviewStyle = computed(() => ({
   '--bn-light-alpha': `${localBottomNavStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${localBottomNavStyle.value.backgroundOpacityDark}%`,
   '--bn-bounce': (localBottomNavStyle.value.bounceIntensity / 100).toString(),
+  '--bn-blur': `${(localBottomNavStyle.value.backdropBlur / 100) * 24}px`,
 } as Record<string, string | number>))
 const navPreviewIconSize = computed(() => {
   switch (localBottomNavStyle.value.iconSize) {
@@ -1925,7 +1926,7 @@ async function handleTestOffline() {
               </h4>
 
               <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                调整底部导航栏的圆角、背景透明度、图标大小等。设置会立即生效并自动保存。
+                调整底部导航栏的圆角、背景透明度、磨砂强度、图标大小等。设置会立即生效并自动保存。
               </p>
 
               <!-- 实时预览 -->
@@ -2100,6 +2101,32 @@ async function handleTestOffline() {
                   <span>无动画</span>
                   <span>轻弹</span>
                   <span>Q 弹</span>
+                </div>
+              </div>
+
+              <!-- 磨砂强度 -->
+              <div class="mb-4">
+                <div class="mb-1.5 flex items-center justify-between">
+                  <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                    磨砂强度
+                  </label>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">
+                    {{ Math.round((localBottomNavStyle.backdropBlur / 100) * 24) }}px
+                  </span>
+                </div>
+                <input
+                  v-model.number="localBottomNavStyle.backdropBlur"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  class="w-full accent-current"
+                  :style="{ color: 'var(--theme-primary)' }"
+                >
+                <div class="mt-1 flex justify-between text-[10px] text-gray-400">
+                  <span>无磨砂</span>
+                  <span>半磨砂</span>
+                  <span>满磨砂</span>
                 </div>
               </div>
 

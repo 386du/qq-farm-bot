@@ -23,6 +23,8 @@ export interface BottomNavStyle {
   showLabel: boolean
   /** 激活时图标 Q 弹强度 0-100（0 = 无动画，100 = 满弹） */
   bounceIntensity: number
+  /** 磨砂（背景模糊）强度 0-100（0 = 无模糊，100 = 满模糊 24px） */
+  backdropBlur: number
 }
 
 const DEFAULT_BOTTOM_NAV_STYLE: BottomNavStyle = {
@@ -33,6 +35,7 @@ const DEFAULT_BOTTOM_NAV_STYLE: BottomNavStyle = {
   backgroundOpacityDark: 50,
   showLabel: true,
   bounceIntensity: 100,
+  backdropBlur: 60,
 }
 
 export type Theme = 'light-blue' | 'light-green' | 'light-pink' | 'dark-blue' | 'dark-purple' | 'dark-teal' | 'dark-orange' | 'dark-red' | 'farm-light' | 'farm-dark' | 'spring-sakura' | 'autumn-harvest' | 'winter-snow'

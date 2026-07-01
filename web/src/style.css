@@ -747,10 +747,13 @@ body {
   }
 }
 
-/* 底部导航容器 — 圆角/背景透明度由 --bn-* CSS 变量驱动（BottomNav.vue）
-   背景使用 var(--theme-bg) + 透明度，自动跟随主题色变化 */
+/* 底部导航容器 — 圆角/背景透明度/磨砂由 --bn-* CSS 变量驱动（BottomNav.vue）
+   背景使用 var(--theme-bg) + 透明度，自动跟随主题色变化
+   磨砂使用 backdrop-filter: blur(var(--bn-blur, 12px)) saturate(180%)，强度由 BottomNav 注入的 --bn-blur 控制 */
 .bn-container {
   background-color: color-mix(in srgb, var(--theme-bg, white) var(--bn-light-alpha, 10%), transparent);
+  backdrop-filter: blur(var(--bn-blur, 12px)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--bn-blur, 12px)) saturate(180%);
 }
 
 .dark .bn-container {
