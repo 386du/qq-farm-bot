@@ -113,12 +113,12 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
     // 保存系统配置
     app.post('/api/admin/system-config', authRequired, adminRequired, (req: Request, res: Response) => {
         try {
-            const { serverUrl, clientVersion, platform, os, deviceInfo } = req.body || {};
-            const newConfig = { serverUrl, clientVersion, platform, os, deviceInfo };
+            const { serverUrl, clientVersion, platform, os, deviceInfo, autoResumeEnabled } = req.body || {};
+            const newConfig = { serverUrl, clientVersion, platform, os, deviceInfo, autoResumeEnabled };
             const saved = store.setSystemConfig(newConfig);
             updateRuntimeConfig(saved);
             const current = getRuntimeConfig();
-            audit('system_config_updated', req, { serverUrl, clientVersion, platform, os });
+            audit('system_config_updated', req, { serverUrl, clientVersion, platform, os, autoResumeEnabled });
             res.json({ ok: true, data: { saved, current } });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });

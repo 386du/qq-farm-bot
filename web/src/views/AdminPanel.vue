@@ -1420,6 +1420,8 @@ const localSystemConfig = ref({
   clientVersion: '',
   platform: 'qq',
   os: 'Windows',
+  // 容器/服务启动时是否自动恢复之前在跑的账号（默认 true）
+  autoResumeEnabled: true,
   deviceInfo: {
     os: 'Windows',
     clientVersion: '',
@@ -1450,6 +1452,7 @@ const defaultSystemConfig = ref({
   clientVersion: '',
   platform: 'qq',
   os: 'Windows',
+  autoResumeEnabled: true,
   deviceInfo: {
     os: 'Windows',
     clientVersion: '',
@@ -1518,6 +1521,7 @@ async function loadSystemConfig() {
           clientVersion: def.clientVersion || '',
           platform: def.platform || 'qq',
           os: def.os || 'Windows',
+          autoResumeEnabled: typeof def.autoResumeEnabled === 'boolean' ? def.autoResumeEnabled : true,
           deviceInfo: def.deviceInfo ? { ...def.deviceInfo } : { ...defaultSystemConfig.value.deviceInfo },
         }
       }
@@ -1528,6 +1532,7 @@ async function loadSystemConfig() {
           clientVersion: saved.clientVersion || '',
           platform: saved.platform || 'qq',
           os: saved.os || 'Windows',
+          autoResumeEnabled: typeof saved.autoResumeEnabled === 'boolean' ? saved.autoResumeEnabled : true,
           deviceInfo: saved.deviceInfo ? { ...saved.deviceInfo } : { ...localSystemConfig.value.deviceInfo },
         }
       }
@@ -1539,6 +1544,7 @@ async function loadSystemConfig() {
           clientVersion: def.clientVersion || '',
           platform: def.platform || 'qq',
           os: def.os || 'Windows',
+          autoResumeEnabled: typeof def.autoResumeEnabled === 'boolean' ? def.autoResumeEnabled : true,
           deviceInfo: { ...def.deviceInfo },
         }
       }
@@ -1586,6 +1592,7 @@ async function handleResetSystemConfig() {
         clientVersion: saved.clientVersion || '',
         platform: saved.platform || 'qq',
         os: saved.os || 'Windows',
+        autoResumeEnabled: typeof saved.autoResumeEnabled === 'boolean' ? saved.autoResumeEnabled : true,
         deviceInfo: saved.deviceInfo ? { ...saved.deviceInfo } : { ...localSystemConfig.value.deviceInfo },
       }
       showAlert('系统配置已重置为默认值', 'primary')
@@ -3458,6 +3465,60 @@ watch(activeTab, (tab) => {
                     保存版本
                   </BaseButton>
                 </div>
+              </div>
+            </div>
+
+            <!-- 启动行为:全局自动恢复总开关 -->
+            <div class="farm-card-enhanced p-5">
+              <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+                <div class="admin-section-icon">
+                  <div class="i-carbon-play" />
+                </div>
+                <span>启动行为</span>
+                <div class="admin-section-divider" />
+              </h4>
+
+              <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-700 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+                <div class="mb-1 font-semibold">
+                  容器/服务重启时自动恢复账号
+                </div>
+                <p>
+                  开启后,容器或服务重启时会自动启动后台"自动启动"开关打开过的账号(账号设置里的逐个开关仍生效)。
+                  关闭后,所有账号都不会被自动启动,需在管理后台手动点击"启动"。
+                  临时维护、避免重启后跑飞等场景可以一键关掉。
+                </p>
+              </div>
+
+              <div class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+                <div class="flex-1">
+                  <div class="text-sm font-medium" style="color: var(--theme-text)">
+                    全局自动恢复
+                  </div>
+                  <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    关闭后,所有账号的"自动启动"标记都会失效,容器启动时不会启动任何账号
+                  </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <span class="text-xs" :class="localSystemConfig.autoResumeEnabled ? 'text-emerald-600' : 'text-gray-400'">
+                    {{ localSystemConfig.autoResumeEnabled ? '已开启' : '已关闭' }}
+                  </span>
+                  <BaseSwitch
+                    :model-value="!!localSystemConfig.autoResumeEnabled"
+                    :disabled="systemConfigSaving"
+                    @update:model-value="v => { localSystemConfig.autoResumeEnabled = !!v; }"
+                  />
+                </div>
+              </div>
+
+              <div class="mt-3 flex justify-end gap-2">
+                <BaseButton
+                  variant="primary"
+                  size="sm"
+                  :loading="systemConfigSaving"
+                  @click="handleSaveSystemConfig"
+                >
+                  保存设置
+                </BaseButton>
               </div>
             </div>
 

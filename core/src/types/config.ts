@@ -109,6 +109,10 @@ export interface SystemConfig {
   platform: string;
   os: string;
   deviceInfo: DeviceInfo;
+  // 容器/服务启动时是否自动恢复之前在跑的账号
+  // - true: 按账号的 autoStart 标记恢复(默认)
+  // - false: 一律不自动启动(账号的 autoStart 标记失效)
+  autoResumeEnabled?: boolean;
 }
 
 export interface Announcement {

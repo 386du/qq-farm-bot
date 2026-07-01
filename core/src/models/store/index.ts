@@ -76,4 +76,5 @@ module.exports = {
     // System config
     getSystemConfig: globalConfig.getSystemConfig,
     setSystemConfig: globalConfig.setSystemConfig,
+    getAutoResumeEnabled: globalConfig.getAutoResumeEnabled,
 };

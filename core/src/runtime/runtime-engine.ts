@@ -172,6 +172,13 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
     }
 
     function startAllAccounts(): void {
+        // 全局总开关:管理员可在"系统配置"里临时关闭,关闭后一律不自动恢复
+        // 默认 true(向后兼容,旧数据 / 字段缺失都按 true 处理)
+        if (typeof store.getAutoResumeEnabled === 'function' && store.getAutoResumeEnabled() === false) {
+            const allCount = (store.getAccounts().accounts || []).length;
+            log('系统', `全局自动恢复已关闭(系统配置中 autoResumeEnabled=false),共 ${allCount} 个账号均不会自动启动,请在管理后台手动启动`);
+            return;
+        }
         // 只启动 autoStart===true 的账号（用户在后台点过"启动"的）
         // 容器启动时被调用，避免每个账号都自动启动（包括"加了但不想跑"的）
         const all = (store.getAccounts().accounts || []);

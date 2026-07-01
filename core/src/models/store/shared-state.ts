@@ -519,6 +519,10 @@ function loadGlobalConfig(): void {
                         deviceId: String(srcDevice.deviceId || 'DESKTOP-PC<WPC>').trim(),
                         userAgent: String(srcDevice.userAgent || '').trim(),
                     },
+                    // 全局自动恢复开关:旧数据无该字段时默认 true(向后兼容)
+                    autoResumeEnabled: typeof (data.systemConfig as any).autoResumeEnabled === 'boolean'
+                        ? !!(data.systemConfig as any).autoResumeEnabled
+                        : true,
                 };
             }
         }

@@ -286,9 +286,22 @@ function setSystemConfig(config: Partial<SystemConfig> | undefined): SystemConfi
         platform: String(config.platform || 'qq').trim(),
         os: deviceInfo.os,
         deviceInfo,
+        autoResumeEnabled: typeof (config as any).autoResumeEnabled === 'boolean'
+            ? !!(config as any).autoResumeEnabled
+            : true,
     };
     saveGlobalConfig();
     return { ...globalConfig.systemConfig };
+}
+
+/**
+ * 读取"全局自动恢复"开关(供 runtime-engine 启动时调用)
+ * 未配置/旧数据/字段不存在时默认 true(向后兼容,保持"按 autoStart 恢复"的默认行为)
+ */
+function getAutoResumeEnabled(): boolean {
+    const v = globalConfig.systemConfig && globalConfig.systemConfig.autoResumeEnabled;
+    if (typeof v === 'boolean') return v;
+    return true;
 }
 
 // Initialize on load
@@ -319,4 +332,5 @@ module.exports = {
     shouldShowAnnouncement,
     getSystemConfig,
     setSystemConfig,
+    getAutoResumeEnabled,
 };
