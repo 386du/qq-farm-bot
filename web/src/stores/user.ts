@@ -16,6 +16,7 @@ export interface User {
   role: string
   card: UserCard | null
   accountLimit: number
+  nickname?: string
   avatar?: string
   mustChangePassword?: boolean
 }
@@ -30,7 +31,9 @@ export interface LoginResult {
     role: string
     card: UserCard | null
     accountLimit: number
-    user: { username: string }
+    user: { username: string, nickname?: string, avatar?: string }
+    nickname?: string
+    avatar?: string
     mustChangePassword?: boolean
   }
 }
@@ -58,6 +61,9 @@ export const useUserStore = defineStore('user', () => {
   const userCard = computed(() => userInfo.value?.card)
   const accountLimit = computed(() => userInfo.value?.accountLimit ?? 2)
   const avatar = computed(() => userInfo.value?.avatar || '')
+  const nickname = computed(() => userInfo.value?.nickname || '')
+  // 用于展示的优先名：昵称 → 用户名
+  const displayName = computed(() => userInfo.value?.nickname?.trim() || userInfo.value?.username || '')
 
   // 检查用户是否过期
   const isExpired = computed(() => {
@@ -85,6 +91,8 @@ export const useUserStore = defineStore('user', () => {
         token.value = res.data.data.token
         userInfo.value = {
           username: res.data.data.user.username,
+          nickname: res.data.data.user.nickname || res.data.data.nickname || '',
+          avatar: res.data.data.user.avatar || res.data.data.avatar || '',
           role: res.data.data.role,
           card: res.data.data.card,
           accountLimit: res.data.data.accountLimit ?? 2,
@@ -179,6 +187,22 @@ export const useUserStore = defineStore('user', () => {
 
   async function changePassword(oldPassword: string, newPassword: string) {
     const res = await api.post('/api/user/change-password', { oldPassword, newPassword })
+    return res.data
+  }
+
+  // 更新自己的昵称/头像（不影响登录用户名）
+  async function updateProfile(payload: { nickname?: string | null, avatar?: string | null }) {
+    const res = await api.put('/api/user/profile', payload, { skipErrorToast: true } as any)
+    if (res.data?.ok && userInfo.value) {
+      const next = { ...userInfo.value }
+      if (payload.nickname !== undefined) {
+        next.nickname = (payload.nickname || '').trim()
+      }
+      if (payload.avatar !== undefined) {
+        next.avatar = payload.avatar || ''
+      }
+      userInfo.value = next
+    }
     return res.data
   }
 
@@ -291,6 +315,8 @@ export const useUserStore = defineStore('user', () => {
     userCard,
     accountLimit,
     avatar,
+    nickname,
+    displayName,
     isExpired,
     expireTimeText,
     login,
@@ -302,6 +328,7 @@ export const useUserStore = defineStore('user', () => {
     hasAnyPermission,
     renew,
     changePassword,
+    updateProfile,
     getAllUsers,
     getLoginLogs,
     clearLoginLogs,

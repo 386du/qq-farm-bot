@@ -15,6 +15,8 @@ module.exports = {
     getAllUsers: users.getAllUsers,
     updateUser: users.updateUser,
     editUser: users.editUser,
+    getUserPublicProfile: users.getUserPublicProfile,
+    updateUserProfile: users.updateUserProfile,
     getAllCards: users.getAllCards,
     createCard: users.createCard,
     createCardsBatch: users.createCardsBatch,

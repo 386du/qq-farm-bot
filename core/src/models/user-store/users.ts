@@ -31,7 +31,25 @@ interface User {
     createdAt: number;
     mustChangePassword?: boolean;
     wxLoginConfig?: Record<string, any>;
+    nickname?: string;
+    avatar?: string;
     [key: string]: any;
+}
+
+interface ProfileUpdates {
+    nickname?: string | null;
+    avatar?: string | null;
+}
+
+interface ProfileResult {
+    ok: boolean;
+    error?: string;
+    user?: {
+        username: string;
+        nickname: string;
+        avatar: string;
+        role: string;
+    };
 }
 
 interface Card {
@@ -51,6 +69,8 @@ interface ValidationResult {
     cardCode?: string | null;
     card?: UserCard | null;
     accountLimit?: number;
+    nickname?: string;
+    avatar?: string;
     error?: string;
     message?: string;
     remainingMs?: number;
@@ -239,7 +259,9 @@ function validateUser(username: string, password: string, ip: string = 'unknown'
         role: user.role,
         cardCode: user.cardCode || null,
         card: user.card || null,
-        accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT
+        accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT,
+        nickname: user.nickname || '',
+        avatar: user.avatar || ''
     };
 }
 
@@ -404,13 +426,15 @@ function renewUser(username: string, cardCode: string): RenewResult {
     return { ok: true, card: user.card, accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT, cardType };
 }
 
-function getAllUsers(): Array<Pick<User, 'username' | 'role' | 'card' | 'accountLimit'>> {
+function getAllUsers(): Array<Pick<User, 'username' | 'role' | 'card' | 'accountLimit' | 'nickname' | 'avatar'>> {
     loadUsers();
     return users.map(u => ({
         username: u.username,
         role: u.role,
         card: u.card,
-        accountLimit: u.accountLimit || DEFAULT_ACCOUNT_LIMIT
+        accountLimit: u.accountLimit || DEFAULT_ACCOUNT_LIMIT,
+        nickname: u.nickname || '',
+        avatar: u.avatar || ''
     }));
 }
 
@@ -512,6 +536,76 @@ function editUser(oldUsername: string, updates: EditUpdates): EditResult {
             role: user.role,
             card: user.card,
             accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT
+        }
+    };
+}
+
+function getUserPublicProfile(username: string): { username: string, nickname: string, avatar: string, role: string } | null {
+    loadUsers();
+    const user = users.find(u => u.username === username);
+    if (!user) return null;
+    return {
+        username: user.username,
+        nickname: user.nickname || '',
+        avatar: user.avatar || '',
+        role: user.role
+    };
+}
+
+function updateUserProfile(username: string, updates: ProfileUpdates): ProfileResult {
+    loadUsers();
+    const user = users.find(u => u.username === username);
+    if (!user) {
+        return { ok: false, error: '用户不存在' };
+    }
+
+    if (updates.nickname !== undefined) {
+        if (updates.nickname === null || updates.nickname === '') {
+            user.nickname = '';
+        }
+        else {
+            const trimmed = String(updates.nickname).trim();
+            if (trimmed.length > 20) {
+                return { ok: false, error: '昵称长度不能超过 20 个字符' };
+            }
+            user.nickname = trimmed;
+        }
+    }
+
+    if (updates.avatar !== undefined) {
+        if (updates.avatar === null || updates.avatar === '') {
+            user.avatar = '';
+        }
+        else {
+            const avatarUrl = String(updates.avatar).trim();
+            // 只允许 http(s) 协议或 data:image(base64) 头
+            if (!/^(?:https?:\/\/|data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,)/i.test(avatarUrl)) {
+                return { ok: false, error: '头像地址必须为 http(s) 链接或 data:image base64' };
+            }
+            if (avatarUrl.length > 2 * 1024 * 1024) {
+                return { ok: false, error: '头像数据过大，请控制在 2MB 以内' };
+            }
+            user.avatar = avatarUrl;
+        }
+    }
+
+    saveUsers();
+
+    // 同步更新所有该用户的在线 token
+    const updatedUser = {
+        username: user.username,
+        nickname: user.nickname || '',
+        avatar: user.avatar || ''
+    };
+    tokenStore.updateTokensForUser(username, (u: any) => ({ ...u, ...updatedUser }));
+
+    return {
+        ok: true,
+        user: {
+            username: user.username,
+            nickname: user.nickname || '',
+            avatar: user.avatar || '',
+            role: user.role
         }
     };
 }
@@ -769,6 +863,8 @@ module.exports = {
     getAllUsersInternal,
     updateUser,
     editUser,
+    getUserPublicProfile,
+    updateUserProfile,
     getAllCards,
     createCard,
     createCardsBatch,

@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
+import ProfileEditModal from '@/components/ProfileEditModal.vue'
 import RemarkModal from '@/components/RemarkModal.vue'
 import YybConfigModal from '@/components/YybConfigModal.vue'
 import YybLoginModal from '@/components/YybLoginModal.vue'
@@ -265,12 +266,18 @@ watch(
 // 用户相关
 const showUserDropdown = ref(false)
 const showRenewModal = ref(false)
+const showProfileModal = ref(false)
 const renewCardCode = ref('')
 const renewLoading = ref(false)
 const renewError = ref('')
 const renewSuccess = ref(false)
 const renewCardInfo = ref<{ type: string, days: number, description: string } | null>(null)
 const renewChecking = ref(false)
+
+function openProfileModal() {
+  showProfileModal.value = true
+  showUserDropdown.value = false
+}
 
 // 公告相关
 const showAnnouncementModal = ref(false)
@@ -523,13 +530,16 @@ async function copyToken() {
                 <span>&#9733;</span>
               </div>
             </div>
-            <div class="min-w-0 flex flex-col items-start">
-              <span class="font-body w-full truncate text-left text-sm font-medium">
-                {{ userStore.username || '未登录' }}
+            <div class="min-w-0 flex flex-1 flex-col items-start overflow-hidden">
+              <span
+                class="font-body w-full truncate text-left text-sm font-medium"
+                :title="userStore.nickname && userStore.nickname !== userStore.username ? `${userStore.nickname} (${userStore.username})` : (userStore.username || '未登录')"
+              >
+                {{ userStore.displayName || '未登录' }}
               </span>
-              <div class="mt-0.5 flex items-center gap-1.5">
+              <div class="mt-0.5 w-full flex items-center gap-1.5 overflow-hidden">
                 <span
-                  class="rounded-lg px-1.5 py-0.2 text-[10px] font-medium leading-tight"
+                  class="shrink-0 rounded-lg px-1.5 py-0.2 text-[10px] font-medium leading-tight"
                   :class="getRoleBadgeClass(userStore.role)"
                 >
                   {{ getRoleLabel(userStore.role) }}
@@ -540,10 +550,20 @@ async function copyToken() {
               </div>
             </div>
           </div>
-          <div
-            class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
-            :class="{ 'rotate-180': showUserDropdown }"
-          />
+          <div class="flex shrink-0 items-center gap-1">
+            <span
+              class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200/60 hover:text-gray-600 dark:hover:bg-gray-700/60 dark:hover:text-gray-200"
+              title="编辑个人资料"
+              role="button"
+              @click.stop="openProfileModal"
+            >
+              <div class="i-carbon-edit text-base" />
+            </span>
+            <div
+              class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
+              :class="{ 'rotate-180': showUserDropdown }"
+            />
+          </div>
         </button>
 
         <!-- User Dropdown Menu -->
@@ -553,7 +573,10 @@ async function copyToken() {
         >
           <div class="border-b border-gray-100/60 px-4 py-2 dark:border-gray-700/60">
             <div class="text-sm text-gray-900 font-medium dark:text-white">
-              {{ userStore.username }}
+              {{ userStore.displayName || '未登录' }}
+            </div>
+            <div v-if="userStore.nickname && userStore.nickname !== userStore.username" class="text-[11px] text-gray-500 dark:text-gray-400">
+              账号：{{ userStore.username }}
             </div>
             <div class="text-xs text-gray-500 dark:text-gray-400">
               {{ getRoleLabel(userStore.role) }}
@@ -572,6 +595,14 @@ async function copyToken() {
             </div>
           </div>
           <div class="py-1">
+            <button
+              class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
+              :style="{ color: 'var(--theme-primary)' }"
+              @click="openProfileModal"
+            >
+              <div class="i-carbon-user-avatar" />
+              <span>编辑个人资料</span>
+            </button>
             <button
               v-if="userStore.hasPermission('announcement:*')"
               class="mx-1 w-full flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
@@ -915,6 +946,12 @@ async function copyToken() {
     :account="accountToEdit"
     @close="showRemarkModal = false"
     @saved="handleAccountSaved"
+  />
+
+  <ProfileEditModal
+    :show="showProfileModal"
+    @close="showProfileModal = false"
+    @saved="userStore.fetchUserInfo()"
   />
 
   <!-- 续费卡密弹窗 -->

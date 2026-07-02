@@ -165,7 +165,13 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     role: user.role,
                     card: user.card,
                     accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2,
-                    user: { username: user.username },
+                    user: {
+                        username: user.username,
+                        nickname: user.nickname || '',
+                        avatar: user.avatar || ''
+                    },
+                    nickname: user.nickname || '',
+                    avatar: user.avatar || '',
                     mustChangePassword: user.mustChangePassword || false
                 }
             });
@@ -412,11 +418,59 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 ok: true,
                 data: {
                     username: user.username,
+                    nickname: user.nickname || '',
+                    avatar: user.avatar || '',
                     role: user.role,
                     card: user.card,
                     accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2
                 }
             });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // 修改自己的昵称/头像（不影响登录用户名）
+    app.put('/api/user/profile', authRequired, (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            if (!username) {
+                return res.status(401).json({ ok: false, error: '未登录' });
+            }
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const updates: { nickname?: string | null, avatar?: string | null } = {};
+            if (Object.prototype.hasOwnProperty.call(body, 'nickname')) {
+                updates.nickname = body.nickname == null ? '' : String(body.nickname);
+            }
+            if (Object.prototype.hasOwnProperty.call(body, 'avatar')) {
+                updates.avatar = body.avatar == null ? '' : String(body.avatar);
+            }
+            if (Object.keys(updates).length === 0) {
+                return res.status(400).json({ ok: false, error: '请提供要修改的字段' });
+            }
+            const result = userStore.updateUserProfile(username, updates);
+            if (!result.ok) {
+                return res.status(400).json(result);
+            }
+            // 同步更新内存中的当前用户与所有同账号 token
+            const currentUser = (req as any).currentUser;
+            if (currentUser) {
+                currentUser.nickname = result.user?.nickname || '';
+                currentUser.avatar = result.user?.avatar || '';
+            }
+            for (const [token, u] of ctx.tokenUserMap.entries()) {
+                if (u.username === username) {
+                    u.nickname = result.user?.nickname || '';
+                    u.avatar = result.user?.avatar || '';
+                    ctx.tokenUserMap.set(token, u);
+                    tokenStore.updateTokenUser(token, u);
+                }
+            }
+            auditLog.log('user_profile_updated', username, getClientIp(req), {
+                hasNickname: updates.nickname !== undefined,
+                hasAvatar: updates.avatar !== undefined,
+            });
+            res.json({ ok: true, data: result.user });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
         }
