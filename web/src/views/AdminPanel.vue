@@ -667,7 +667,27 @@ async function fetchUsers() {
   try {
     const result = await userStore.getAllUsers()
     if (result.ok) {
-      users.value = result.data
+      // 排序优先级:
+      // 1. 角色为 admin (最高管理员/超级管理员) 优先排在最上面
+      // 2. 角色为 operator 其次
+      // 3. 其他角色按用户名升序
+      const rolePriority: Record<string, number> = {
+        admin: 0,
+        operator: 1,
+        viewer: 2,
+        user: 3,
+      }
+      const getPriority = (u: UserInfo): number => {
+        const p = rolePriority[u.role]
+        return p === undefined ? 99 : p
+      }
+      const list: UserInfo[] = Array.isArray(result.data) ? result.data : []
+      users.value = list.slice().sort((a: UserInfo, b: UserInfo) => {
+        const pa = getPriority(a)
+        const pb = getPriority(b)
+        if (pa !== pb) return pa - pb
+        return a.username.localeCompare(b.username)
+      })
     }
     else {
       toast.error(result.error || '获取用户列表失败')
