@@ -6,7 +6,6 @@ import BottomNav from '@/components/BottomNav.vue'
 import ChangelogModal from '@/components/ChangelogModal.vue'
 import HolidayBanner from '@/components/HolidayBanner.vue'
 import Sidebar from '@/components/Sidebar.vue'
-import SoundManager from '@/components/SoundManager.vue'
 import YybConfigModal from '@/components/YybConfigModal.vue'
 import YybLoginModal from '@/components/YybLoginModal.vue'
 import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/account'
@@ -360,8 +359,6 @@ onUnmounted(() => {
       @close="showYybLogin = false"
       @saved="handleAccountSaved"
     />
-
-    <SoundManager />
 
     <!-- 版本更新弹窗（全局，首次有新版本时自动弹一次） -->
     <ChangelogModal :show="showChangelog" @close="changelogStore.close()" />

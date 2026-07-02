@@ -17,7 +17,6 @@ import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/ac
 import { useAppStore } from '@/stores/app'
 import { useFarmStore } from '@/stores/farm'
 import { useSettingStore } from '@/stores/setting'
-import { useSoundStore } from '@/stores/sound'
 import { useUserStore } from '@/stores/user'
 import { useYybLoginStore } from '@/stores/yyb-login'
 
@@ -27,7 +26,6 @@ const accountStore = useAccountStore()
 const userStore = useUserStore()
 const settingStore = useSettingStore()
 const farmStore = useFarmStore()
-const soundStore = useSoundStore()
 const yybStore = useYybLoginStore()
 
 const showYybConfig = ref(false)
@@ -1838,47 +1836,6 @@ async function handleTestOffline() {
                 >
                   保存下线提醒设置
                 </BaseButton>
-              </div>
-            </div>
-
-            <div class="farm-card border border-gray-200 rounded-2xl bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
-              <h4 class="mb-3 flex items-center gap-2 text-base text-gray-900 font-bold dark:text-gray-100">
-                🔊 音效设置
-              </h4>
-              <div class="space-y-3">
-                <BaseSwitch
-                  :model-value="soundStore.enabled"
-                  label="启用音效"
-                  @update:model-value="(v) => soundStore.setEnabled(!!v)"
-                />
-                <div class="flex flex-col gap-2">
-                  <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
-                    音量 ({{ Math.round(soundStore.volume * 100) }}%)
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    :value="Math.round(soundStore.volume * 100)"
-                    class="w-full accent-current"
-                    :style="{ color: 'var(--theme-primary)' }"
-                    @input="(e: any) => soundStore.setVolume(Number(e.target.value) / 100)"
-                  >
-                </div>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="key in ['harvest', 'plant', 'fertilize', 'sell', 'steal', 'reward', 'unlock', 'report']"
-                    :key="key"
-                    class="rounded-lg px-2.5 py-1 text-xs font-bold transition-all hover:scale-105"
-                    style="background: color-mix(in srgb, var(--theme-primary) 10%, transparent); color: var(--theme-primary)"
-                    @click="soundStore.play(key)"
-                  >
-                    {{ key }}
-                  </button>
-                </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  收菜、种菜、施肥、偷菜、领取奖励等操作会自动播放对应音效, 可在浏览器静默标签页时禁用。
-                </p>
               </div>
             </div>
 

@@ -84,10 +84,6 @@ export const useStatusStore = defineStore('status', () => {
 
   function handleRealtimeAccountLog(payload: any) {
     pushRealtimeAccountLog(payload)
-    // 通知 SoundManager 播放音效
-    try {
-      document.dispatchEvent(new CustomEvent('account-log:new', { detail: payload }))
-    } catch {}
   }
 
   function handleRealtimeLogsSnapshot(payload: any) {
@@ -139,16 +135,7 @@ export const useStatusStore = defineStore('status', () => {
     socket.on('account-log:new', handleRealtimeAccountLog)
     socket.on('logs:snapshot', handleRealtimeLogsSnapshot)
     socket.on('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
-    socket.on('sound:play', handleSoundPlay)
     return socket
-  }
-
-  function handleSoundPlay(payload: any) {
-    const detail = (payload && typeof payload === 'object') ? payload : {}
-    // 通过自定义事件通知 SoundManager
-    try {
-      document.dispatchEvent(new CustomEvent('sound:play', { detail }))
-    } catch {}
   }
 
   function connectRealtime(accountId: string) {
@@ -180,7 +167,6 @@ export const useStatusStore = defineStore('status', () => {
     socket.off('account-log:new', handleRealtimeAccountLog)
     socket.off('logs:snapshot', handleRealtimeLogsSnapshot)
     socket.off('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
-    socket.off('sound:play', handleSoundPlay)
     socket.disconnect()
     socket = null
     realtimeConnected.value = false
