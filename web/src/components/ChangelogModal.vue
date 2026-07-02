@@ -87,9 +87,10 @@ function close() {
     if (!window.confirm('有未保存的修改，确定要关闭吗？'))
       return
   }
-  // 关闭即视为已读，记录当前版本
-  if (data.value?.version)
-    changelogStore.markSeen(data.value.version)
+  // 关闭即视为已读，记录当前 version 和 updatedAt
+  if (data.value) {
+    changelogStore.markSeen(data.value.version, data.value.updatedAt)
+  }
   emit('close')
 }
 
