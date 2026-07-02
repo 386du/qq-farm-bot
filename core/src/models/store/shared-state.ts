@@ -38,11 +38,10 @@ const DEFAULT_OFFLINE_REMINDER: OfflineReminder = {
 
 const DEFAULT_YYB_CONFIG: YybConfig = {
     enabled: false,
-    apiToken: '',
     endpoint: 'http://211.154.25.123:28999/api/open/v1/farm/code',
     reconnectIntervalMinutes: 0,
     autoReconnect: true,
-    openIds: [],
+    accounts: [],
 };
 
 const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
@@ -171,21 +170,42 @@ function normalizeFertilizerLandTypes(input: unknown, fallback: FertilizerLandTy
 
 function normalizeYybConfig(input: unknown): YybConfig {
     const src: Record<string, any> = (input && typeof input === 'object') ? input as Record<string, any> : {};
-    const openIds: string[] = [];
-    if (Array.isArray(src.openIds)) {
-        for (const item of src.openIds) {
-            const value = String(item || '').trim();
-            if (value && !openIds.includes(value)) openIds.push(value);
+    const accounts: YybConfig['accounts'] = [];
+
+    // 新格式:accounts: { openid, apiToken, name? }[]
+    if (Array.isArray(src.accounts)) {
+        for (const item of src.accounts) {
+            if (!item || typeof item !== 'object') continue;
+            const openid = String((item as any).openid || '').trim();
+            const apiToken = String((item as any).apiToken || '').trim();
+            if (!openid || !apiToken) continue;
+            if (accounts.some(a => a.openid === openid)) continue;
+            accounts.push({
+                openid,
+                apiToken,
+                name: String((item as any).name || '').trim() || undefined,
+            });
         }
     }
+
+    // 旧数据迁移:openIds: string[] + 顶层 apiToken → accounts: [{ openid, apiToken, name: '' }]
+    // 只在 accounts 为空且 openIds 非空时迁移一次,保留用户原 token
+    if (accounts.length === 0 && Array.isArray(src.openIds) && src.openIds.length > 0) {
+        const legacyToken = String(src.apiToken !== undefined ? src.apiToken : '').trim();
+        for (const item of src.openIds) {
+            const openid = String(item || '').trim();
+            if (!openid || accounts.some(a => a.openid === openid)) continue;
+            accounts.push({ openid, apiToken: legacyToken });
+        }
+    }
+
     const reconnectIntervalMinutes = Math.max(0, Number.parseInt(src.reconnectIntervalMinutes, 10) || 0);
     return {
         enabled: !!src.enabled,
-        apiToken: String(src.apiToken !== undefined ? src.apiToken : DEFAULT_YYB_CONFIG.apiToken).trim(),
         endpoint: String(src.endpoint !== undefined ? src.endpoint : DEFAULT_YYB_CONFIG.endpoint).trim() || DEFAULT_YYB_CONFIG.endpoint,
         reconnectIntervalMinutes: Number.isFinite(reconnectIntervalMinutes) ? reconnectIntervalMinutes : 0,
         autoReconnect: src.autoReconnect !== undefined ? !!src.autoReconnect : DEFAULT_YYB_CONFIG.autoReconnect,
-        openIds,
+        accounts,
     };
 }
 

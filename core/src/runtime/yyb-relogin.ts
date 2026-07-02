@@ -38,14 +38,24 @@ function createYybReloginService(options: YybReloginOptions) {
         return account && String(account.loginType || '') === 'yyb' && String(account.openid || '').trim().length > 0;
     }
 
+    function findAccountEntry(cfg: any, openid: string): { openid: string; apiToken: string; name?: string } | null {
+        if (!cfg || !Array.isArray(cfg.accounts)) return null;
+        const found = cfg.accounts.find((a: any) => a && String(a.openid || '').trim() === openid);
+        if (!found) return null;
+        const token = String(found.apiToken || '').trim();
+        if (!token) return null;
+        return {
+            openid: String(found.openid || '').trim(),
+            apiToken: token,
+            name: found.name ? String(found.name).trim() : undefined,
+        };
+    }
+
     async function refreshAccountCode(account: any): Promise<{ ok: boolean; code?: string; error?: string }> {
         const username = String(account.username || '');
         const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
         if (!cfg || !cfg.enabled) {
             return { ok: false, error: '应用宝配置未启用' };
-        }
-        if (!cfg.apiToken) {
-            return { ok: false, error: '未配置 API Token' };
         }
         if (!cfg.endpoint) {
             return { ok: false, error: '未配置接口地址' };
@@ -54,10 +64,14 @@ function createYybReloginService(options: YybReloginOptions) {
         if (!openid) {
             return { ok: false, error: '账号未关联 OpenID' };
         }
+        const entry = findAccountEntry(cfg, openid);
+        if (!entry) {
+            return { ok: false, error: `OpenID ${openid} 未配置 Token,或在应用宝配置中已被移除` };
+        }
 
         const result = await fetchFarmCode({
             endpoint: cfg.endpoint,
-            apiToken: cfg.apiToken,
+            apiToken: entry.apiToken,
             openid,
         });
 
