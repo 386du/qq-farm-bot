@@ -18,6 +18,9 @@ const auditLog = require('../../models/audit-log');
 const ipBlacklist = require('../../models/ip-blacklist');
 const cleanup = require('../../services/cleanup');
 
+// 复用 userStore 里的判定,避免在多处硬编码 username === 'admin'
+const { isSuperAdminUser } = userStore;
+
 const {
     createAuthRequired,
     adminRequired,
@@ -422,9 +425,10 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
             const updates = req.body || {};
             const currentUser = (req as any).currentUser;
 
-            // 保护最高管理员账号（用户名 admin）不被其他管理员封禁/解禁
+            // 保护最高管理员账号不被其他管理员封禁/解禁
+            // 判定走 isSuperAdminUser,兼容改名场景(原硬编码 username === 'admin')
             const targetUser = userStore.getAllUsers().find((u: any) => u.username === username);
-            if (targetUser?.username === 'admin' && currentUser?.username !== 'admin') {
+            if (targetUser && isSuperAdminUser(targetUser) && !isSuperAdminUser(currentUser)) {
                 return res.status(403).json({ ok: false, error: '不能修改最高管理员的信息' });
             }
 
@@ -443,17 +447,19 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
     app.post('/api/admin/users/:username/edit', authRequired, requirePermission('user:write'), (req: Request, res: Response) => {
         try {
             const { username } = req.params;
-            const { newUsername, password, accountLimit, role, expiresAt, isPermanent } = req.body || {};
+            const { newUsername, password, accountLimit, role, expiresAt, isPermanent, isSuperAdmin } = req.body || {};
             const currentUser = (req as any).currentUser;
 
-            // 非超级管理员不能修改用户角色为 admin，也不能把 admin 降级
-            if (role !== undefined && currentUser?.role !== 'admin') {
-                return res.status(403).json({ ok: false, error: '只有超级管理员可以修改用户角色' });
+            // 角色/超级管理员转移都只有最高管理员可操作
+            const isRoleChange = role !== undefined;
+            const isSuperAdminChange = isSuperAdmin !== undefined;
+            if ((isRoleChange || isSuperAdminChange) && !isSuperAdminUser(currentUser)) {
+                return res.status(403).json({ ok: false, error: '只有最高管理员可以修改用户角色或超级管理员标记' });
             }
 
-            // 保护最高管理员账号（用户名 admin）不被其他管理员修改/降级
+            // 保护最高管理员账号(走 isSuperAdminUser 判定,兼容改名场景)
             const targetUser = userStore.getAllUsers().find((u: any) => u.username === username);
-            if (targetUser?.username === 'admin' && currentUser?.username !== 'admin') {
+            if (targetUser && isSuperAdminUser(targetUser) && !isSuperAdminUser(currentUser)) {
                 return res.status(403).json({ ok: false, error: '不能修改最高管理员的信息' });
             }
 
@@ -463,7 +469,8 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
                 accountLimit,
                 role,
                 expiresAt,
-                isPermanent
+                isPermanent,
+                isSuperAdmin,
             });
 
             if (!result.ok) {
@@ -473,18 +480,20 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
             // 更新该用户所有会话中的信息
             for (const [token, user] of ctx.tokenUserMap.entries()) {
                 if (user.username === username || user.username === newUsername) {
-                    user.username = result.user.username;
-                    user.card = result.user.card;
-                    user.accountLimit = result.user.accountLimit;
+                    user.username = result.user!.username;
+                    user.card = result.user!.card;
+                    user.accountLimit = result.user!.accountLimit;
+                    user.isSuperAdmin = result.user!.isSuperAdmin;
                     ctx.tokenUserMap.set(token, user);
                 }
             }
 
             audit('user_edited', req, {
                 targetUser: username,
-                newUsername: result.user.username,
+                newUsername: result.user!.username,
                 changedPassword: !!password,
                 accountLimit,
+                isSuperAdmin,
             });
 
             res.json({ ok: true, data: result.user });
@@ -504,8 +513,9 @@ function mountAdminRoutes(app: Application, ctx: AdminContext): void {
                 return res.status(400).json({ ok: false, error: '不能删除自己的账号' });
             }
 
-            // 不能删除最高管理员账号（用户名 admin）
-            if (username === 'admin') {
+            // 不能删除最高管理员(走 isSuperAdminUser 判定,兼容改名场景)
+            const targetUser = userStore.getAllUsers().find((u: any) => u.username === username);
+            if (targetUser && isSuperAdminUser(targetUser)) {
                 return res.status(403).json({ ok: false, error: '不能删除最高管理员' });
             }
 

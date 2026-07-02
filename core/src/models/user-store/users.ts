@@ -31,6 +31,9 @@ interface User {
     createdAt: number;
     mustChangePassword?: boolean;
     wxLoginConfig?: Record<string, any>;
+    // 持久化"最高管理员"标记,取代硬编码的 username === 'admin'
+    // 改名后这个标记仍然跟随用户,可由其他超级管理员转移
+    isSuperAdmin?: boolean;
     [key: string]: any;
 }
 
@@ -51,6 +54,7 @@ interface ValidationResult {
     cardCode?: string | null;
     card?: UserCard | null;
     accountLimit?: number;
+    isSuperAdmin?: boolean;
     error?: string;
     message?: string;
     remainingMs?: number;
@@ -84,6 +88,7 @@ interface EditUpdates {
     role?: string;
     isPermanent?: boolean;
     expiresAt?: number | null;
+    isSuperAdmin?: boolean;
 }
 
 interface EditResult {
@@ -94,6 +99,7 @@ interface EditResult {
         role: string;
         card: UserCard | undefined;
         accountLimit: number;
+        isSuperAdmin?: boolean;
     };
 }
 
@@ -118,6 +124,29 @@ function loadUsers(): void {
         } else {
             users = [];
             saveUsers();
+        }
+
+        // 数据迁移:对历史 user.json 中 username === 'admin' 的用户
+        // 自动补上 isSuperAdmin = true,避免"最高管理员"判定逻辑失效
+        let migrated = false;
+        for (const u of users) {
+            if (u && u.username === 'admin' && !u.isSuperAdmin) {
+                u.isSuperAdmin = true;
+                migrated = true;
+            }
+        }
+        if (migrated) saveUsers();
+
+        // 安全:保证至少有一个超级管理员存在
+        // 如果有用户但都没 isSuperAdmin(比如历史数据里 admin 被改名后未迁移),
+        // 把角色为 admin 的最早一个标记为超级管理员
+        if (users.length > 0 && !users.some(u => u.isSuperAdmin)) {
+            const roleAdmins = users.filter(u => u.role === 'admin');
+            if (roleAdmins.length > 0) {
+                roleAdmins.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                roleAdmins[0].isSuperAdmin = true;
+                saveUsers();
+            }
         }
     } catch (e: any) {
         console.error('加载用户数据失败:', e.message);
@@ -161,18 +190,22 @@ function saveCards(): void {
 
 function initDefaultAdmin(): void {
     loadUsers();
-    const adminExists = users.find(u => u.username === 'admin');
-    if (!adminExists) {
-        const defaultPassword = 'admin';
-        users.push({
-            username: 'admin',
-            password: auth.hashPassword(defaultPassword),
-            role: 'admin',
-            createdAt: Date.now()
-        });
-        saveUsers();
-        console.log('[用户系统] 已创建默认管理员账号，默认密码: admin');
+    // 只在完全没有用户(首次启动)时建默认管理员
+    // 历史逻辑是只要没有 username === 'admin' 就重建,
+    // 会导致把 admin 改名后启动服务会"复活"一个同名账号
+    if (users.length > 0) {
+        return;
     }
+    const defaultPassword = 'admin';
+    users.push({
+        username: 'admin',
+        password: auth.hashPassword(defaultPassword),
+        role: 'admin',
+        isSuperAdmin: true,
+        createdAt: Date.now()
+    });
+    saveUsers();
+    console.log('[用户系统] 已创建默认管理员账号，默认密码: admin');
 }
 
 function validateUser(username: string, password: string, ip: string = 'unknown'): ValidationResult {
@@ -239,7 +272,8 @@ function validateUser(username: string, password: string, ip: string = 'unknown'
         role: user.role,
         cardCode: user.cardCode || null,
         card: user.card || null,
-        accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT
+        accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT,
+        isSuperAdmin: isSuperAdminUser(user),
     };
 }
 
@@ -404,13 +438,14 @@ function renewUser(username: string, cardCode: string): RenewResult {
     return { ok: true, card: user.card, accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT, cardType };
 }
 
-function getAllUsers(): Array<Pick<User, 'username' | 'role' | 'card' | 'accountLimit'>> {
+function getAllUsers(): Array<Pick<User, 'username' | 'role' | 'card' | 'accountLimit'> & { isSuperAdmin?: boolean }> {
     loadUsers();
     return users.map(u => ({
         username: u.username,
         role: u.role,
         card: u.card,
-        accountLimit: u.accountLimit || DEFAULT_ACCOUNT_LIMIT
+        accountLimit: u.accountLimit || DEFAULT_ACCOUNT_LIMIT,
+        isSuperAdmin: isSuperAdminUser(u),
     }));
 }
 
@@ -421,7 +456,7 @@ function getAllUsersInternal(): User[] {
     return users;
 }
 
-function updateUser(username: string, updates: Partial<Pick<User, 'card'>> & { expiresAt?: number | null; enabled?: boolean }): Pick<User, 'username' | 'role' | 'card' | 'accountLimit'> | null {
+function updateUser(username: string, updates: Partial<Pick<User, 'card'>> & { expiresAt?: number | null; enabled?: boolean }): Pick<User, 'username' | 'role' | 'card' | 'accountLimit'> & { isSuperAdmin?: boolean } | null {
     loadUsers();
     const user = users.find(u => u.username === username);
     if (!user) return null;
@@ -438,7 +473,7 @@ function updateUser(username: string, updates: Partial<Pick<User, 'card'>> & { e
 
     saveUsers();
 
-    return { username: user.username, role: user.role, card: user.card, accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT };
+    return { username: user.username, role: user.role, card: user.card, accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT, isSuperAdmin: isSuperAdminUser(user) };
 }
 
 function editUser(oldUsername: string, updates: EditUpdates): EditResult {
@@ -484,6 +519,18 @@ function editUser(oldUsername: string, updates: EditUpdates): EditResult {
         tokenStore.updateTokensForUser(user.username, (u: any) => ({ ...u, role: user.role }));
     }
 
+    // 转移"最高管理员"标记
+    if (updates.isSuperAdmin !== undefined && updates.isSuperAdmin !== user.isSuperAdmin) {
+        // 取消超级管理员时,确保至少还有一个
+        if (updates.isSuperAdmin === false) {
+            const otherSuperAdmins = users.filter(u => u !== user && u.isSuperAdmin);
+            if (otherSuperAdmins.length === 0) {
+                return { ok: false, error: '系统至少需要保留一个超级管理员' };
+            }
+        }
+        user.isSuperAdmin = updates.isSuperAdmin;
+    }
+
     if (updates.isPermanent) {
         if (!user.card) user.card = {} as UserCard;
         user.card!.days = -1;
@@ -511,7 +558,8 @@ function editUser(oldUsername: string, updates: EditUpdates): EditResult {
             username: user.username,
             role: user.role,
             card: user.card,
-            accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT
+            accountLimit: user.accountLimit || DEFAULT_ACCOUNT_LIMIT,
+            isSuperAdmin: isSuperAdminUser(user),
         }
     };
 }
@@ -713,6 +761,27 @@ function canAddAccount(username: string): { canAdd: boolean; current: number; li
     return { canAdd: true, current: 0, limit };
 }
 
+/**
+ * 判断一个用户是否是"最高管理员"(系统最高权限)
+ * 用于替代散落在各处的硬编码 username === 'admin' 判断
+ * - 兼容历史数据:username 仍为 'admin' 的也视为最高管理员
+ * - 新逻辑:持久化 isSuperAdmin = true
+ */
+function isSuperAdminUser(user: any): boolean {
+    if (!user) return false;
+    if (user.isSuperAdmin === true) return true;
+    if (user.username === 'admin') return true;
+    return false;
+}
+
+/**
+ * 获取当前所有最高管理员
+ */
+function getSuperAdmins(): User[] {
+    loadUsers();
+    return users.filter(u => isSuperAdminUser(u));
+}
+
 function resetPasswordByCard(username: string, cardCode: string, newPassword: string): { ok: boolean; error?: string; message?: string } {
     loadUsers();
     loadCards();
@@ -783,5 +852,7 @@ module.exports = {
     getUserAccountLimit,
     canAddAccount,
     generateCardCode,
+    isSuperAdminUser,
+    getSuperAdmins,
     DEFAULT_ACCOUNT_LIMIT,
 };

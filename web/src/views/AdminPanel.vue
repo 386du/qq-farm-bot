@@ -607,6 +607,7 @@ interface UserInfo {
   accountLimit: number
   online?: boolean
   lastActivityAt?: number | null
+  isSuperAdmin?: boolean
 }
 
 interface EditForm {
@@ -616,6 +617,7 @@ interface EditForm {
   role: string
   expiresAt: string
   isPermanent: boolean
+  isSuperAdmin: boolean
 }
 
 interface RoleOption {
@@ -656,6 +658,7 @@ const editForm = ref<EditForm>({
   role: 'user',
   expiresAt: '',
   isPermanent: false,
+  isSuperAdmin: false,
 })
 const availableRoles = ref<RoleOption[]>([])
 const editLoading = ref(false)
@@ -738,6 +741,7 @@ function openEditModal(user: UserInfo) {
     role: user.role || 'user',
     expiresAt: user.card?.expiresAt ? formatDateTimeLocal(user.card.expiresAt) : '',
     isPermanent: user.card?.days === -1,
+    isSuperAdmin: !!user.isSuperAdmin,
   }
   fetchRoles()
   showEditModal.value = true
@@ -780,6 +784,13 @@ async function handleEdit() {
 
     if (editForm.value.role === selectedUser.value.role) {
       delete updateData.role
+    }
+
+    // 只有最高管理员可以改 isSuperAdmin 标记
+    if (userStore.isSuperAdmin) {
+      if (!!editForm.value.isSuperAdmin !== !!selectedUser.value.isSuperAdmin) {
+        updateData.isSuperAdmin = editForm.value.isSuperAdmin
+      }
     }
 
     const res = await api.post(`/api/admin/users/${selectedUser.value.username}/edit`, updateData)
@@ -921,6 +932,7 @@ interface SessionInfo {
   createdAt: number
   lastActivityAt: number
   online: boolean
+  isSuperAdmin?: boolean
 }
 
 const sessions = ref<SessionInfo[]>([])
@@ -2547,7 +2559,17 @@ watch(activeTab, (tab) => {
                 <tbody class="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
                   <tr v-for="user in users" :key="user.username">
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 font-medium dark:text-white">
-                      {{ user.username }}
+                      <div class="flex items-center gap-1.5">
+                        <span>{{ user.username }}</span>
+                        <span
+                          v-if="user.isSuperAdmin"
+                          class="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-red-500 to-pink-500 px-1.5 py-0.5 text-[10px] font-bold text-white"
+                          title="系统最高管理员(可改名、可转移)"
+                        >
+                          <span>👑</span>
+                          <span>最高</span>
+                        </span>
+                      </div>
                     </td>
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900 dark:text-white">
                       <span
@@ -2592,21 +2614,21 @@ watch(activeTab, (tab) => {
                     </td>
                     <td class="whitespace-nowrap px-3 py-2 text-right text-sm font-medium">
                       <button
-                        v-if="userStore.hasPermission('user:write') && !(user.username === 'admin' && currentUsername !== 'admin')"
+                        v-if="userStore.hasPermission('user:write') && !(user.isSuperAdmin && !userStore.isSuperAdmin)"
                         class="mr-3 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
                         @click="openEditModal(user)"
                       >
                         编辑
                       </button>
                       <button
-                        v-if="userStore.hasPermission('user:write') && !(user.username === 'admin' && currentUsername !== 'admin') && user.card"
+                        v-if="userStore.hasPermission('user:write') && !(user.isSuperAdmin && !userStore.isSuperAdmin) && user.card"
                         class="mr-3 text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300"
                         @click="toggleUserStatus(user)"
                       >
                         {{ user.card.enabled === false ? '解封' : '封禁' }}
                       </button>
                       <button
-                        v-if="userStore.hasPermission('user:write') && !(user.username === 'admin' && currentUsername !== 'admin') && user.username !== currentUsername"
+                        v-if="userStore.hasPermission('user:write') && !user.isSuperAdmin && user.username !== currentUsername"
                         class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
                         @click="deleteUser(user)"
                       >
@@ -2674,6 +2696,24 @@ watch(activeTab, (tab) => {
                   </select>
                   <p v-if="selectedUser?.username === currentUsername" class="mt-1 text-xs text-amber-500">
                     不能修改自己的角色
+                  </p>
+                </div>
+                <div v-if="userStore.isSuperAdmin">
+                  <label class="mb-1 block text-sm text-gray-700 font-medium dark:text-gray-300">
+                    最高管理员
+                  </label>
+                  <div class="flex items-center gap-3">
+                    <input
+                      v-model="editForm.isSuperAdmin"
+                      type="checkbox"
+                      class="border-gray-300 rounded text-red-600 focus:ring-red-500"
+                    >
+                    <span class="text-sm text-gray-600 dark:text-gray-400">
+                      👑 设为系统最高管理员(可改名为任意名字,标记会跟随账号)
+                    </span>
+                  </div>
+                  <p class="mt-1 text-xs text-amber-500">
+                    最高管理员不可被删除、不可被改角色;系统至少保留一个最高管理员
                   </p>
                 </div>
                 <div>
@@ -2968,7 +3008,7 @@ watch(activeTab, (tab) => {
                         当前会话
                       </button>
                       <span
-                        v-else-if="session.username === 'admin' && currentUsername !== 'admin'"
+                        v-else-if="session.isSuperAdmin && !userStore.isSuperAdmin"
                         class="text-xs text-gray-400"
                       >
                         最高管理员
