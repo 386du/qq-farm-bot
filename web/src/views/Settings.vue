@@ -17,10 +17,8 @@ import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/ac
 import { useAppStore } from '@/stores/app'
 import { useFarmStore } from '@/stores/farm'
 import { useSettingStore } from '@/stores/setting'
-import { useToastStore } from '@/stores/toast'
 import { useUserStore } from '@/stores/user'
 import { useYybLoginStore } from '@/stores/yyb-login'
-import { applyBackup, BACKUP_KEYS, downloadBackup, parseBackup, resetToDefaults } from '@/utils/config-backup'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -28,7 +26,6 @@ const accountStore = useAccountStore()
 const userStore = useUserStore()
 const settingStore = useSettingStore()
 const farmStore = useFarmStore()
-const toastStore = useToastStore()
 const yybStore = useYybLoginStore()
 
 const showYybConfig = ref(false)
@@ -133,72 +130,6 @@ function replayPreview() {
 function resetBottomNavStyleLocal() {
   appStore.resetBottomNavStyle()
   localBottomNavStyle.value = { ...appStore.bottomNavStyle }
-}
-
-// ==================== 配置备份与恢复 ====================
-const backupFileInput = ref<HTMLInputElement | null>(null)
-const backupKeyLabels: Record<string, string> = {
-  ui_theme: '界面主题',
-  ui_bottom_nav: '底部栏显示项',
-  ui_bottom_nav_style: '底部栏外观',
-}
-
-function handleExportConfig() {
-  try {
-    downloadBackup()
-    toastStore.success('配置已导出')
-  }
-  catch (e: any) {
-    toastStore.error(`导出失败：${e?.message || e}`)
-  }
-}
-
-function handleImportClick() {
-  backupFileInput.value?.click()
-}
-
-async function handleImportFile(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  // 重置 input，便于重复选择同一文件
-  input.value = ''
-  if (!file)
-    return
-  if (file.size > 1024 * 64) {
-    toastStore.error('文件过大（>64KB），疑似非配置文件')
-    return
-  }
-  let text: string
-  try {
-    text = await file.text()
-  }
-  catch {
-    toastStore.error('读取文件失败')
-    return
-  }
-  const parsed = parseBackup(text)
-  if (!parsed.ok) {
-    toastStore.error(parsed.error)
-    return
-  }
-  try {
-    const result = applyBackup(parsed.backup)
-    toastStore.success(result.message + '，即将刷新页面')
-    setTimeout(() => window.location.reload(), 800)
-  }
-  catch (err: any) {
-    toastStore.error(`导入失败：${err?.message || err}`)
-  }
-}
-
-function handleResetConfig() {
-  const removed = resetToDefaults()
-  if (removed.length === 0) {
-    toastStore.info('当前没有可重置的配置')
-    return
-  }
-  toastStore.success(`已清除 ${removed.length} 项配置，即将刷新页面`)
-  setTimeout(() => window.location.reload(), 800)
 }
 
 const modalVisible = ref(false)
@@ -2174,43 +2105,6 @@ async function handleTestOffline() {
                 <BaseButton variant="secondary" size="sm" @click="resetBottomNavStyleLocal">
                   恢复默认
                 </BaseButton>
-              </div>
-            </div>
-
-            <div class="farm-card border border-gray-200 rounded-2xl bg-white p-4 shadow-md dark:border-gray-700 dark:bg-gray-800">
-              <h4 class="mb-3 flex items-center gap-2 text-base text-gray-900 font-bold dark:text-gray-100">
-                💾 配置备份与恢复
-              </h4>
-
-              <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-                导出当前界面偏好到 JSON 文件，可在换机或重装后恢复。不含账号、token、卡密等敏感数据。
-              </p>
-
-              <ul class="mb-3 space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                <li v-for="key in BACKUP_KEYS" :key="key" class="flex items-center gap-2">
-                  <span class="i-carbon-checkmark text-green-500" />
-                  <code class="text-xs">{{ key }}</code>
-                  <span class="text-gray-500">— {{ backupKeyLabels[key] || key }}</span>
-                </li>
-              </ul>
-
-              <div class="flex flex-wrap gap-2 border-t pt-3 dark:border-gray-700">
-                <BaseButton variant="primary" size="sm" @click="handleExportConfig">
-                  📤 导出配置
-                </BaseButton>
-                <BaseButton variant="secondary" size="sm" @click="handleImportClick">
-                  📥 导入配置
-                </BaseButton>
-                <BaseButton variant="secondary" size="sm" @click="handleResetConfig">
-                  🗑 恢复默认
-                </BaseButton>
-                <input
-                  ref="backupFileInput"
-                  type="file"
-                  accept="application/json,.json"
-                  class="hidden"
-                  @change="handleImportFile"
-                >
               </div>
             </div>
           </div>
