@@ -343,17 +343,23 @@ async function resetToDefault() {
     <div v-if="show" class="fixed inset-0 z-50">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="close" />
       <div
-        class="absolute left-1/2 top-1/2 z-10 flex max-h-[92vh] w-[min(900px,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl"
-        :style="{ background: 'var(--theme-bg)', boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)' }"
+        class="absolute left-1/2 top-1/2 z-10 flex w-[min(900px,calc(100%-1rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl"
+        :style="{
+          background: 'var(--theme-bg)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)',
+          maxHeight: 'min(92dvh, 800px)',
+          marginTop: 'max(env(safe-area-inset-top), 0.5rem)',
+          marginBottom: 'max(env(safe-area-inset-bottom), 0.5rem)',
+        }"
         @click.stop
       >
         <!-- Header -->
         <div
-          class="flex items-center justify-between gap-3 rounded-t-2xl p-4"
+          class="flex flex-col gap-2 rounded-t-2xl p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
           style="border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 10%, transparent)"
         >
-          <h3 class="flex items-center gap-2 text-lg font-bold" style="color: var(--theme-primary, var(--theme-text))">
-            <span class="text-xl">📋</span>
+          <h3 class="flex flex-wrap items-center gap-1.5 text-base font-bold sm:gap-2 sm:text-lg" style="color: var(--theme-primary, var(--theme-text))">
+            <span class="text-lg sm:text-xl">📋</span>
             <span>版本更新</span>
             <span
               v-if="data?.updatedAt"
@@ -371,7 +377,7 @@ async function resetToDefault() {
               ● 未保存
             </span>
           </h3>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 self-end sm:self-auto">
             <!-- 模式切换 -->
             <div v-if="isAdmin" class="flex overflow-hidden rounded-lg" style="border: 1px solid color-mix(in srgb, var(--theme-text) 15%, transparent)">
               <button
@@ -498,24 +504,24 @@ async function resetToDefault() {
                   v-model="section.version"
                   label="版本号"
                   placeholder="v20260701"
-                  class="farm-input sm:col-span-3"
+                  class="farm-input min-w-0 sm:col-span-3"
                   @update:model-value="markDirty"
                 />
                 <BaseInput
                   v-model="section.date"
                   label="日期"
                   placeholder="2026-07-01"
-                  class="farm-input sm:col-span-3"
+                  class="farm-input min-w-0 sm:col-span-3"
                   @update:model-value="markDirty"
                 />
                 <BaseInput
                   v-model="section.title"
                   label="标题"
                   placeholder="护主犬好友 + 同气连枝礼包"
-                  class="farm-input sm:col-span-4"
+                  class="farm-input min-w-0 sm:col-span-4"
                   @update:model-value="markDirty"
                 />
-                <div class="flex items-end gap-1 sm:col-span-2">
+                <div class="flex items-center gap-1 sm:col-span-2 sm:items-end">
                   <BaseButton variant="ghost" size="sm" title="上移" @click="moveSection(sIdx, -1)">
                     ↑
                   </BaseButton>
@@ -540,17 +546,17 @@ async function resetToDefault() {
                       v-model="group.icon"
                       label="图标"
                       placeholder="✨"
-                      class="farm-input sm:col-span-2"
+                      class="farm-input min-w-0 sm:col-span-2"
                       @update:model-value="markDirty"
                     />
                     <BaseInput
                       v-model="group.type"
                       label="分类"
                       placeholder="新功能"
-                      class="farm-input sm:col-span-4"
+                      class="farm-input min-w-0 sm:col-span-6"
                       @update:model-value="markDirty"
                     />
-                    <div class="flex items-end justify-end sm:col-span-6">
+                    <div class="flex items-center sm:items-end sm:justify-end sm:col-span-4">
                       <BaseButton variant="danger" size="sm" @click="removeGroup(sIdx, gIdx)">
                         🗑️ 删除分类
                       </BaseButton>
@@ -560,15 +566,16 @@ async function resetToDefault() {
                     <div
                       v-for="(_item, iIdx) in group.items"
                       :key="iIdx"
-                      class="flex items-center gap-1.5"
+                      class="flex items-start gap-1.5"
                     >
-                      <BaseInput
+                      <BaseTextarea
                         v-model="group.items[iIdx]"
                         placeholder="更新内容（支持 **加粗**）"
-                        class="farm-input flex-1"
+                        :rows="1"
+                        class="min-w-0 flex-1"
                         @update:model-value="markDirty"
                       />
-                      <BaseButton variant="ghost" size="sm" @click="removeItem(sIdx, gIdx, iIdx)">
+                      <BaseButton variant="ghost" size="sm" class="mt-1 shrink-0" @click="removeItem(sIdx, gIdx, iIdx)">
                         ✕
                       </BaseButton>
                     </div>
