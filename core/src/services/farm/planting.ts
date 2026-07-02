@@ -4,7 +4,7 @@ export {};
  */
 
 const protobuf = require('protobufjs');
-const { getPlantNameBySeedId, getPlantName, formatGrowTime, getPlantGrowTime, getAllSeeds, getPlantById, getPlantBySeedId, getSeedImageBySeedId } = require('../../config/gameConfig');
+const { getPlantNameBySeedId, getPlantName, formatGrowTime, getPlantGrowTime, getAllSeeds, getPlantById, getPlantBySeedId, getSeedImageBySeedId, getLandMutants } = require('../../config/gameConfig');
 const { isAutomationOn, getPreferredSeed, getAutomation, getPlantingStrategy, getBagSeedPriority, getBagSeedFallbackStrategy } = require('../../models/store');
 const { getUserState, getWsErrorState, sendMsgAsync } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep } = require('../../utils/utils');
@@ -530,6 +530,17 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
             const isNudged = !!plant.is_nudged;
             // plant.left_inorc_fert_times (field 17) - 剩余施肥次数
             const leftFertTimes = toNum(plant.left_inorc_fert_times);
+            // 解析具体变异类型名称 (使用 MutantConfig.json 映射表)
+            const mutants: Array<{ configId: number; displayName: string; name: string; color: string; description: string; matchedPlantName?: string }> = isMutant
+                ? getLandMutants(mutantConfigIds, plantId).map((m: any) => ({
+                    configId: m.configId,
+                    displayName: m.displayName,
+                    name: m.info.name,
+                    color: m.info.color,
+                    description: m.info.description,
+                    matchedPlantName: m.info.matchedPlantName,
+                }))
+                : [];
 
             lands.push({
                 id,
@@ -560,6 +571,7 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
                 // 变异 / 催熟
                 isMutant,
                 mutantConfigIds,
+                mutants, // [{ configId, displayName, name, color, description, matchedPlantName }]
                 isNudged,
                 leftFertTimes,
             });

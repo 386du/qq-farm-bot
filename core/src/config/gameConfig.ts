@@ -101,6 +101,17 @@ let itemInfoConfig: ItemInfo[] | null = null;
 const itemInfoMap = new Map<number, ItemInfo>();
 const seedItemMap = new Map<number, ItemInfo>();
 
+// ============ 变异配置 ============
+interface MutantConfigItem {
+    id: number;
+    name: string;
+    color: string;
+    description: string;
+    plants: Record<string, string>;
+}
+let mutantConfig: MutantConfigItem[] | null = null;
+const mutantMap = new Map<number, MutantConfigItem>();
+
 /**
  * 加载配置文件
  */
@@ -170,6 +181,23 @@ function loadConfigs(): void {
         }
     } catch (e: any) {
         console.warn('[配置] 加载 ItemInfo.json 失败:', e.message);
+    }
+
+    // 加载变异配置
+    try {
+        const mutantPath = path.join(configDir, 'MutantConfig.json');
+        if (fs.existsSync(mutantPath)) {
+            mutantConfig = JSON.parse(fs.readFileSync(mutantPath, 'utf8'));
+            mutantMap.clear();
+            for (const m of mutantConfig!) {
+                mutantMap.set(Number(m.id), m);
+            }
+            console.warn(`[配置] 已加载变异配置 (${mutantConfig!.length} 种)`);
+        } else {
+            console.warn('[配置] MutantConfig.json 不存在, 变异名称将使用默认占位');
+        }
+    } catch (e: any) {
+        console.warn('[配置] 加载 MutantConfig.json 失败:', e.message);
     }
 
 }
@@ -323,6 +351,59 @@ function getAllPlants(): PlantItem[] {
     return Array.from(plantMap.values());
 }
 
+// ============ 变异配置查询 ============
+
+/**
+ * 根据 mutant_config_id 解析变异信息
+ * @param configId  服务端下发的变异配置ID (plant.mutant_config_ids 数组元素)
+ * @param plantId   当前植物ID (用于查找 plantId 专属的变异名)
+ */
+function getMutantInfo(configId: number, plantId?: number): {
+    id: number;
+    name: string;
+    color: string;
+    description: string;
+    matchedPlantName?: string;
+} {
+    const id = Number(configId) || 0;
+    if (id <= 0) {
+        return { id: 0, name: '未知变异', color: '#a855f7', description: '' };
+    }
+    const cfg = mutantMap.get(id);
+    if (!cfg) {
+        return { id, name: `变异 #${id}`, color: '#a855f7', description: '未登记的变异类型' };
+    }
+    let matchedPlantName: string | undefined;
+    if (plantId && cfg.plants && cfg.plants[String(plantId)]) {
+        matchedPlantName = cfg.plants[String(plantId)];
+    }
+    return {
+        id: cfg.id,
+        name: cfg.name,
+        color: cfg.color || '#a855f7',
+        description: cfg.description || '',
+        matchedPlantName,
+    };
+}
+
+/**
+ * 批量解析一块地所有的变异类型
+ * 输入 plant.mutant_config_ids (number[]) 和 plant.id (植物ID)
+ * 返回 [{ configId, info, displayName }, ...]
+ */
+function getLandMutants(mutantConfigIds: number[], plantId?: number): Array<{
+    configId: number;
+    info: ReturnType<typeof getMutantInfo>;
+    displayName: string;
+}> {
+    const ids = Array.isArray(mutantConfigIds) ? mutantConfigIds : [];
+    return ids.map((cid) => {
+        const info = getMutantInfo(Number(cid), plantId);
+        const displayName = info.matchedPlantName || info.name;
+        return { configId: Number(cid), info, displayName };
+    });
+}
+
 // ============ 配置管理查询 ============
 
 function getAllFruits(): ItemInfo[] {
@@ -382,4 +463,7 @@ module.exports = {
     getItemsByType,
     getItemInfoMap,
     getPlantMap,
+    // 变异配置
+    getMutantInfo,
+    getLandMutants,
 };

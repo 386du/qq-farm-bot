@@ -151,15 +151,33 @@ function landTypeBadgeClass(level: number) {
       合种 {{ getPlantSizeText(land) }}
     </div>
 
-    <!-- 变异植物标识 (mutant) - 紫色流光徽章 -->
+    <!-- 变异植物标识 (mutant) - 显示具体变异名称，紫粉流光徽章 -->
     <div
       v-if="land.isMutant"
-      class="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
-      :class="land.plantSize > 1 ? 'top-7' : ''"
-      :title="`已变异 (配置ID: ${(land.mutantConfigIds || []).join(', ')})`"
+      class="absolute right-2 top-2 z-10 flex flex-col items-end gap-1"
     >
-      <span class="text-[10px]">✨</span>
-      <span>变异</span>
+      <div
+        v-for="m in (land.mutants || [])"
+        :key="m.configId"
+        class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
+        :style="{
+          background: `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, #ec4899 100%)`,
+        }"
+        :title="`${m.displayName}${m.matchedPlantName ? ' (' + m.name + ')' : ''}${m.description ? '\n' + m.description : ''}`"
+      >
+        <span class="text-[10px]">✨</span>
+        <span>{{ m.displayName }}</span>
+      </div>
+      <!-- 兜底: 服务端有 mutantConfigIds 但 mutants 解析失败时 -->
+      <div
+        v-if="!(land.mutants && land.mutants.length)"
+        class="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
+        :class="land.plantSize > 1 ? '' : ''"
+        :title="`已变异 (配置ID: ${(land.mutantConfigIds || []).join(', ')})`"
+      >
+        <span class="text-[10px]">✨</span>
+        <span>变异</span>
+      </div>
     </div>
 
     <!-- 催熟标识 (is_nudged) - 橙色徽章 -->
@@ -167,8 +185,10 @@ function landTypeBadgeClass(level: number) {
       v-if="land.isNudged"
       class="absolute right-2 z-10 flex items-center gap-0.5 rounded-full bg-gradient-to-r from-orange-400 to-red-400 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-sm"
       :class="[
-        land.isMutant && land.plantSize > 1 ? 'top-12' :
-        land.isMutant || land.plantSize > 1 ? 'top-7' : 'top-2'
+        // 变异徽章占用的空间估算
+        land.isMutant && land.mutants && land.mutants.length > 1 ? 'top-16' :
+        land.isMutant ? 'top-7' :
+        land.plantSize > 1 ? 'top-7' : 'top-2'
       ]"
       title="已被催熟"
     >
