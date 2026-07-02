@@ -20,7 +20,6 @@ const tokenStore = require('../../models/user-store/token-store');
 const auditLog = require('../../models/audit-log');
 const ipBlacklist = require('../../models/ip-blacklist');
 const auth = require('../../models/user-store/auth');
-const { isSuperAdminUser } = userStore;
 
 const {
     getClientIp,
@@ -154,7 +153,6 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
 
             auditLog.log('login_success', username, clientIp, {
                 role: user.role,
-                isSuperAdmin: isSuperAdminUser(user),
                 userAgent,
             });
             ipBlacklist.clearFailedAttempts(clientIp);
@@ -167,7 +165,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     role: user.role,
                     card: user.card,
                     accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2,
-                    user: { username: user.username, isSuperAdmin: isSuperAdminUser(user) },
+                    user: { username: user.username },
                     mustChangePassword: user.mustChangePassword || false
                 }
             });
@@ -416,8 +414,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                     username: user.username,
                     role: user.role,
                     card: user.card,
-                    accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2,
-                    isSuperAdmin: isSuperAdminUser(user),
+                    accountLimit: user.accountLimit || userStore.DEFAULT_ACCOUNT_LIMIT || 2
                 }
             });
         } catch (e: any) {
@@ -549,8 +546,7 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
             const currentUser = (req as any).currentUser;
             const roles = getRoles();
             // 非超级管理员只能看到非 admin 角色
-            // 走 isSuperAdminUser 判定,兼容"原 admin 改名"的场景
-            const visibleRoles = isSuperAdminUser(currentUser)
+            const visibleRoles = currentUser?.role === 'admin'
                 ? roles
                 : roles.filter((r: any) => r.value !== 'admin');
             res.json({ ok: true, data: visibleRoles });
@@ -567,7 +563,6 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 ok: true,
                 data: {
                     role: currentUser?.role,
-                    isSuperAdmin: isSuperAdminUser(currentUser),
                     permissions: getRolePermissions(currentUser?.role),
                 },
             });
@@ -604,8 +599,8 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 return res.status(400).json({ ok: false, error: '不能强制下线当前会话' });
             }
 
-            // 不能强制下线最高管理员会话(走 isSuperAdminUser 判定,兼容改名场景)
-            if (isSuperAdminUser(session.user) && !isSuperAdminUser(currentUser)) {
+            // 不能强制下线最高管理员会话（用户名 admin）
+            if (session.user?.username === 'admin' && currentUser?.username !== 'admin') {
                 return res.status(403).json({ ok: false, error: '不能强制下线最高管理员' });
             }
 
@@ -642,9 +637,8 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 return res.status(400).json({ ok: false, error: '不能强制下线自己的全部会话' });
             }
 
-            // 不能强制下线最高管理员(走 isSuperAdminUser 判定,兼容改名场景)
-            const targetUser = userStore.getAllUsers().find((u: any) => u.username === username);
-            if (targetUser && isSuperAdminUser(targetUser) && !isSuperAdminUser(currentUser)) {
+            // 不能强制下线最高管理员（用户名 admin）
+            if (username === 'admin' && currentUser?.username !== 'admin') {
                 return res.status(403).json({ ok: false, error: '不能强制下线最高管理员' });
             }
 

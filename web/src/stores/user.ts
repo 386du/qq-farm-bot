@@ -18,7 +18,6 @@ export interface User {
   accountLimit: number
   avatar?: string
   mustChangePassword?: boolean
-  isSuperAdmin?: boolean
 }
 
 export interface LoginResult {
@@ -31,7 +30,7 @@ export interface LoginResult {
     role: string
     card: UserCard | null
     accountLimit: number
-    user: { username: string; isSuperAdmin?: boolean }
+    user: { username: string }
     mustChangePassword?: boolean
   }
 }
@@ -54,12 +53,6 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => userInfo.value?.role === 'admin')
   const isAdminPanelUser = computed(() => ['admin', 'operator', 'viewer'].includes(userInfo.value?.role || ''))
-  const isSuperAdmin = computed(() => {
-    if (userInfo.value?.isSuperAdmin === true) return true
-    // 兼容历史数据:如果 role === 'admin' 也视为最高管理员
-    if (userInfo.value?.role === 'admin' && userInfo.value?.isSuperAdmin === undefined) return true
-    return false
-  })
   const username = computed(() => userInfo.value?.username || '')
   const role = computed(() => userInfo.value?.role || 'user')
   const userCard = computed(() => userInfo.value?.card)
@@ -96,7 +89,6 @@ export const useUserStore = defineStore('user', () => {
           card: res.data.data.card,
           accountLimit: res.data.data.accountLimit ?? 2,
           mustChangePassword: res.data.data.mustChangePassword,
-          isSuperAdmin: res.data.data.user?.isSuperAdmin ?? (res.data.data.role === 'admin'),
         }
       }
       return res.data
@@ -294,7 +286,6 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     isAdmin,
     isAdminPanelUser,
-    isSuperAdmin,
     username,
     role,
     userCard,
