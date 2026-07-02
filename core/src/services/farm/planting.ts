@@ -531,13 +531,22 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
             // plant.left_inorc_fert_times (field 17) - 剩余施肥次数
             const leftFertTimes = toNum(plant.left_inorc_fert_times);
             // 解析具体变异类型名称 (使用 MutantConfig.json 映射表)
-            const mutants: Array<{ configId: number; displayName: string; name: string; color: string; description: string; matchedPlantName?: string }> = isMutant
+            const mutants: Array<{
+                configId: number; displayName: string;
+                name: string; icon: string; color: string; bgColor: string;
+                description: string; effect: string; effectValue: string;
+                matchedPlantName?: string;
+            }> = isMutant
                 ? getLandMutants(mutantConfigIds, plantId).map((m: any) => ({
                     configId: m.configId,
                     displayName: m.displayName,
                     name: m.info.name,
+                    icon: m.info.icon,
                     color: m.info.color,
+                    bgColor: m.info.bgColor,
                     description: m.info.description,
+                    effect: m.info.effect,
+                    effectValue: m.info.effectValue,
                     matchedPlantName: m.info.matchedPlantName,
                 }))
                 : [];

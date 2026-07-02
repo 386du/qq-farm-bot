@@ -78,10 +78,17 @@ function getLandStatusClass(land: any) {
 }
 
 /**
- * 变异地块专用样式 - 紫色流光边框
- * 注意：合种植物不应用流光，避免与合种徽章视觉冲突
+ * 变异地块专用样式 - 边框颜色取自第一个变异的 color
  */
 const isLandMutant = computed(() => !!land.value?.isMutant)
+const mutantBorderColor = computed(() => {
+    const m = (land.value?.mutants || [])[0]
+    return m?.color || '#a855f7'
+})
+const mutantBorderGlow = computed(() => {
+    const m = (land.value?.mutants || [])[0]
+    return m?.bgColor || '#f5d0fe'
+})
 const isLandNudged = computed(() => !!land.value?.isNudged)
 
 function formatTime(sec: number) {
@@ -137,6 +144,7 @@ function landTypeBadgeClass(level: number) {
   <div
     class="land-card relative min-h-[160px] flex flex-col cartoon-card items-center border-2 rounded-2xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
     :class="[getLandStatusClass(land), isLandMutant ? 'land-mutant' : '', isLandNudged ? 'land-nudged' : '']"
+    :style="isLandMutant ? { '--mutant-color': mutantBorderColor, '--mutant-glow': mutantBorderGlow } : {}"
   >
     <!-- Land ID badge -->
     <div class="absolute left-2 top-2 text-[10px] font-display font-mono opacity-50">
@@ -151,7 +159,7 @@ function landTypeBadgeClass(level: number) {
       合种 {{ getPlantSizeText(land) }}
     </div>
 
-    <!-- 变异植物标识 (mutant) - 显示具体变异名称，紫粉流光徽章 -->
+    <!-- 变异植物标识 (mutant) - 显示具体变异名称 + 游戏内图标 -->
     <div
       v-if="land.isMutant"
       class="absolute right-2 top-2 z-10 flex flex-col items-end gap-1"
@@ -161,18 +169,23 @@ function landTypeBadgeClass(level: number) {
         :key="m.configId"
         class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
         :style="{
-          background: `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, #ec4899 100%)`,
+          background: `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, ${m.bgColor || '#f5d0fe'} 100%)`,
+          color: '#ffffff',
+          textShadow: '0 1px 2px rgba(0,0,0,0.3)',
         }"
-        :title="`${m.displayName}${m.matchedPlantName ? ' (' + m.name + ')' : ''}${m.description ? '\n' + m.description : ''}`"
+        :title="`${m.icon} ${m.name} (${m.effect}: ${m.effectValue})\n${m.description}${m.matchedPlantName ? '\n此植物: ' + m.matchedPlantName : ''}`"
       >
-        <span class="text-[10px]">✨</span>
-        <span>{{ m.displayName }}</span>
+        <span class="text-[11px]">{{ m.icon }}</span>
+        <span>{{ m.name }}</span>
+        <span
+          v-if="m.effectValue && /^×/.test(m.effectValue)"
+          class="ml-0.5 rounded-full bg-white/30 px-1 text-[9px]"
+        >{{ m.effectValue }}</span>
       </div>
       <!-- 兜底: 服务端有 mutantConfigIds 但 mutants 解析失败时 -->
       <div
         v-if="!(land.mutants && land.mutants.length)"
         class="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
-        :class="land.plantSize > 1 ? '' : ''"
         :title="`已变异 (配置ID: ${(land.mutantConfigIds || []).join(', ')})`"
       >
         <span class="text-[10px]">✨</span>
@@ -381,13 +394,13 @@ function landTypeBadgeClass(level: number) {
   animation: pulse-glow-gold 2s ease-in-out infinite;
 }
 
-/* ===== 变异地块 - 紫色流光边框 ===== */
+/* ===== 变异地块 - 流光边框（颜色随首个变异动态变化） ===== */
 .land-mutant {
-  border-color: #a855f7 !important;
+  border-color: var(--mutant-color, #a855f7) !important;
   box-shadow:
-    0 0 0 2px #a855f7,
-    0 0 18px rgba(168, 85, 247, 0.45),
-    0 0 32px rgba(236, 72, 153, 0.25),
+    0 0 0 2px var(--mutant-color, #a855f7),
+    0 0 18px color-mix(in srgb, var(--mutant-color, #a855f7) 45%, transparent),
+    0 0 32px color-mix(in srgb, var(--mutant-glow, #f5d0fe) 30%, transparent),
     0 3px 0 rgba(0, 0, 0, 0.15);
   animation: mutant-aura 2.5s ease-in-out infinite;
 }
@@ -396,16 +409,16 @@ function landTypeBadgeClass(level: number) {
   0%,
   100% {
     box-shadow:
-      0 0 0 2px #a855f7,
-      0 0 14px rgba(168, 85, 247, 0.35),
-      0 0 24px rgba(236, 72, 153, 0.2),
+      0 0 0 2px var(--mutant-color, #a855f7),
+      0 0 14px color-mix(in srgb, var(--mutant-color, #a855f7) 35%, transparent),
+      0 0 24px color-mix(in srgb, var(--mutant-glow, #f5d0fe) 22%, transparent),
       0 3px 0 rgba(0, 0, 0, 0.15);
   }
   50% {
     box-shadow:
-      0 0 0 3px #c084fc,
-      0 0 22px rgba(168, 85, 247, 0.55),
-      0 0 40px rgba(236, 72, 153, 0.35),
+      0 0 0 3px var(--mutant-color, #a855f7),
+      0 0 22px color-mix(in srgb, var(--mutant-color, #a855f7) 60%, transparent),
+      0 0 40px color-mix(in srgb, var(--mutant-glow, #f5d0fe) 40%, transparent),
       0 3px 0 rgba(0, 0, 0, 0.15);
   }
 }

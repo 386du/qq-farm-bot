@@ -1,50 +1,90 @@
 [
   {
     "id": 1,
-    "name": "金变异",
+    "name": "黄金",
+    "icon": "🏆",
     "color": "#fbbf24",
-    "description": "黄金色泽的高价值变异",
+    "bgColor": "#fef3c7",
+    "description": "稀有作物生长过程中随机出现",
+    "effect": "产出",
+    "effectValue": "黄金果实",
     "plants": {}
   },
   {
     "id": 2,
-    "name": "紫晶变异",
-    "color": "#a855f7",
-    "description": "紫晶色泽的稀有变异",
-    "plants": {
-      "1020002": "紫晶白萝卜",
-      "1020003": "紫晶胡萝卜",
-      "1020004": "紫晶白菜",
-      "1020030": "紫晶苹果",
-      "1020031": "紫晶橙子"
-    }
+    "name": "冰冻",
+    "icon": "❄️",
+    "color": "#06b6d4",
+    "bgColor": "#cffafe",
+    "description": "作物生长过程中随机出现",
+    "effect": "售价",
+    "effectValue": "×3倍",
+    "plants": {}
   },
   {
     "id": 3,
-    "name": "翡翠变异",
-    "color": "#10b981",
-    "description": "翡翠色泽的变异",
-    "plants": {
-      "1020002": "翡翠白萝卜",
-      "1020004": "翡翠白菜",
-      "1020006": "翡翠南瓜"
-    }
+    "name": "爱心",
+    "icon": "💗",
+    "color": "#ec4899",
+    "bgColor": "#fce7f3",
+    "description": "作物生长过程中随机出现",
+    "effect": "数量",
+    "effectValue": "×3倍",
+    "plants": {}
   },
   {
     "id": 4,
-    "name": "蜜糖变异",
-    "color": "#f59e0b",
-    "description": "蜜糖色泽的变异",
-    "plants": {
-      "1020031": "蜜糖橙子",
-      "1020043": "蜜糖草莓"
-    }
+    "name": "暗化",
+    "icon": "🌑",
+    "color": "#6366f1",
+    "bgColor": "#e0e7ff",
+    "description": "作物生长过程中随机出现",
+    "effect": "售价",
+    "effectValue": "×2倍",
+    "plants": {}
   },
   {
     "id": 5,
-    "name": "月光变异",
-    "color": "#e0e7ff",
-    "description": "月光色泽的稀有变异",
+    "name": "湿润",
+    "icon": "💧",
+    "color": "#3b82f6",
+    "bgColor": "#dbeafe",
+    "description": "作物生长过程中随机出现",
+    "effect": "数量",
+    "effectValue": "×2倍",
+    "plants": {}
+  },
+  {
+    "id": 6,
+    "name": "月华",
+    "icon": "🌸",
+    "color": "#a78bfa",
+    "bgColor": "#ede9fe",
+    "description": "种植琉璃宝荷有概率出现",
+    "effect": "产出",
+    "effectValue": "月华宝荷",
+    "plants": {}
+  },
+  {
+    "id": 7,
+    "name": "荷华",
+    "icon": "🪷",
+    "color": "#f0abfc",
+    "bgColor": "#fae8ff",
+    "description": "种植荷风游记稀有种子有概率出现",
+    "effect": "产出",
+    "effectValue": "荷花",
+    "plants": {}
+  },
+  {
+    "id": 8,
+    "name": "塔塔",
+    "icon": "🎃",
+    "color": "#fb923c",
+    "bgColor": "#ffedd5",
+    "description": "种植哈哈南瓜有概率出现",
+    "effect": "产出",
+    "effectValue": "哈哈南瓜塔",
     "plants": {}
   }
 ]

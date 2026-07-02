@@ -105,8 +105,12 @@ const seedItemMap = new Map<number, ItemInfo>();
 interface MutantConfigItem {
     id: number;
     name: string;
+    icon: string;
     color: string;
+    bgColor: string;
     description: string;
+    effect: string;        // 产出/售价/数量
+    effectValue: string;   // 黄金果实/×3倍/×2倍/具体植物
     plants: Record<string, string>;
 }
 let mutantConfig: MutantConfigItem[] | null = null;
@@ -361,17 +365,27 @@ function getAllPlants(): PlantItem[] {
 function getMutantInfo(configId: number, plantId?: number): {
     id: number;
     name: string;
+    icon: string;
     color: string;
+    bgColor: string;
     description: string;
+    effect: string;
+    effectValue: string;
     matchedPlantName?: string;
 } {
     const id = Number(configId) || 0;
     if (id <= 0) {
-        return { id: 0, name: '未知变异', color: '#a855f7', description: '' };
+        return {
+            id: 0, name: '未知变异', icon: '✨', color: '#a855f7', bgColor: '#f5d0fe',
+            description: '', effect: '', effectValue: '',
+        };
     }
     const cfg = mutantMap.get(id);
     if (!cfg) {
-        return { id, name: `变异 #${id}`, color: '#a855f7', description: '未登记的变异类型' };
+        return {
+            id, name: `变异 #${id}`, icon: '✨', color: '#a855f7', bgColor: '#f5d0fe',
+            description: '未登记的变异类型', effect: '', effectValue: '',
+        };
     }
     let matchedPlantName: string | undefined;
     if (plantId && cfg.plants && cfg.plants[String(plantId)]) {
@@ -380,8 +394,12 @@ function getMutantInfo(configId: number, plantId?: number): {
     return {
         id: cfg.id,
         name: cfg.name,
+        icon: cfg.icon || '✨',
         color: cfg.color || '#a855f7',
+        bgColor: cfg.bgColor || '#f5d0fe',
         description: cfg.description || '',
+        effect: cfg.effect || '',
+        effectValue: cfg.effectValue || '',
         matchedPlantName,
     };
 }
