@@ -160,6 +160,22 @@ onUnmounted(() => {
           <div class="i-carbon-warning" />
           枯萎: <span class="font-bold">{{ summary?.dead || 0 }}</span>
         </div>
+        <div
+          v-if="(summary?.mutant || 0) > 0"
+          class="flex items-center gap-2 rounded-full px-4 py-1.5 font-semibold shadow-sm transition-all duration-200 hover:scale-105"
+          style="background: linear-gradient(135deg, #f5d0fe 0%, #f0abfc 50%, #c084fc 100%); color: #6b21a8"
+        >
+          <span class="text-base">✨</span>
+          变异: <span class="font-bold">{{ summary?.mutant || 0 }}</span>
+        </div>
+        <div
+          v-if="(summary?.nudged || 0) > 0"
+          class="flex items-center gap-2 rounded-full px-4 py-1.5 font-semibold shadow-sm transition-all duration-200 hover:scale-105"
+          style="background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%); color: #9a3412"
+        >
+          <span class="text-base">⚡</span>
+          催熟: <span class="font-bold">{{ summary?.nudged || 0 }}</span>
+        </div>
       </div>
 
       <!-- Grid -->

@@ -186,6 +186,8 @@ function summarizeLandDetails(lands: any[]): {
     needWater: number;
     needWeed: number;
     needBug: number;
+    mutant: number;
+    nudged: number;
 } {
     const summary = {
         harvestable: 0,
@@ -195,6 +197,8 @@ function summarizeLandDetails(lands: any[]): {
         needWater: 0,
         needWeed: 0,
         needBug: 0,
+        mutant: 0,
+        nudged: 0,
     };
 
     for (const land of Array.isArray(lands) ? lands : []) {
@@ -209,6 +213,8 @@ function summarizeLandDetails(lands: any[]): {
         if (land.needWater) summary.needWater++;
         if (land.needWeed) summary.needWeed++;
         if (land.needBug) summary.needBug++;
+        if (land.isMutant) summary.mutant++;
+        if (land.isNudged) summary.nudged++;
     }
 
     return summary;

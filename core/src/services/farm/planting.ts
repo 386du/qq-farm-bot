@@ -519,6 +519,18 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
             const needWeed = (plant.weed_owners && plant.weed_owners.length > 0) || (toTimeSec(currentPhase.weeds_time) > 0 && toTimeSec(currentPhase.weeds_time) <= nowSec);
             const needBug = (plant.insect_owners && plant.insect_owners.length > 0) || (toTimeSec(currentPhase.insect_time) > 0 && toTimeSec(currentPhase.insect_time) <= nowSec);
 
+            // ========== 变异 / 催熟解析 ==========
+            // plant.mutant_config_ids (field 20) 是 repeated int64，非空即代表该植物已发生变异
+            const mutantConfigIds: number[] = Array.isArray(plant.mutant_config_ids)
+                ? plant.mutant_config_ids.map((v: any) => toNum(v)).filter((n: number) => n > 0)
+                : [];
+            // 兼容老版本：直接检查原始字段
+            const isMutant = mutantConfigIds.length > 0;
+            // plant.is_nudged (field 21) - 是否被催熟
+            const isNudged = !!plant.is_nudged;
+            // plant.left_inorc_fert_times (field 17) - 剩余施肥次数
+            const leftFertTimes = toNum(plant.left_inorc_fert_times);
+
             lands.push({
                 id,
                 unlocked: true,
@@ -545,6 +557,11 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
                 masterLandId,
                 occupiedLandIds,
                 plantSize,
+                // 变异 / 催熟
+                isMutant,
+                mutantConfigIds,
+                isNudged,
+                leftFertTimes,
             });
         }
 

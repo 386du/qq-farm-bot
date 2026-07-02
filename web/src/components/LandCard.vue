@@ -77,6 +77,13 @@ function getLandStatusClass(land: any) {
   return baseClass
 }
 
+/**
+ * 变异地块专用样式 - 紫色流光边框
+ * 注意：合种植物不应用流光，避免与合种徽章视觉冲突
+ */
+const isLandMutant = computed(() => !!land.value?.isMutant)
+const isLandNudged = computed(() => !!land.value?.isNudged)
+
 function formatTime(sec: number) {
   if (sec <= 0)
     return ''
@@ -129,7 +136,7 @@ function landTypeBadgeClass(level: number) {
 <template>
   <div
     class="land-card relative min-h-[160px] flex flex-col cartoon-card items-center border-2 rounded-2xl p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-    :class="getLandStatusClass(land)"
+    :class="[getLandStatusClass(land), isLandMutant ? 'land-mutant' : '', isLandNudged ? 'land-nudged' : '']"
   >
     <!-- Land ID badge -->
     <div class="absolute left-2 top-2 text-[10px] font-display font-mono opacity-50">
@@ -142,6 +149,31 @@ function landTypeBadgeClass(level: number) {
       class="absolute right-2 top-2 rounded-full bg-pink-100 px-1.5 py-0.5 text-[10px] text-pink-700 font-bold shadow-sm dark:bg-pink-900/30 dark:text-pink-300"
     >
       合种 {{ getPlantSizeText(land) }}
+    </div>
+
+    <!-- 变异植物标识 (mutant) - 紫色流光徽章 -->
+    <div
+      v-if="land.isMutant"
+      class="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
+      :class="land.plantSize > 1 ? 'top-7' : ''"
+      :title="`已变异 (配置ID: ${(land.mutantConfigIds || []).join(', ')})`"
+    >
+      <span class="text-[10px]">✨</span>
+      <span>变异</span>
+    </div>
+
+    <!-- 催熟标识 (is_nudged) - 橙色徽章 -->
+    <div
+      v-if="land.isNudged"
+      class="absolute right-2 z-10 flex items-center gap-0.5 rounded-full bg-gradient-to-r from-orange-400 to-red-400 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-sm"
+      :class="[
+        land.isMutant && land.plantSize > 1 ? 'top-12' :
+        land.isMutant || land.plantSize > 1 ? 'top-7' : 'top-2'
+      ]"
+      title="已被催熟"
+    >
+      <span class="text-[10px]">⚡</span>
+      <span>催熟</span>
     </div>
 
     <!-- Plant image with growth animation -->
@@ -327,6 +359,78 @@ function landTypeBadgeClass(level: number) {
     0 0 16px rgba(240, 192, 64, 0.35),
     0 3px 0 rgba(0, 0, 0, 0.15);
   animation: pulse-glow-gold 2s ease-in-out infinite;
+}
+
+/* ===== 变异地块 - 紫色流光边框 ===== */
+.land-mutant {
+  border-color: #a855f7 !important;
+  box-shadow:
+    0 0 0 2px #a855f7,
+    0 0 18px rgba(168, 85, 247, 0.45),
+    0 0 32px rgba(236, 72, 153, 0.25),
+    0 3px 0 rgba(0, 0, 0, 0.15);
+  animation: mutant-aura 2.5s ease-in-out infinite;
+}
+
+@keyframes mutant-aura {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #a855f7,
+      0 0 14px rgba(168, 85, 247, 0.35),
+      0 0 24px rgba(236, 72, 153, 0.2),
+      0 3px 0 rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #c084fc,
+      0 0 22px rgba(168, 85, 247, 0.55),
+      0 0 40px rgba(236, 72, 153, 0.35),
+      0 3px 0 rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* 变异徽章本身的脉冲动效 */
+.animate-mutant-pulse {
+  animation: mutant-badge-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mutant-badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.2);
+  }
+}
+
+/* ===== 催熟地块 - 橙色虚线脉冲 ===== */
+.land-nudged {
+  border-color: #fb923c !important;
+  box-shadow:
+    0 0 0 2px #fb923c,
+    0 0 12px rgba(251, 146, 60, 0.4),
+    0 3px 0 rgba(0, 0, 0, 0.15);
+  animation: nudged-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes nudged-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px #fb923c,
+      0 0 10px rgba(251, 146, 60, 0.3),
+      0 3px 0 rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px #fdba74,
+      0 0 18px rgba(251, 146, 60, 0.55),
+      0 3px 0 rgba(0, 0, 0, 0.15);
+  }
 }
 
 @keyframes pulse-glow-gold {
