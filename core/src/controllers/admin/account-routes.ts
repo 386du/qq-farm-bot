@@ -500,6 +500,53 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
             res.status(500).json({ ok: false, error: e.message });
         }
     });
+
+    // API: 导出当前账号的完整 settings（用于配置备份）
+    app.get('/api/settings/export', async (req: Request, res: Response) => {
+        try {
+            const id = getAccId(ctx, req);
+            if (id && !checkAccountAccess(ctx, req as any, id)) {
+                return res.status(403).json({ ok: false, error: '无权访问此账号' });
+            }
+            if (typeof store.getConfigSnapshot !== 'function') {
+                return res.status(500).json({ ok: false, error: '当前版本不支持配置导出' });
+            }
+            const snapshot = store.getConfigSnapshot(id);
+            res.json({
+                ok: true,
+                data: {
+                    accountId: id || null,
+                    exportedAt: new Date().toISOString(),
+                    settings: snapshot,
+                },
+            });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // API: 导入 settings（用于配置恢复）
+    app.post('/api/settings/import', async (req: Request, res: Response) => {
+        try {
+            const id = getAccId(ctx, req);
+            if (!id) {
+                return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+            }
+            if (!checkAccountAccess(ctx, req as any, id)) {
+                return res.status(403).json({ ok: false, error: '无权访问此账号' });
+            }
+            if (typeof store.applyConfigSnapshot !== 'function') {
+                return res.status(500).json({ ok: false, error: '当前版本不支持配置导入' });
+            }
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const settings = body.settings && typeof body.settings === 'object' ? body.settings : body;
+            const updated = store.applyConfigSnapshot(settings, { accountId: id, persist: true });
+            audit('account_settings_imported', req, { accountId: id });
+            res.json({ ok: true, data: updated });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
 }
 
 module.exports = { mountAccountRoutes };
