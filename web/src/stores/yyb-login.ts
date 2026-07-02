@@ -2,21 +2,30 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import api from '@/api'
 
+export interface YybOpenIdEntry {
+  openid: string
+  apiToken: string
+  name?: string
+}
+
 export interface YybConfig {
   enabled: boolean
-  apiToken: string
   endpoint: string
   reconnectIntervalMinutes: number
   autoReconnect: boolean
-  openIds: string[]
+  accounts: YybOpenIdEntry[]
+  // 旧数据字段(只读,用于前端兜底显示迁移前的 token)
+  apiToken?: string
+  openIds?: string[]
 }
 
 const defaultConfig: YybConfig = {
   enabled: false,
-  apiToken: '',
   endpoint: 'http://211.154.25.123:28999/api/open/v1/farm/code',
   reconnectIntervalMinutes: 0,
   autoReconnect: true,
+  accounts: [],
+  apiToken: '',
   openIds: [],
 }
 
@@ -96,7 +105,9 @@ export const useYybLoginStore = defineStore('yyb-login', () => {
         return { ok: false, error: result.error || '获取 Code 失败' }
       }
 
-      const name = preferName?.trim() || `应用宝_${openid.slice(-6)}`
+      // 优先用传入的 preferName,其次用配置里的 name,最后用 openid 末 6 位
+      const entry = rawConfig.value.accounts.find((a: any) => a.openid === openid)
+      const name = preferName?.trim() || (entry && entry.name ? entry.name : '') || `应用宝_${openid.slice(-6)}`
       const existing = accountStore.accounts.find((a: any) => a.openid === openid)
 
       try {

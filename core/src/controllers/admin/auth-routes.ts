@@ -505,16 +505,29 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
             if (!cfg || !cfg.enabled) {
                 return res.status(400).json({ ok: false, error: '应用宝配置未启用' });
             }
-            if (!cfg.apiToken) {
-                return res.status(400).json({ ok: false, error: '未配置 API Token' });
-            }
             if (!cfg.endpoint) {
                 return res.status(400).json({ ok: false, error: '未配置接口地址' });
+            }
+            // 优先从 accounts[].apiToken 读取;旧数据兼容 (openIds + 顶层 apiToken)
+            let apiToken = '';
+            if (Array.isArray(cfg.accounts)) {
+                const entry = cfg.accounts.find((a: any) => a && String(a.openid || '').trim() === openid);
+                if (entry && entry.apiToken) apiToken = String(entry.apiToken).trim();
+            }
+            // 旧数据兜底:从 (cfg as any).openIds + (cfg as any).apiToken 推导
+            if (!apiToken && (cfg as any).apiToken) {
+                const legacyOpenIds = Array.isArray((cfg as any).openIds) ? (cfg as any).openIds : [];
+                if (legacyOpenIds.map((x: any) => String(x).trim()).includes(openid)) {
+                    apiToken = String((cfg as any).apiToken).trim();
+                }
+            }
+            if (!apiToken) {
+                return res.status(400).json({ ok: false, error: `OpenID ${openid} 未配置 Token,请在应用宝配置中补充` });
             }
 
             const result = await fetchFarmCode({
                 endpoint: cfg.endpoint,
-                apiToken: cfg.apiToken,
+                apiToken,
                 openid,
             });
 

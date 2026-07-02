@@ -1073,7 +1073,7 @@ async function handleTestOffline() {
               <BaseButton
                 variant="secondary"
                 size="sm"
-                :disabled="yybStore.config.openIds.length === 0"
+                :disabled="yybStore.config.accounts.length === 0"
                 @click="openYybLogin()"
               >
                 <span class="mr-2">🔑</span>

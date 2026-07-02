@@ -5,6 +5,12 @@ import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSwitch from '@/components/ui/BaseSwitch.vue'
 import { useYybLoginStore } from '@/stores/yyb-login'
 
+interface AccountDraft {
+  openid: string
+  apiToken: string
+  name: string
+}
+
 const props = defineProps<{
   show: boolean
 }>()
@@ -13,26 +19,24 @@ const emit = defineEmits(['close'])
 
 const yybStore = useYybLoginStore()
 const saving = ref(false)
-const newOpenId = ref('')
 
 const form = ref({
-  apiToken: '',
   endpoint: 'http://211.154.25.123:28999/api/open/v1/farm/code',
   reconnectIntervalMinutes: 0,
   autoReconnect: true,
-  openIds: [] as string[],
+  accounts: [] as AccountDraft[],
 })
 
 function resetForm() {
   const cfg = yybStore.config
   form.value = {
-    apiToken: cfg.apiToken || '',
     endpoint: cfg.endpoint || 'http://211.154.25.123:28999/api/open/v1/farm/code',
     reconnectIntervalMinutes: cfg.reconnectIntervalMinutes || 0,
     autoReconnect: cfg.autoReconnect !== false,
-    openIds: Array.isArray(cfg.openIds) ? [...cfg.openIds] : [],
+    accounts: Array.isArray(cfg.accounts)
+      ? cfg.accounts.map((a: any) => ({ openid: a.openid || '', apiToken: a.apiToken || '', name: a.name || '' }))
+      : [],
   }
-  newOpenId.value = ''
 }
 
 watch(() => props.show, (show) => {
@@ -64,37 +68,47 @@ function decreaseInterval() {
   }
 }
 
-function addOpenId() {
-  const value = newOpenId.value.trim()
-  if (!value)
-    return
-  if (!form.value.openIds.includes(value)) {
-    form.value.openIds.push(value)
-  }
-  newOpenId.value = ''
+function addAccount() {
+  form.value.accounts.push({ openid: '', apiToken: '', name: '' })
 }
 
-function removeOpenId(index: number) {
-  form.value.openIds.splice(index, 1)
+function removeAccount(index: number) {
+  form.value.accounts.splice(index, 1)
 }
 
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    addOpenId()
-  }
+function toggleTokenVisible(index: number) {
+  // 简单切换:用 type 字符串存到 entry 上
+  const acc = form.value.accounts[index] as any
+  acc._showToken = !acc._showToken
+}
+
+function isTokenVisible(index: number): boolean {
+  const acc = form.value.accounts[index] as any
+  return !!acc._showToken
 }
 
 async function handleSave() {
   saving.value = true
   try {
+    // 清理:openid 或 token 为空的条目丢弃
+    const cleaned = form.value.accounts
+      .map(a => ({ openid: a.openid.trim(), apiToken: a.apiToken.trim(), name: a.name.trim() }))
+      .filter(a => a.openid && a.apiToken)
+
+    // 同 openid 去重
+    const seen = new Set<string>()
+    const deduped = cleaned.filter((a) => {
+      if (seen.has(a.openid)) return false
+      seen.add(a.openid)
+      return true
+    })
+
     await yybStore.saveConfig({
       enabled: true,
-      apiToken: form.value.apiToken,
       endpoint: form.value.endpoint,
       reconnectIntervalMinutes: form.value.reconnectIntervalMinutes,
       autoReconnect: form.value.autoReconnect,
-      openIds: form.value.openIds,
+      accounts: deduped,
     })
     emit('close')
   }
@@ -113,7 +127,7 @@ function close() {
     <div v-if="show" class="fixed inset-0 z-50">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click.self="close" />
       <div
-        class="absolute left-1/2 top-1/2 z-10 max-w-md w-[calc(100%-2rem)] flex flex-col rounded-2xl -translate-x-1/2 -translate-y-1/2"
+        class="absolute left-1/2 top-1/2 z-10 max-w-lg w-[calc(100%-2rem)] flex flex-col rounded-2xl -translate-x-1/2 -translate-y-1/2"
         :style="panelStyle"
         @click.stop
       >
@@ -123,7 +137,7 @@ function close() {
               应用宝配置
             </h3>
             <p class="mt-1 text-xs opacity-70" style="color: var(--theme-text)">
-              配置应用宝一键登录的 API Token 和 OpenID
+              每个 OpenID 可绑定独立 Token(不同外部 API 账号的 Token 不通用)
             </p>
           </div>
           <BaseButton variant="ghost" class="!p-1" @click="close">
@@ -133,14 +147,6 @@ function close() {
 
         <div class="min-h-0 flex-1 overflow-y-auto p-4">
           <div class="space-y-4">
-            <BaseInput
-              v-model="form.apiToken"
-              label="API Token"
-              type="password"
-              placeholder="请输入 API Token"
-              class="farm-input"
-            />
-
             <BaseInput
               v-model="form.endpoint"
               label="接口地址"
@@ -189,36 +195,74 @@ function close() {
             </div>
 
             <div class="space-y-2">
-              <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
-                OpenID 列表
-              </label>
-              <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-sm text-gray-700 font-medium dark:text-gray-300">
+                  OpenID 列表
+                  <span class="text-xs opacity-70">({{ form.accounts.length }} 个)</span>
+                </label>
+                <BaseButton variant="secondary" size="sm" @click="addAccount">
+                  + 添加
+                </BaseButton>
+              </div>
+
+              <div v-if="form.accounts.length === 0" class="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-4 text-center text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-800/30 dark:text-gray-400">
+                尚未添加 OpenID,点击右上"+ 添加"开始
+              </div>
+
+              <div v-else class="space-y-3">
                 <div
-                  v-for="(openid, index) in form.openIds"
-                  :key="openid"
-                  class="flex items-center justify-between gap-2 border border-gray-200 rounded-xl bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-800/50"
+                  v-for="(acc, index) in form.accounts"
+                  :key="index"
+                  class="rounded-xl border border-gray-200 bg-white p-3 space-y-2 dark:border-gray-600 dark:bg-gray-800"
                 >
-                  <span class="min-w-0 flex-1 truncate text-sm" :style="{ color: 'var(--theme-text)' }">
-                    {{ openid }}
-                  </span>
-                  <button
-                    type="button"
-                    class="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                    @click="removeOpenId(index)"
-                  >
-                    <div class="i-carbon-trash-can text-lg" />
-                  </button>
-                </div>
-                <div class="flex gap-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs opacity-70" style="color: var(--theme-text)">
+                      账号 #{{ index + 1 }}
+                    </span>
+                    <button
+                      type="button"
+                      class="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                      @click="removeAccount(index)"
+                    >
+                      <div class="i-carbon-trash-can text-lg" />
+                    </button>
+                  </div>
+
                   <BaseInput
-                    v-model="newOpenId"
-                    placeholder="输入新 OpenID"
-                    class="flex-1 farm-input"
-                    @keydown="handleKeydown"
+                    v-model="acc.openid"
+                    label="OpenID"
+                    placeholder="输入 OpenID"
+                    class="farm-input"
                   />
-                  <BaseButton variant="secondary" size="sm" class="shrink-0" @click="addOpenId">
-                    添加
-                  </BaseButton>
+
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                      <label class="text-xs text-gray-700 font-medium dark:text-gray-300">
+                        API Token
+                      </label>
+                      <button
+                        type="button"
+                        class="text-xs opacity-70 hover:opacity-100"
+                        style="color: var(--theme-text)"
+                        @click="toggleTokenVisible(index)"
+                      >
+                        {{ isTokenVisible(index) ? '隐藏' : '显示' }}
+                      </button>
+                    </div>
+                    <input
+                      v-model="acc.apiToken"
+                      :type="isTokenVisible(index) ? 'text' : 'password'"
+                      placeholder="该 OpenID 对应的 API Token"
+                      class="farm-input w-full rounded-xl border-3 border-black/10 bg-white px-3 py-2 text-sm outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    >
+                  </div>
+
+                  <BaseInput
+                    v-model="acc.name"
+                    label="备注名 (可选)"
+                    placeholder="例如:大号 / 小号 / 角色1"
+                    class="farm-input"
+                  />
                 </div>
               </div>
             </div>

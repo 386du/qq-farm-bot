@@ -117,13 +117,23 @@ export interface Announcement {
   updatedAt: number;
 }
 
+export interface YybOpenIdEntry {
+  // 应用宝 OpenID(每个账号独立,来自应用宝一键登录服务)
+  openid: string;
+  // 该 openid 对应的 API Token(不同 openid 可能来自不同外部 API 账号,token 不通用)
+  apiToken: string;
+  // 备注名(可选,登录时默认用 openid 末 6 位)
+  name?: string;
+}
+
 export interface YybConfig {
   enabled: boolean;
-  apiToken: string;
+  // 接口地址(公共,所有 openid 共享)
   endpoint: string;
   reconnectIntervalMinutes: number;
   autoReconnect: boolean;
-  openIds: string[];
+  // openid 列表,每个 openid 带自己的 token
+  accounts: YybOpenIdEntry[];
 }
 
 export interface GlobalConfig {
