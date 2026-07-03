@@ -6,6 +6,7 @@ export {};
  */
 const { createScheduler } = require('../services/scheduler');
 const { fetchFarmCode } = require('../services/yyb-login');
+const { isScanInProgress } = require('./scan-status');
 
 interface YybReloginOptions {
     store: any;
@@ -123,6 +124,11 @@ function createYybReloginService(options: YybReloginOptions) {
 
             const last = lastRefreshAt.get(accountId) || 0;
             if (now - last < intervalMinutes * 60 * 1000) continue;
+
+            // 扫描进行中：跳过本次定时重连，等扫描结束（done/error/interrupted）后再恢复。
+            if (typeof isScanInProgress === 'function' && isScanInProgress(accountId)) {
+                continue;
+            }
 
             const refreshResult = await applyCodeRefresh(account, 'scheduled');
             if (refreshResult.ok && refreshResult.code) {

@@ -1,7 +1,7 @@
 export {};
 const { findAccountByRef, normalizeAccountRef, resolveAccountId: resolveAccountIdByList } = require('../services/account-resolver');
 const { getSchedulerRegistrySnapshot } = require('../services/scheduler');
-const { getScanStatus, clearScanStatus } = require('./scan-status');
+const { getScanStatus, setScanStatus, clearScanStatus } = require('./scan-status');
 
 interface DataProviderOptions {
     workers: Record<string, any>;
@@ -122,7 +122,19 @@ function createDataProvider(options: DataProviderOptions) {
         rejectFriendApplications: (accountRef: string, gids: number[]) => callWorkerApi(resolveAccountRefId(accountRef), 'rejectFriendApplications', gids),
         scanGuardDogFriends: (accountRef: string, options?: any) => {
             const opts = (options && typeof options === 'object') ? options : {};
-            return callWorkerApi(resolveAccountRefId(accountRef), 'scanGuardDogFriends', resolveAccountRefId(accountRef), { ...opts, __apiTimeoutMs: 120000 });
+            const accountId = resolveAccountRefId(accountRef);
+            // 入口处立刻标记为 running，避免 yyb-relogin 等定时任务在
+            // worker 还没发出第一条 progress 之前抢先把 worker 重启。
+            setScanStatus(accountId, {
+                status: 'running',
+                index: 0,
+                total: 0,
+                friendName: '',
+                friendGid: 0,
+                scanStatus: '',
+                message: '',
+            });
+            return callWorkerApi(accountId, 'scanGuardDogFriends', accountId, { ...opts, __apiTimeoutMs: 120000 });
         },
         getScanGuardDogStatus: (accountRef: string) => {
             const accountId = resolveAccountRefId(accountRef);
