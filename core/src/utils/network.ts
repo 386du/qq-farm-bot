@@ -150,7 +150,7 @@ function sendMsgAsync(serviceName: string, methodName: string, bodyBytes: Buffer
             return;
         }
 
-        if (pendingCallbacks.size >= 5) {
+        if (pendingCallbacks.size >= 30) {
             reject(new Error(`请求队列已满: ${methodName} (pending=${pendingCallbacks.size})`));
             return;
         }

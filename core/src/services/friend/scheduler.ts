@@ -4,7 +4,7 @@
 
 const { CONFIG } = require('../../config/config');
 const { getUserState, networkEvents } = require('../../utils/network');
-const { toNum, getServerTimeSec, log, logWarn, randomDelay } = require('../../utils/utils');
+const { toNum, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
 const { createScheduler } = require('../scheduler');
 const { setOperationLimitsCallback } = require('../farm');
 const {
@@ -280,17 +280,13 @@ export async function checkFriends(options: CheckFriendsOptions = {}): Promise<b
                 } catch {
                     // 单个好友失败不影响整体
                 }
-                await randomDelay(500, 800);
+                await sleep(100);  // 缩到 100ms,实测够用
             }
         }
 
-        // 偷菜后自动出售
+        // 偷菜后自动出售(改为异步,不阻塞下一轮)
         if (totalActions.steal > 0) {
-            try {
-                await sellAllFruits();
-            } catch {
-                // ignore
-            }
+            sellAllFruits().catch(() => { /* ignore */ });
         }
 
         // 第三阶段：批量帮助

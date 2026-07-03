@@ -87,6 +87,28 @@ function createWorkerManager(options: WorkerManagerOptions) {
         } catch { /* ignore */ }
     }
 
+    function buildYybEnv(account: any): Record<string, string> {
+        const env: Record<string, string> = {};
+        if (!account || String(account.loginType || '').toLowerCase() !== 'yyb') return env;
+        if (!account.openid) return env;
+        try {
+            const username = String(account.username || '');
+            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            if (!cfg || !cfg.enabled) return env;
+            const entry = Array.isArray(cfg.accounts)
+                ? cfg.accounts.find((a: any) => a && String(a.openid || '').trim() === String(account.openid || '').trim())
+                : null;
+            if (!entry || !entry.apiToken || !cfg.endpoint) return env;
+            env.FARM_LOGIN_TYPE = 'yyb';
+            env.FARM_OPENID = String(account.openid).trim();
+            env.YYB_API_TOKEN = String(entry.apiToken).trim();
+            env.YYB_ENDPOINT = String(cfg.endpoint).trim();
+        } catch {
+            // 静默:获取失败时不透传 env,Worker 内不会启动续期
+        }
+        return env;
+    }
+
     function createThreadWorker(account: any): any {
         const workerOptions: any = {
             workerData: {
@@ -105,16 +127,17 @@ function createWorkerManager(options: WorkerManagerOptions) {
     }
 
     function createForkWorker(account: any): any {
+        const yybEnv = buildYybEnv(account);
         if ((processRef as any).pkg) {
             return fork(mainEntryPath, [], {
                 execPath: processRef.execPath,
                 stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-                env: { ...processRef.env, FARM_WORKER: '1', FARM_ACCOUNT_ID: String(account.id || '') },
+                env: { ...processRef.env, FARM_WORKER: '1', FARM_ACCOUNT_ID: String(account.id || ''), ...yybEnv },
             });
         }
         const forkOptions: any = {
             stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-            env: { ...processRef.env, FARM_ACCOUNT_ID: String(account.id || '') },
+            env: { ...processRef.env, FARM_ACCOUNT_ID: String(account.id || ''), ...yybEnv },
         };
         if (workerScriptPath.endsWith('.ts')) {
             forkOptions.execArgv = ['--require', 'tsx/cjs'];

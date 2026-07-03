@@ -959,42 +959,40 @@ export async function visitFriend(friend: any, totalActions: any, myGid: number,
 
     // 2. 偷菜操作
     if (isAutomationOn('friend_steal') && status.stealable.length > 0) {
-        const precheck: { canOperate: boolean; canStealNum: number } = await checkCanOperateRemote(gid, 10004);
-        if (precheck.canOperate) {
-            const canStealNum: number = precheck.canStealNum > 0 ? precheck.canStealNum : status.stealable.length;
-            const targetLands: number[] = status.stealable.slice(0, canStealNum);
+        // 去掉预检:服务端允许直接重试,失败再降级
+        const canStealNum: number = status.stealable.length;
+        const targetLands: number[] = status.stealable.slice(0, canStealNum);
 
-            let ok: number = 0;
-            const stolenPlants: string[] = [];
+        let ok: number = 0;
+        const stolenPlants: string[] = [];
 
-            // 尝试批量偷取
-            try {
-                await stealHarvest(gid, targetLands);
-                ok = targetLands.length;
-                targetLands.forEach((id: number) => {
-                    const info: any = status.stealableInfo.find((x: any) => x.landId === id);
+        // 尝试批量偷取
+        try {
+            await stealHarvest(gid, targetLands);
+            ok = targetLands.length;
+            targetLands.forEach((id: number) => {
+                const info: any = status.stealableInfo.find((x: any) => x.landId === id);
+                if (info) stolenPlants.push(info.name);
+            });
+        } catch {
+            // 批量失败,降级为单个
+            for (const landId of targetLands) {
+                try {
+                    await stealHarvest(gid, [landId]);
+                    ok++;
+                    const info: any = status.stealableInfo.find((x: any) => x.landId === landId);
                     if (info) stolenPlants.push(info.name);
-                });
-            } catch {
-                // 批量失败，降级为单个
-                for (const landId of targetLands) {
-                    try {
-                        await stealHarvest(gid, [landId]);
-                        ok++;
-                        const info: any = status.stealableInfo.find((x: any) => x.landId === landId);
-                        if (info) stolenPlants.push(info.name);
-                    } catch { /* ignore */ }
-                    await randomDelay(500, 800);
-                }
+                } catch { /* ignore */ }
+                await sleep(50);
             }
+        }
 
-            if (ok > 0) {
-                const plantNames: string = [...new Set(stolenPlants)].join('/');
-                actions.push(`偷${ok}${plantNames ? `(${  plantNames  })` : ''}`);
-                totalActions.steal += ok;
-                recordOperation('steal', ok);
-                await randomDelay(500, 800);
-            }
+        if (ok > 0) {
+            const plantNames: string = [...new Set(stolenPlants)].join('/');
+            actions.push(`偷${ok}${plantNames ? `(${  plantNames  })` : ''}`);
+            totalActions.steal += ok;
+            recordOperation('steal', ok);
+            await sleep(50);
         }
     }
 
@@ -1102,44 +1100,41 @@ export async function visitFriendForSteal(friend: any, totalActions: any, myGid:
         return;
     }
 
-    // 只执行偷菜
+    // 只执行偷菜(去掉预检:服务端允许直接重试,失败再降级)
     if (status.stealable.length > 0) {
-        const precheck: { canOperate: boolean; canStealNum: number } = await checkCanOperateRemote(gid, 10004);
-        if (precheck.canOperate) {
-            const canStealNum: number = precheck.canStealNum > 0 ? precheck.canStealNum : status.stealable.length;
-            const targetLands: number[] = status.stealable.slice(0, canStealNum);
+        const canStealNum: number = status.stealable.length;
+        const targetLands: number[] = status.stealable.slice(0, canStealNum);
 
-            let ok: number = 0;
-            const stolenPlants: string[] = [];
+        let ok: number = 0;
+        const stolenPlants: string[] = [];
 
-            // 尝试批量偷取
-            try {
-                await stealHarvest(gid, targetLands);
-                ok = targetLands.length;
-                targetLands.forEach((id: number) => {
-                    const info: any = status.stealableInfo.find((x: any) => x.landId === id);
+        // 尝试批量偷取
+        try {
+            await stealHarvest(gid, targetLands);
+            ok = targetLands.length;
+            targetLands.forEach((id: number) => {
+                const info: any = status.stealableInfo.find((x: any) => x.landId === id);
+                if (info) stolenPlants.push(info.name);
+            });
+        } catch {
+            // 批量失败,降级为单个
+            for (const landId of targetLands) {
+                try {
+                    await stealHarvest(gid, [landId]);
+                    ok++;
+                    const info: any = status.stealableInfo.find((x: any) => x.landId === landId);
                     if (info) stolenPlants.push(info.name);
-                });
-            } catch {
-                // 批量失败，降级为单个
-                for (const landId of targetLands) {
-                    try {
-                        await stealHarvest(gid, [landId]);
-                        ok++;
-                        const info: any = status.stealableInfo.find((x: any) => x.landId === landId);
-                        if (info) stolenPlants.push(info.name);
-                    } catch { /* ignore */ }
-                    await randomDelay(500, 800);
-                }
+                } catch { /* ignore */ }
+                await sleep(50);
             }
+        }
 
-            if (ok > 0) {
-                const plantNames: string = [...new Set(stolenPlants)].join('/');
-                actions.push(`偷${ok}${plantNames ? `(${plantNames})` : ''}`);
-                totalActions.steal += ok;
-                recordOperation('steal', ok);
-                await randomDelay(500, 800);
-            }
+        if (ok > 0) {
+            const plantNames: string = [...new Set(stolenPlants)].join('/');
+            actions.push(`偷${ok}${plantNames ? `(${plantNames})` : ''}`);
+            totalActions.steal += ok;
+            recordOperation('steal', ok);
+            await sleep(50);
         }
     }
 

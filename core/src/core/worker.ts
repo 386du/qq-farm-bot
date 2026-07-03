@@ -195,7 +195,8 @@ function applyIntervalsToRuntime(intervals: any): void {
     workerConfig.helpCheckIntervalMin = helpRange.min * 1000;
     workerConfig.helpCheckIntervalMax = helpRange.max * 1000;
 
-    const stealRange = normalizeIntervalRangeSec(data.stealMin, data.stealMax, 10);
+    // 偷菜默认 3s 间隔(原来是 10s),提高扫描频率,让成熟作物更快被偷
+    const stealRange = normalizeIntervalRangeSec(data.stealMin, data.stealMax, 3);
     workerConfig.stealCheckIntervalMin = stealRange.min * 1000;
     workerConfig.stealCheckIntervalMax = stealRange.max * 1000;
 }
@@ -343,11 +344,13 @@ async function runUnifiedTick(): Promise<void> {
     if (!dueFarm && !dueHelp && !dueSteal && !dueFriendApp) return;
 
     const auto = getAutomation();
-    // 串行执行而非并行，避免并发请求过多导致超时
-    if (dueFarm) await runFarmTick(auto);
-    if (dueHelp) await runHelpTick(auto);
-    if (dueSteal) await runStealTick(auto);
-    if (dueFriendApp) await runFriendAppCheckTick();
+    // 帮/偷并发执行(它们针对不同操作,可同时跑)
+    const tasks: Array<Promise<void>> = [];
+    if (dueFarm) tasks.push(runFarmTick(auto));
+    if (dueHelp) tasks.push(runHelpTick(auto));
+    if (dueSteal) tasks.push(runStealTick(auto));
+    if (dueFriendApp) tasks.push(runFriendAppCheckTick());
+    if (tasks.length > 0) await Promise.all(tasks);
 }
 
 function scheduleUnifiedNextTick(): void {
@@ -585,6 +588,16 @@ async function startBot(config: any): Promise<void> {
         // 每日礼包/任务改为跨日调度，不在农场轮询内执行
         startDailyRoutineTimer();
 
+        // 启动应用宝会话续期(仅 loginType=yyb 时生效,内部自检)
+        try {
+            const { startYybSessionRenewer } = require('../services/yyb-refresh');
+            startYybSessionRenewer(userState.name);
+        } catch (e: any) {
+            log('YYB', `启动会话续期失败: ${e && e.message ? e.message : String(e)}`, {
+                module: 'yyb', event: 'session_renew_init_error'
+            });
+        }
+
         // 立即发送一次状态
         syncStatus();
     };
@@ -617,6 +630,10 @@ async function stopBot(): Promise<void> {
     stopFarmCheckLoop();
     stopFriendCheckLoop();
     stopDailyRoutineTimer();
+    try {
+        const { stopYybSessionRenewer } = require('../services/yyb-refresh');
+        stopYybSessionRenewer();
+    } catch { /* ignore */ }
     cleanupTaskSystem();
     workerScheduler.clearAll();
     cleanup();
