@@ -3,7 +3,7 @@
  */
 
 const { CONFIG, PlantPhase, PHASE_NAMES } = require('../../config/config');
-const { getPlantName, getPlantById, getSeedImageBySeedId, getPlantGrowTime } = require('../../config/gameConfig');
+const { getPlantName, getPlantById, getSeedImageBySeedId, getPlantGrowTime, getLandMutants } = require('../../config/gameConfig');
 const {
     isAutomationOn,
     getFriendQuietHours,
@@ -374,6 +374,11 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
                     masterLandId: 0,
                     occupiedLandIds: [],
                     plantSize: 1,
+                    isMutant: false,
+                    mutantConfigIds: [],
+                    mutants: [],
+                    isNudged: false,
+                    leftFertTimes: 0,
                 });
                 continue;
             }
@@ -390,6 +395,11 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
                     masterLandId,
                     occupiedLandIds,
                     plantSize: 1,
+                    isMutant: false,
+                    mutantConfigIds: [],
+                    mutants: [],
+                    isNudged: false,
+                    leftFertTimes: 0,
                 });
                 continue;
             }
@@ -406,6 +416,11 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
                     masterLandId,
                     occupiedLandIds,
                     plantSize: 1,
+                    isMutant: false,
+                    mutantConfigIds: [],
+                    mutants: [],
+                    isNudged: false,
+                    leftFertTimes: 0,
                 });
                 continue;
             }
@@ -430,6 +445,33 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
             if (phaseVal === PlantPhase.MATURE) landStatus = plant.stealable ? 'stealable' : 'harvested';
             else if (phaseVal === PlantPhase.DEAD) landStatus = 'dead';
 
+            // ========== 变异 / 催熟解析（好友土地）============
+            const mutantConfigIds: number[] = Array.isArray(plant.mutant_config_ids)
+                ? plant.mutant_config_ids.map((v: any) => toNum(v)).filter((n: number) => n > 0)
+                : [];
+            const isMutant = mutantConfigIds.length > 0;
+            const isNudged = !!plant.is_nudged;
+            const leftFertTimes = toNum(plant.left_inorc_fert_times);
+            const mutants: Array<{
+                configId: number; displayName: string;
+                name: string; icon: string; color: string; bgColor: string;
+                description: string; effect: string; effectValue: string;
+                matchedPlantName?: string;
+            }> = isMutant
+                ? getLandMutants(mutantConfigIds, plantId).map((m: any) => ({
+                    configId: m.configId,
+                    displayName: m.displayName,
+                    name: m.info.name,
+                    icon: m.info.icon,
+                    color: m.info.color,
+                    bgColor: m.info.bgColor,
+                    description: m.info.description,
+                    effect: m.info.effect,
+                    effectValue: m.info.effectValue,
+                    matchedPlantName: m.info.matchedPlantName,
+                }))
+                : [];
+
             landsList.push({
                 id,
                 unlocked: true,
@@ -450,6 +492,12 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
                 masterLandId,
                 occupiedLandIds,
                 plantSize,
+                // 变异 / 催熟
+                isMutant,
+                mutantConfigIds,
+                mutants,
+                isNudged,
+                leftFertTimes,
             });
         }
 
