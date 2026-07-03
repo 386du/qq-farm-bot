@@ -108,12 +108,13 @@ interface MutantConfigItem {
     icon: string;
     color: string;
     bgColor: string;
-    scope: 'any_plant' | 'rare_plant' | 'specific_plant';  // 触发范围
-    scopeDesc: string;
     description: string;
     effect: string;        // 产出/售价/数量
     effectValue: string;   // 黄金果实/×3倍/×2倍/具体植物
-    plants: Record<string, string>;
+    // 以下字段已废弃, scope/scopeDesc 改为根据变异名自动判断, plants 改为根据 Plant.json 自动推断
+    scope?: 'any_plant' | 'rare_plant' | 'specific_plant';
+    scopeDesc?: string;
+    plants?: Record<string, string>;
 }
 let mutantConfig: MutantConfigItem[] | null = null;
 const mutantMap = new Map<number, MutantConfigItem>();
@@ -392,11 +393,51 @@ function getAllPlants(): PlantItem[] {
 // ============ 变异配置查询 ============
 
 /**
- * 判断一个变异配置是否应该应用到指定植物上
- * @param cfg          变异配置
- * @param plantId      当前植物ID
- * @param plantName    当前植物名称（用于 specific_plant 校验）
- * @param isRarePlant  当前植物是否为稀有作物（用于 rare_plant 校验）
+ * 根据植物名智能解析专属变异的展示名
+ * 优先匹配 MutantConfig.json 中维护的 plants 表
+ * 退而求其次:自动推断 "变异名·植物名" 格式是否在 Plant.json 存在
+ * 最后处理特殊映射 (月华宝荷/哈哈南瓜塔 等)
+ */
+function resolveMutantDisplayName(
+    cfg: MutantConfigItem,
+    plantName: string,
+): string | undefined {
+    if (!plantName) return undefined;
+    if (plantNameMap.size === 0) buildPlantNameMap();
+
+    const mName = cfg.name;
+    const cfgAny = cfg as any;
+
+    // 1) 优先匹配 MutantConfig.json 中维护的 plants 表
+    if (cfgAny.plants && cfgAny.plants[plantName]) {
+        return cfgAny.plants[plantName];
+    }
+
+    // 2) 自动推断: "变异名·植物名" 格式是否在 Plant.json 中存在
+    const prefixed = `${mName}·${plantName}`;
+    if (plantExists(prefixed)) return prefixed;
+
+    // 3) 特殊映射 (按游戏内变体名兜底)
+    if (mName === '月华' && plantName === '琉璃宝荷') return '月华宝荷';
+    if (mName === '塔塔' && plantName === '哈哈南瓜') return '哈哈南瓜塔';
+    if (mName === '荷华' && plantName === '荷花') return '荷花';
+
+    // 4) 兜底: 植物名本身就以 "变异名·" 开头 (如服务端直接给出变体名)
+    if (plantName.startsWith(`${mName}·`)) return plantName;
+
+    return undefined;
+}
+
+/**
+ * 判断一个变异配置是否适用于指定植物
+ * 完全根据植物数据自动判断,不再依赖 MutantConfig.json 的静态 scope 字段
+ *
+ * 规则 (基于游戏内"变异宝典"):
+ *   - 冰冻/爱心/暗化/湿润: 适用于任何作物
+ *   - 黄金: 适用于稀有作物, 产物为"黄金·{原作物名}" (在 Plant.json 中能查到)
+ *   - 月华: 仅适用于琉璃宝荷, 产物为"月华宝荷"
+ *   - 荷华: 仅适用于荷花 (荷风游记稀有种子), 产物为"荷花"
+ *   - 塔塔: 仅适用于哈哈南瓜, 产物为"哈哈南瓜塔"
  */
 function isMutantApplicableToPlant(
     cfg: MutantConfigItem,
@@ -404,19 +445,30 @@ function isMutantApplicableToPlant(
     plantName: string,
     isRarePlant: boolean,
 ): boolean {
-    if (cfg.scope === 'any_plant') return true;
-    if (cfg.scope === 'rare_plant') return isRarePlant;
-    if (cfg.scope === 'specific_plant') {
-        // 命中名称或 ID
-        if (plantName && cfg.plants && Object.prototype.hasOwnProperty.call(cfg.plants, plantName)) {
-            return true;
-        }
-        // 兜底: 名称表也按 ID 查找
-        if (cfg.plants && Object.prototype.hasOwnProperty.call(cfg.plants, String(plantId))) {
-            return true;
-        }
+    if (!plantName && !plantId) return false;
+    if (plantNameMap.size === 0) buildPlantNameMap();
+
+    const mName = cfg.name;
+
+    // 通用型变异: 任何作物都适用
+    if (mName === '冰冻' || mName === '爱心' || mName === '暗化' || mName === '湿润') {
+        return true;
+    }
+
+    // 黄金变异: 必须是稀有作物, 且 Plant.json 中存在 "黄金·植物名"
+    if (mName === '黄金') {
+        if (!isRarePlant) return false;
+        if (plantName && plantName.startsWith('黄金·')) return true;
+        if (plantName && plantExists(`黄金·${plantName}`)) return true;
         return false;
     }
+
+    // 专属变异: 仅对应特定植物
+    if (mName === '月华') return plantName === '琉璃宝荷';
+    if (mName === '塔塔') return plantName === '哈哈南瓜';
+    if (mName === '荷华') return plantName === '荷花';
+
+    // 未知变异名: 兜底认为可适用
     return true;
 }
 
@@ -464,26 +516,20 @@ function getMutantInfo(
         };
     }
     const applicable = isMutantApplicableToPlant(cfg, plantId || 0, plantName || '', isRarePlant);
-
-    // 智能专属名匹配: 黄金/月华/塔塔 等可以基于 Plant.json 中的 "黄金·xxx" 自动推断
-    let matchedPlantName: string | undefined;
-    if (applicable) {
-        if (cfg.plants) {
-            if (plantName && cfg.plants[plantName]) matchedPlantName = cfg.plants[plantName];
-            else if (cfg.plants[String(plantId)]) matchedPlantName = cfg.plants[String(plantId)];
-        }
-        // 自动推断: "黄金" + 植物名 -> "黄金·植物名"
-        if (!matchedPlantName && plantName && plantNameMap.size === 0) buildPlantNameMap();
-        if (!matchedPlantName && plantName && plantExists(`${cfg.name}·${plantName}`)) {
-            matchedPlantName = `${cfg.name}·${plantName}`;
-        }
-        // 特殊: "月华" 对应 "月华宝荷" (不是"月华·琉璃宝荷")
-        if (!matchedPlantName && cfg.name === '月华' && plantName === '琉璃宝荷') {
-            matchedPlantName = '月华宝荷';
-        }
-        if (!matchedPlantName && cfg.name === '塔塔' && plantName === '哈哈南瓜') {
-            matchedPlantName = '哈哈南瓜塔';
-        }
+    const matchedPlantName = applicable ? resolveMutantDisplayName(cfg, plantName || '') : undefined;
+    const mName = cfg.name || '';
+    // 自动计算 scope 和 scopeDesc (不再依赖静态字段)
+    let scope: string;
+    let scopeDesc: string;
+    if (mName === '冰冻' || mName === '爱心' || mName === '暗化' || mName === '湿润') {
+        scope = 'any_plant';
+        scopeDesc = '任何作物';
+    } else if (mName === '黄金') {
+        scope = 'rare_plant';
+        scopeDesc = '稀有作物';
+    } else {
+        scope = 'specific_plant';
+        scopeDesc = '专属作物';
     }
     return {
         id: cfg.id,
@@ -491,8 +537,8 @@ function getMutantInfo(
         icon: cfg.icon || '✨',
         color: cfg.color || '#a855f7',
         bgColor: cfg.bgColor || '#f5d0fe',
-        scope: cfg.scope || 'any_plant',
-        scopeDesc: cfg.scopeDesc || '任何作物',
+        scope,
+        scopeDesc,
         description: cfg.description || '',
         effect: cfg.effect || '',
         effectValue: cfg.effectValue || '',
@@ -593,4 +639,5 @@ module.exports = {
     getMutantInfo,
     getLandMutants,
     isMutantApplicableToPlant,
+    resolveMutantDisplayName,
 };
