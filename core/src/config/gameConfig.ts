@@ -108,6 +108,8 @@ interface MutantConfigItem {
     icon: string;
     color: string;
     bgColor: string;
+    scope: 'any_plant' | 'rare_plant' | 'specific_plant';  // 触发范围
+    scopeDesc: string;
     description: string;
     effect: string;        // 产出/售价/数量
     effectValue: string;   // 黄金果实/×3倍/×2倍/具体植物
@@ -228,6 +230,16 @@ function getLevelExpProgress(level: number, totalExp: number): { current: number
 
 function getPlantById(plantId: number): PlantItem | undefined {
     return plantMap.get(plantId);
+}
+
+/**
+ * 判断是否为稀有作物
+ * 依据: Plant.json 中 rare_plant_light_pos 字段非 null
+ */
+function isRarePlant(plantId: number): boolean {
+    const p = plantMap.get(Number(plantId) || 0);
+    if (!p) return false;
+    return !!(p as any).rare_plant_light_pos;
 }
 
 function getPlantBySeedId(seedId: number): PlantItem | undefined {
@@ -358,38 +370,82 @@ function getAllPlants(): PlantItem[] {
 // ============ 变异配置查询 ============
 
 /**
- * 根据 mutant_config_id 解析变异信息
- * @param configId  服务端下发的变异配置ID (plant.mutant_config_ids 数组元素)
- * @param plantId   当前植物ID (用于查找 plantId 专属的变异名)
+ * 判断一个变异配置是否应该应用到指定植物上
+ * @param cfg          变异配置
+ * @param plantId      当前植物ID
+ * @param plantName    当前植物名称（用于 specific_plant 校验）
+ * @param isRarePlant  当前植物是否为稀有作物（用于 rare_plant 校验）
  */
-function getMutantInfo(configId: number, plantId?: number): {
+function isMutantApplicableToPlant(
+    cfg: MutantConfigItem,
+    plantId: number,
+    plantName: string,
+    isRarePlant: boolean,
+): boolean {
+    if (cfg.scope === 'any_plant') return true;
+    if (cfg.scope === 'rare_plant') return isRarePlant;
+    if (cfg.scope === 'specific_plant') {
+        // 命中名称或 ID
+        if (plantName && cfg.plants && Object.prototype.hasOwnProperty.call(cfg.plants, plantName)) {
+            return true;
+        }
+        // 兜底: 名称表也按 ID 查找
+        if (cfg.plants && Object.prototype.hasOwnProperty.call(cfg.plants, String(plantId))) {
+            return true;
+        }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * 根据 mutant_config_id 解析变异信息
+ * @param configId   服务端下发的变异配置ID (plant.mutant_config_ids 数组元素)
+ * @param plantId    当前植物ID
+ * @param plantName  当前植物名称
+ * @param isRarePlant 当前植物是否为稀有作物
+ */
+function getMutantInfo(
+    configId: number,
+    plantId?: number,
+    plantName?: string,
+    isRarePlant: boolean = false,
+): {
     id: number;
     name: string;
     icon: string;
     color: string;
     bgColor: string;
+    scope: string;
+    scopeDesc: string;
     description: string;
     effect: string;
     effectValue: string;
+    applicable: boolean;          // 是否适用于当前植物
     matchedPlantName?: string;
 } {
     const id = Number(configId) || 0;
     if (id <= 0) {
         return {
             id: 0, name: '未知变异', icon: '✨', color: '#a855f7', bgColor: '#f5d0fe',
-            description: '', effect: '', effectValue: '',
+            scope: 'any_plant', scopeDesc: '任何作物',
+            description: '', effect: '', effectValue: '', applicable: true,
         };
     }
     const cfg = mutantMap.get(id);
     if (!cfg) {
         return {
             id, name: `变异 #${id}`, icon: '✨', color: '#a855f7', bgColor: '#f5d0fe',
+            scope: 'any_plant', scopeDesc: '未登记',
             description: '未登记的变异类型', effect: '', effectValue: '',
+            applicable: true,
         };
     }
+    const applicable = isMutantApplicableToPlant(cfg, plantId || 0, plantName || '', isRarePlant);
     let matchedPlantName: string | undefined;
-    if (plantId && cfg.plants && cfg.plants[String(plantId)]) {
-        matchedPlantName = cfg.plants[String(plantId)];
+    if (applicable && cfg.plants) {
+        if (plantName && cfg.plants[plantName]) matchedPlantName = cfg.plants[plantName];
+        else if (cfg.plants[String(plantId)]) matchedPlantName = cfg.plants[String(plantId)];
     }
     return {
         id: cfg.id,
@@ -397,28 +453,40 @@ function getMutantInfo(configId: number, plantId?: number): {
         icon: cfg.icon || '✨',
         color: cfg.color || '#a855f7',
         bgColor: cfg.bgColor || '#f5d0fe',
+        scope: cfg.scope || 'any_plant',
+        scopeDesc: cfg.scopeDesc || '任何作物',
         description: cfg.description || '',
         effect: cfg.effect || '',
         effectValue: cfg.effectValue || '',
+        applicable,
         matchedPlantName,
     };
 }
 
 /**
- * 批量解析一块地所有的变异类型
- * 输入 plant.mutant_config_ids (number[]) 和 plant.id (植物ID)
- * 返回 [{ configId, info, displayName }, ...]
+ * 批量解析一块地所有的变异类型 (含 scope 校验)
+ * 输入 plant.mutant_config_ids (number[]) 和 plant.id, plant.name, isRarePlant
+ * 返回 [{ configId, info, displayName, applicable }, ...]
+ * 注意: applicable=false 的不会出现在前端徽章中
  */
-function getLandMutants(mutantConfigIds: number[], plantId?: number): Array<{
+function getLandMutants(
+    mutantConfigIds: number[],
+    plantId?: number,
+    plantName?: string,
+    isRarePlant: boolean = false,
+): Array<{
     configId: number;
     info: ReturnType<typeof getMutantInfo>;
     displayName: string;
+    applicable: boolean;
 }> {
     const ids = Array.isArray(mutantConfigIds) ? mutantConfigIds : [];
     return ids.map((cid) => {
-        const info = getMutantInfo(Number(cid), plantId);
-        const displayName = info.matchedPlantName || info.name;
-        return { configId: Number(cid), info, displayName };
+        const info = getMutantInfo(Number(cid), plantId, plantName, isRarePlant);
+        const displayName = info.applicable
+            ? (info.matchedPlantName || info.name)
+            : `${info.name}?`;   // 不适用时加个问号标记
+        return { configId: Number(cid), info, displayName, applicable: info.applicable };
     });
 }
 
@@ -466,6 +534,7 @@ module.exports = {
     getPlantGrowTime,
     getPlantExp,
     formatGrowTime,
+    isRarePlant,
     // 果实配置
     getFruitName,
     getPlantByFruitId,
@@ -484,4 +553,5 @@ module.exports = {
     // 变异配置
     getMutantInfo,
     getLandMutants,
+    isMutantApplicableToPlant,
 };

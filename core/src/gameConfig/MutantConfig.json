@@ -5,6 +5,8 @@
     "icon": "🏆",
     "color": "#fbbf24",
     "bgColor": "#fef3c7",
+    "scope": "rare_plant",
+    "scopeDesc": "仅稀有作物",
     "description": "稀有作物生长过程中随机出现",
     "effect": "产出",
     "effectValue": "黄金果实",
@@ -16,6 +18,8 @@
     "icon": "❄️",
     "color": "#06b6d4",
     "bgColor": "#cffafe",
+    "scope": "any_plant",
+    "scopeDesc": "任何作物",
     "description": "作物生长过程中随机出现",
     "effect": "售价",
     "effectValue": "×3倍",
@@ -27,6 +31,8 @@
     "icon": "💗",
     "color": "#ec4899",
     "bgColor": "#fce7f3",
+    "scope": "any_plant",
+    "scopeDesc": "任何作物",
     "description": "作物生长过程中随机出现",
     "effect": "数量",
     "effectValue": "×3倍",
@@ -38,6 +44,8 @@
     "icon": "🌑",
     "color": "#6366f1",
     "bgColor": "#e0e7ff",
+    "scope": "any_plant",
+    "scopeDesc": "任何作物",
     "description": "作物生长过程中随机出现",
     "effect": "售价",
     "effectValue": "×2倍",
@@ -49,6 +57,8 @@
     "icon": "💧",
     "color": "#3b82f6",
     "bgColor": "#dbeafe",
+    "scope": "any_plant",
+    "scopeDesc": "任何作物",
     "description": "作物生长过程中随机出现",
     "effect": "数量",
     "effectValue": "×2倍",
@@ -60,10 +70,14 @@
     "icon": "🌸",
     "color": "#a78bfa",
     "bgColor": "#ede9fe",
+    "scope": "specific_plant",
+    "scopeDesc": "仅琉璃宝荷",
     "description": "种植琉璃宝荷有概率出现",
     "effect": "产出",
     "effectValue": "月华宝荷",
-    "plants": {}
+    "plants": {
+      "琉璃宝荷": "月华宝荷"
+    }
   },
   {
     "id": 7,
@@ -71,10 +85,14 @@
     "icon": "🪷",
     "color": "#f0abfc",
     "bgColor": "#fae8ff",
-    "description": "种植荷风游记稀有种子有概率出现",
+    "scope": "specific_plant",
+    "scopeDesc": "仅荷花",
+    "description": "种植荷花(荷风游记稀有种子)有概率出现",
     "effect": "产出",
     "effectValue": "荷花",
-    "plants": {}
+    "plants": {
+      "荷花": "荷花"
+    }
   },
   {
     "id": 8,
@@ -82,9 +100,14 @@
     "icon": "🎃",
     "color": "#fb923c",
     "bgColor": "#ffedd5",
+    "scope": "specific_plant",
+    "scopeDesc": "仅哈哈南瓜",
     "description": "种植哈哈南瓜有概率出现",
     "effect": "产出",
     "effectValue": "哈哈南瓜塔",
-    "plants": {}
+    "plants": {
+      "哈哈南瓜": "哈哈南瓜塔"
+    }
   }
 ]
+

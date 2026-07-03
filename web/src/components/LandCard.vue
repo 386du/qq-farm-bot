@@ -159,7 +159,7 @@ function landTypeBadgeClass(level: number) {
       合种 {{ getPlantSizeText(land) }}
     </div>
 
-    <!-- 变异植物标识 (mutant) - 显示具体变异名称 + 游戏内图标 -->
+    <!-- 变异植物标识 (mutant) - 显示具体变异名称 + 游戏内图标 + scope 范围 -->
     <div
       v-if="land.isMutant"
       class="absolute right-2 top-2 z-10 flex flex-col items-end gap-1"
@@ -169,14 +169,17 @@ function landTypeBadgeClass(level: number) {
         :key="m.configId"
         class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
         :style="{
-          background: `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, ${m.bgColor || '#f5d0fe'} 100%)`,
+          background: m.applicable
+            ? `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, ${m.bgColor || '#f5d0fe'} 100%)`
+            : `linear-gradient(90deg, #9ca3af 0%, #6b7280 100%)`,
           color: '#ffffff',
           textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+          opacity: m.applicable ? 1 : 0.7,
         }"
-        :title="`${m.icon} ${m.name} (${m.effect}: ${m.effectValue})\n${m.description}${m.matchedPlantName ? '\n此植物: ' + m.matchedPlantName : ''}`"
+        :title="`${m.icon} ${m.name} (${m.effect}: ${m.effectValue})\n${m.description}\n范围: ${m.scopeDesc}${m.applicable ? '' : '\n⚠️ 当前作物不在该变异的合法范围'}`"
       >
         <span class="text-[11px]">{{ m.icon }}</span>
-        <span>{{ m.name }}</span>
+        <span>{{ m.applicable ? m.name : `${m.name}?` }}</span>
         <span
           v-if="m.effectValue && /^×/.test(m.effectValue)"
           class="ml-0.5 rounded-full bg-white/30 px-1 text-[9px]"

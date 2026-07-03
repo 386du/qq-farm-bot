@@ -3,7 +3,7 @@
  */
 
 const { CONFIG, PlantPhase, PHASE_NAMES } = require('../../config/config');
-const { getPlantName, getPlantById, getSeedImageBySeedId, getPlantGrowTime, getLandMutants } = require('../../config/gameConfig');
+const { getPlantName, getPlantById, getSeedImageBySeedId, getPlantGrowTime, getLandMutants, isRarePlant } = require('../../config/gameConfig');
 const {
     isAutomationOn,
     getFriendQuietHours,
@@ -452,19 +452,25 @@ export async function getFriendLandsDetail(friendGid: number): Promise<any> {
             const isMutant = mutantConfigIds.length > 0;
             const isNudged = !!plant.is_nudged;
             const leftFertTimes = toNum(plant.left_inorc_fert_times);
+            // 解析具体变异类型名称 + scope 校验
+            const _isRare = isRarePlant(plantId);
             const mutants: Array<{
-                configId: number; displayName: string;
+                configId: number; displayName: string; applicable: boolean;
                 name: string; icon: string; color: string; bgColor: string;
+                scope: string; scopeDesc: string;
                 description: string; effect: string; effectValue: string;
                 matchedPlantName?: string;
             }> = isMutant
-                ? getLandMutants(mutantConfigIds, plantId).map((m: any) => ({
+                ? getLandMutants(mutantConfigIds, plantId, plantName, _isRare).map((m: any) => ({
                     configId: m.configId,
                     displayName: m.displayName,
+                    applicable: m.applicable,
                     name: m.info.name,
                     icon: m.info.icon,
                     color: m.info.color,
                     bgColor: m.info.bgColor,
+                    scope: m.info.scope,
+                    scopeDesc: m.info.scopeDesc,
                     description: m.info.description,
                     effect: m.info.effect,
                     effectValue: m.info.effectValue,

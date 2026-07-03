@@ -4,7 +4,7 @@ export {};
  */
 
 const protobuf = require('protobufjs');
-const { getPlantNameBySeedId, getPlantName, formatGrowTime, getPlantGrowTime, getAllSeeds, getPlantById, getPlantBySeedId, getSeedImageBySeedId, getLandMutants } = require('../../config/gameConfig');
+const { getPlantNameBySeedId, getPlantName, formatGrowTime, getPlantGrowTime, getAllSeeds, getPlantById, getPlantBySeedId, getSeedImageBySeedId, getLandMutants, isRarePlant } = require('../../config/gameConfig');
 const { isAutomationOn, getPreferredSeed, getAutomation, getPlantingStrategy, getBagSeedPriority, getBagSeedFallbackStrategy } = require('../../models/store');
 const { getUserState, getWsErrorState, sendMsgAsync } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep } = require('../../utils/utils');
@@ -531,19 +531,25 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
             // plant.left_inorc_fert_times (field 17) - 剩余施肥次数
             const leftFertTimes = toNum(plant.left_inorc_fert_times);
             // 解析具体变异类型名称 (使用 MutantConfig.json 映射表)
+            // 传入 plantName + isRarePlant 用于 scope 校验
+            const _isRare = isRarePlant(plantId);
             const mutants: Array<{
-                configId: number; displayName: string;
+                configId: number; displayName: string; applicable: boolean;
                 name: string; icon: string; color: string; bgColor: string;
+                scope: string; scopeDesc: string;
                 description: string; effect: string; effectValue: string;
                 matchedPlantName?: string;
             }> = isMutant
-                ? getLandMutants(mutantConfigIds, plantId).map((m: any) => ({
+                ? getLandMutants(mutantConfigIds, plantId, plantName, _isRare).map((m: any) => ({
                     configId: m.configId,
                     displayName: m.displayName,
+                    applicable: m.applicable,
                     name: m.info.name,
                     icon: m.info.icon,
                     color: m.info.color,
                     bgColor: m.info.bgColor,
+                    scope: m.info.scope,
+                    scopeDesc: m.info.scopeDesc,
                     description: m.info.description,
                     effect: m.info.effect,
                     effectValue: m.info.effectValue,
@@ -580,7 +586,7 @@ async function getLandsDetail(): Promise<{ lands: any[]; summary: any }> {
                 // 变异 / 催熟
                 isMutant,
                 mutantConfigIds,
-                mutants, // [{ configId, displayName, name, color, description, matchedPlantName }]
+                mutants, // [{ configId, displayName, applicable, name, icon, color, bgColor, scope, scopeDesc, description, effect, effectValue, matchedPlantName }]
                 isNudged,
                 leftFertTimes,
             });
