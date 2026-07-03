@@ -233,6 +233,20 @@ function getPlantById(plantId: number): PlantItem | undefined {
 }
 
 /**
+ * 根据植物名查找植物
+ * 注: Plant.json 中 name 可能有重复 (如 "白萝卜" 出现 2 次), 这里取第一个
+ */
+const plantNameMap = new Map<string, PlantItem>();
+function buildPlantNameMap() {
+    plantNameMap.clear();
+    for (const p of plantMap.values()) {
+        if (p && p.name && !plantNameMap.has(p.name)) {
+            plantNameMap.set(p.name, p);
+        }
+    }
+}
+
+/**
  * 判断是否为稀有作物
  * 依据: Plant.json 中 rare_plant_light_pos 字段非 null
  */
@@ -240,6 +254,14 @@ function isRarePlant(plantId: number): boolean {
     const p = plantMap.get(Number(plantId) || 0);
     if (!p) return false;
     return !!(p as any).rare_plant_light_pos;
+}
+
+/**
+ * 检查 Plant.json 中是否存在指定名称的植物
+ */
+function plantExists(plantName: string): boolean {
+    if (plantNameMap.size === 0) buildPlantNameMap();
+    return plantNameMap.has(plantName);
 }
 
 function getPlantBySeedId(seedId: number): PlantItem | undefined {
@@ -442,10 +464,26 @@ function getMutantInfo(
         };
     }
     const applicable = isMutantApplicableToPlant(cfg, plantId || 0, plantName || '', isRarePlant);
+
+    // 智能专属名匹配: 黄金/月华/塔塔 等可以基于 Plant.json 中的 "黄金·xxx" 自动推断
     let matchedPlantName: string | undefined;
-    if (applicable && cfg.plants) {
-        if (plantName && cfg.plants[plantName]) matchedPlantName = cfg.plants[plantName];
-        else if (cfg.plants[String(plantId)]) matchedPlantName = cfg.plants[String(plantId)];
+    if (applicable) {
+        if (cfg.plants) {
+            if (plantName && cfg.plants[plantName]) matchedPlantName = cfg.plants[plantName];
+            else if (cfg.plants[String(plantId)]) matchedPlantName = cfg.plants[String(plantId)];
+        }
+        // 自动推断: "黄金" + 植物名 -> "黄金·植物名"
+        if (!matchedPlantName && plantName && plantNameMap.size === 0) buildPlantNameMap();
+        if (!matchedPlantName && plantName && plantExists(`${cfg.name}·${plantName}`)) {
+            matchedPlantName = `${cfg.name}·${plantName}`;
+        }
+        // 特殊: "月华" 对应 "月华宝荷" (不是"月华·琉璃宝荷")
+        if (!matchedPlantName && cfg.name === '月华' && plantName === '琉璃宝荷') {
+            matchedPlantName = '月华宝荷';
+        }
+        if (!matchedPlantName && cfg.name === '塔塔' && plantName === '哈哈南瓜') {
+            matchedPlantName = '哈哈南瓜塔';
+        }
     }
     return {
         id: cfg.id,
@@ -535,6 +573,7 @@ module.exports = {
     getPlantExp,
     formatGrowTime,
     isRarePlant,
+    plantExists,
     // 果实配置
     getFruitName,
     getPlantByFruitId,
