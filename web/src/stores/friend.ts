@@ -300,11 +300,14 @@ export const useFriendStore = defineStore('friend', () => {
         if (status) {
           // 只显示当前账号的进度
           scanGuardDogProgress.value = { accountId, ...status }
-          if (status.status === 'done' || status.status === 'error') {
+          // done / error / interrupted 都是终态：
+          //   - done/error：正常结束
+          //   - interrupted：被 worker 重启（应用宝自动重连等）打断
+          if (status.status === 'done' || status.status === 'error' || status.status === 'interrupted') {
             if (status.result) {
               scanGuardDogResult.value = { accountId, ...status.result, finishedAt: Date.now() }
             }
-            // 扫描已完成，停止轮询
+            // 扫描已结束，停止轮询
             stopScanStatusPoll()
             scanningGuardDogAccountId.value = null
           }

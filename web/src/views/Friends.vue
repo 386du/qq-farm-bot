@@ -482,6 +482,13 @@ const scanProgressText = computed(() => {
   return `${cur}/${total}`
 })
 
+// 扫描是否被中断（worker 重启/应用宝自动重连等场景）
+const scanWasInterrupted = computed(() => {
+  const p = friendStore.scanGuardDogProgress
+  if (!p || p.accountId !== currentAccountId.value) return false
+  return p.status === 'interrupted'
+})
+
 // 进入护主犬 Tab 时拉一次进度（用于页面刷新后恢复轮询）
 async function ensureScanStatusPolling() {
   if (!currentAccountId.value) return
@@ -1435,6 +1442,9 @@ async function handleRejectAllApplications() {
             <span v-if="scanGuardDogResult.newGids.length > 0" class="ml-2 text-amber-600 dark:text-amber-400">
               新增：{{ scanGuardDogResult.newGids.join(', ') }}
             </span>
+          </div>
+          <div v-else-if="scanWasInterrupted" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+            ⚠️ 上一次扫描被中断（账号已重启，例如应用宝自动重连）。请重新点击「扫描全部好友」继续。
           </div>
         </div>
         <div v-if="guardDogFriends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">

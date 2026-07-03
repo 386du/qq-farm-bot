@@ -1,6 +1,6 @@
 export {};
 const { createScheduler } = require('../services/scheduler');
-const { setScanStatus, clearScanStatus } = require('./scan-status');
+const { setScanStatus, getScanStatus, clearScanStatus } = require('./scan-status');
 
 interface WorkerManagerOptions {
     fork: any;
@@ -48,6 +48,44 @@ function createWorkerManager(options: WorkerManagerOptions) {
     } = options;
     const managerScheduler = createScheduler('worker_manager');
     const useThreadRuntime = runtimeMode === 'thread' && !(processRef as any).pkg && typeof WorkerThread === 'function';
+
+    /**
+     * 拒绝 worker 上的所有挂起 API 请求（防止调用方长时间等待）
+     * 用于在 worker 即将被销毁（force_kill / killIfStale / 异常退出）时调用。
+     * 即便 workers[accountId] 已被并发删除，这里仍可通过闭包中的 worker 引用清理掉请求。
+     */
+    function rejectPendingApiRequests(workerRecord: any, accountId: string): void {
+        if (!workerRecord || !workerRecord.requests) return;
+        for (const [reqId, req] of workerRecord.requests.entries()) {
+            managerScheduler.clear(`api_timeout_${accountId}_${reqId}`);
+            try {
+                req.reject(new Error('Worker exited'));
+            } catch {}
+        }
+        workerRecord.requests.clear();
+    }
+
+    /**
+     * 若该账号有进行中的护主犬扫描，将其标记为已中断。
+     * 避免应用宝自动重连等场景下，扫描状态长期停留在 "扫描中 39/260" 死锁状态。
+     */
+    function interruptInProgressScan(accountId: string): void {
+        try {
+            if (typeof getScanStatus !== 'function') return;
+            const st: any = getScanStatus(accountId);
+            if (!st) return;
+            // 只有 running 状态才需要中断；done / error / interrupted 已经是终态
+            if (st.status !== 'running') return;
+            setScanStatus(accountId, {
+                ...st,
+                status: 'interrupted',
+                message: '扫描被中断：账号已重启（应用宝自动重连等场景）',
+                updatedAt: Date.now(),
+            });
+            // 与 done/error 保持一致：保留 5 分钟供前端轮询，然后允许被下次扫描覆盖
+            setTimeout(() => clearScanStatus(accountId), 300000);
+        } catch { /* ignore */ }
+    }
 
     function createThreadWorker(account: any): any {
         const workerOptions: any = {
@@ -148,15 +186,16 @@ function createWorkerManager(options: WorkerManagerOptions) {
             managerScheduler.clear(`force_kill_${account.id}`);
             managerScheduler.clear(`restart_fallback_${account.id}`);
 
-            if (current && current.requests && current.requests.size > 0) {
-                for (const [reqId, req] of current.requests.entries()) {
-                    managerScheduler.clear(`api_timeout_${account.id}_${reqId}`);
-                    try {
-                        req.reject(new Error('Worker exited'));
-                    } catch {}
-                }
-                current.requests.clear();
+            // 拒绝 worker 上的所有挂起 API 请求（防止调用方长时间等待）。
+            // 注意：force_kill / killIfStale 可能在 exit 之前就已删除 workers[account.id]，
+            // 所以这里也用闭包中的 current 做防御性清理，避免卡住超时（120s）。
+            if (current) {
+                rejectPendingApiRequests(current, String(account.id));
             }
+
+            // 若该账号的护主犬扫描仍处于 running 状态，标记为 interrupted，
+            // 避免前端一直显示 "扫描中 X/Y" 且按钮无法再次点击。
+            interruptInProgressScan(String(account.id));
 
             if (current && current.process === child) {
                 delete workers[account.id];
@@ -176,6 +215,9 @@ function createWorkerManager(options: WorkerManagerOptions) {
             const current = workers[accountId];
             if (current && current.process === proc) {
                 current.process.kill();
+                // 在删除 workers 记录前先拒绝挂起的 API 请求，
+                // 避免调用方（包括扫描等长任务）卡到 120s 等待超时。
+                rejectPendingApiRequests(current, accountId);
                 delete workers[accountId];
             }
         });
@@ -204,6 +246,8 @@ function createWorkerManager(options: WorkerManagerOptions) {
             try {
                 current.process.kill();
             } catch {}
+            // 同样需要在删除 workers 记录前拒绝挂起的 API 请求
+            rejectPendingApiRequests(current, accountId);
             delete workers[accountId];
             return true;
         };
