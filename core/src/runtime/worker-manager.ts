@@ -1,5 +1,6 @@
 export {};
 const { createScheduler } = require('../services/scheduler');
+const store = require('../models/store');
 const { setScanStatus, getScanStatus, clearScanStatus } = require('./scan-status');
 
 interface WorkerManagerOptions {

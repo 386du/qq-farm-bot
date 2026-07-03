@@ -591,7 +591,7 @@ async function startBot(config: any): Promise<void> {
         // 启动应用宝会话续期(仅 loginType=yyb 时生效,内部自检)
         try {
             const { startYybSessionRenewer } = require('../services/yyb-refresh');
-            startYybSessionRenewer(userState.name);
+            startYybSessionRenewer(getUserState().name);
         } catch (e: any) {
             log('YYB', `启动会话续期失败: ${e && e.message ? e.message : String(e)}`, {
                 module: 'yyb', event: 'session_renew_init_error'
