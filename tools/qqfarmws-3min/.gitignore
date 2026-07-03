@@ -1,0 +1,14 @@
+# 基线 .bin 副本占空间,不入仓
+fixtures/baseline-*/
+!fixtures/baseline-*/manifest.json
+!fixtures/baseline-*/frames.csv
+!fixtures/baseline-*/.gitkeep
+
+# 抓包原始 .har 可能很大
+*.har
+ws_frames/
+*.diff_report.txt
+*.anomaly_*
+
+# 工具运行时的临时输出
+/tmp/
