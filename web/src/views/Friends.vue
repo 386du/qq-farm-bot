@@ -165,7 +165,7 @@ async function onConfirm() {
 function handleBatchBlacklist() {
   if (!currentAccountId.value)
     return
-  const gids = filteredFriends.value
+  const gids = filteredSortedFriends.value
     .filter(f => !blacklistGidSet.value.has(Number(f.gid)))
     .map(f => Number(f.gid))
   if (gids.length === 0) {
@@ -202,41 +202,184 @@ const expandedFriends = ref<Set<string>>(new Set())
 const currentPage = ref(1)
 const pageSize = 25
 
-const sortedFriends = computed(() => {
-  return [...friends.value].sort((a: any, b: any) => {
-    const levelA = Number(a?.level || 0)
-    const levelB = Number(b?.level || 0)
-    return levelB - levelA
+// ============ 好友筛选 + 排序 ============
+
+type FriendSortKey = 'level' | 'gold' | 'name' | 'lastActive'
+type FriendFilterKey = 'hasGuardDog' | 'inBlacklist' | 'inGuardDogBlacklist' | 'inGuardDogWhitelist' | 'hasStealable'
+
+const friendSortKey = ref<FriendSortKey>('level')
+const friendSortOrder = ref<'desc' | 'asc'>('desc')
+const friendFilters = ref<Record<FriendFilterKey, boolean>>({
+  hasGuardDog: false,
+  inBlacklist: false,
+  inGuardDogBlacklist: false,
+  inGuardDogWhitelist: false,
+  hasStealable: false,
+})
+const friendLevelMin = ref<number | null>(null)
+const friendLevelMax = ref<number | null>(null)
+const showFilterPanel = ref(false) // 控制高级筛选（等级范围）的展开
+
+// 护主犬 gid 集合（用于筛选）
+const guardDogGidSet = computed(() => new Set(guardDogFriends.value.map(f => Number(f.gid))))
+
+// 好友最后活跃时间（取自 interactRecords 中 serverTimeMs 最大值）
+const lastActiveMap = computed(() => {
+  const map = new Map<number, number>()
+  for (const r of interactRecords.value || []) {
+    const gid = Number(r?.visitorGid || r?.friendGid || r?.gid || 0)
+    const ts = Number(r?.serverTimeMs || 0)
+    if (!gid || !ts) continue
+    const prev = map.get(gid) || 0
+    if (ts > prev) map.set(gid, ts)
+  }
+  return map
+})
+
+// 排序的排序值取数（统一处理 null/undefined）
+function getSortValue(friend: any, key: FriendSortKey): number | string {
+  if (key === 'level') return Number(friend?.level || 0)
+  if (key === 'gold') return Number(friend?.gold || 0)
+  if (key === 'name') return String(friend?.name || '').toLowerCase()
+  if (key === 'lastActive') return lastActiveMap.value.get(Number(friend?.gid)) || 0
+  return 0
+}
+
+const filteredSortedFriends = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  const list = friends.value
+
+  // 1. 搜索
+  let result = list
+  if (kw) {
+    result = result.filter((f: any) => {
+      const name = String(f?.name || '').toLowerCase()
+      const gid = String(f?.gid || '')
+      const uin = String(f?.uin || '')
+      return name.includes(kw) || gid.includes(kw) || uin.includes(kw)
+    })
+  }
+
+  // 2. 等级范围
+  if (friendLevelMin.value != null) {
+    const min = friendLevelMin.value
+    result = result.filter((f: any) => Number(f?.level || 0) >= min)
+  }
+  if (friendLevelMax.value != null) {
+    const max = friendLevelMax.value
+    result = result.filter((f: any) => Number(f?.level || 0) <= max)
+  }
+
+  // 3. 状态筛选 chips
+  const filters = friendFilters.value
+  if (filters.hasGuardDog) {
+    const set = guardDogGidSet.value
+    result = result.filter((f: any) => set.has(Number(f.gid)))
+  }
+  if (filters.inBlacklist) {
+    const set = blacklistGidSet.value
+    result = result.filter((f: any) => set.has(Number(f.gid)))
+  }
+  if (filters.inGuardDogBlacklist) {
+    const set = guardDogBlacklistGidSet.value
+    result = result.filter((f: any) => set.has(Number(f.gid)))
+  }
+  if (filters.inGuardDogWhitelist) {
+    const set = guardDogWhitelistGidSet.value
+    result = result.filter((f: any) => set.has(Number(f.gid)))
+  }
+  if (filters.hasStealable) {
+    result = result.filter((f: any) => Number(f?.plant?.stealNum || 0) > 0)
+  }
+
+  // 4. 排序
+  const key = friendSortKey.value
+  const order = friendSortOrder.value === 'desc' ? -1 : 1
+  return [...result].sort((a: any, b: any) => {
+    const va = getSortValue(a, key)
+    const vb = getSortValue(b, key)
+    if (va < vb) return -1 * order
+    if (va > vb) return 1 * order
+    return 0
   })
 })
 
-const filteredFriends = computed(() => {
-  const keyword = searchKeyword.value.trim().toLowerCase()
-  const list = sortedFriends.value
-  if (!keyword)
-    return list
-
-  return list.filter((friend: any) => {
-    const name = String(friend?.name || '').toLowerCase()
-    const gid = String(friend?.gid || '')
-    const uin = String(friend?.uin || '')
-    return name.includes(keyword) || gid.includes(keyword) || uin.includes(keyword)
-  })
-})
-
-const totalPages = computed(() => Math.ceil(filteredFriends.value.length / pageSize) || 1)
+const totalPages = computed(() => Math.ceil(filteredSortedFriends.value.length / pageSize) || 1)
 
 const paginatedFriends = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   const end = start + pageSize
-  return filteredFriends.value.slice(start, end)
+  return filteredSortedFriends.value.slice(start, end)
 })
+
+// 是否有任何筛选生效（用于 UI 显示"重置"按钮）
+const hasActiveFilter = computed(() => {
+  return Boolean(searchKeyword.value.trim())
+    || friendLevelMin.value != null
+    || friendLevelMax.value != null
+    || Object.values(friendFilters.value).some(Boolean)
+})
+
+// 排序配置（label + value）
+const sortOptions: Array<{ key: FriendSortKey; label: string; defaultOrder: 'desc' | 'asc' }> = [
+  { key: 'level', label: '等级', defaultOrder: 'desc' },
+  { key: 'gold', label: '金币', defaultOrder: 'desc' },
+  { key: 'name', label: '名字', defaultOrder: 'asc' },
+  { key: 'lastActive', label: '最近活跃', defaultOrder: 'desc' },
+]
+
+const filterChips: Array<{ key: FriendFilterKey; label: string; activeClass: string }> = [
+  { key: 'hasGuardDog', label: '🐶 护主犬', activeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
+  { key: 'hasStealable', label: '🥬 可偷菜', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300 dark:border-blue-700' },
+  { key: 'inBlacklist', label: '已屏蔽', activeClass: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600' },
+  { key: 'inGuardDogBlacklist', label: '🚫 护黑', activeClass: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-300 dark:border-red-700' },
+  { key: 'inGuardDogWhitelist', label: '✅ 护白', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-700' },
+]
+
+const levelPresets: Array<{ label: string; min: number | null; max: number | null }> = [
+  { label: '不限', min: null, max: null },
+  { label: '1-50', min: 1, max: 50 },
+  { label: '51-100', min: 51, max: 100 },
+  { label: '101-150', min: 101, max: 150 },
+  { label: '151+', min: 151, max: null },
+]
+
+function toggleSort(key: FriendSortKey) {
+  if (friendSortKey.value === key) {
+    friendSortOrder.value = friendSortOrder.value === 'desc' ? 'asc' : 'desc'
+  }
+  else {
+    friendSortKey.value = key
+    const opt = sortOptions.find(o => o.key === key)
+    friendSortOrder.value = opt?.defaultOrder || 'desc'
+  }
+  currentPage.value = 1
+}
+
+function toggleFilterChip(key: FriendFilterKey) {
+  friendFilters.value[key] = !friendFilters.value[key]
+  currentPage.value = 1
+}
+
+function resetFriendFilters() {
+  searchKeyword.value = ''
+  friendLevelMin.value = null
+  friendLevelMax.value = null
+  for (const k of Object.keys(friendFilters.value) as FriendFilterKey[]) {
+    friendFilters.value[k] = false
+  }
+  currentPage.value = 1
+}
 
 function goToPage(page: number) {
   currentPage.value = Math.max(1, Math.min(page, totalPages.value))
 }
 
 watch(searchKeyword, () => {
+  currentPage.value = 1
+})
+
+watch([friendLevelMin, friendLevelMax], () => {
   currentPage.value = 1
 })
 
@@ -302,6 +445,14 @@ onMounted(() => {
 
 watch(currentAccountId, () => {
   expandedFriends.value.clear()
+  // 切账号时重置筛选
+  currentPage.value = 1
+  searchKeyword.value = ''
+  friendLevelMin.value = null
+  friendLevelMax.value = null
+  for (const k of Object.keys(friendFilters.value) as FriendFilterKey[]) {
+    friendFilters.value[k] = false
+  }
   loadData()
 })
 
@@ -1043,7 +1194,7 @@ async function handleRejectAllApplications() {
           >
         </div>
         <div v-if="activeTab === 'friends' && friends.length" class="text-sm text-gray-500">
-          共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ filteredFriends.length.toLocaleString('zh-CN') }}</span>/{{ friends.length.toLocaleString('zh-CN') }} 名好友
+          共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ filteredSortedFriends.length.toLocaleString('zh-CN') }}</span>/{{ friends.length.toLocaleString('zh-CN') }} 名好友
         </div>
         <div v-if="activeTab === 'applications'" class="text-sm text-gray-500">
           共 <span class="text-blue-600 font-bold dark:text-blue-400">{{ applications.length.toLocaleString('zh-CN') }}</span> 个申请
@@ -1246,6 +1397,80 @@ async function handleRejectAllApplications() {
             </button>
           </div>
 
+          <!-- 排序 + 筛选 -->
+          <div class="farm-card-enhanced animate-stagger-4 p-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">排序</span>
+              <button
+                v-for="opt in sortOptions"
+                :key="opt.key"
+                class="cartoon-btn flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition"
+                :class="friendSortKey === opt.key
+                  ? 'border-blue-400 bg-blue-50 text-blue-700 font-bold dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
+                @click="toggleSort(opt.key)"
+              >
+                {{ opt.label }}
+                <span v-if="friendSortKey === opt.key" class="opacity-70">
+                  {{ friendSortOrder === 'desc' ? '↓' : '↑' }}
+                </span>
+              </button>
+              <span class="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
+              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">筛选</span>
+              <button
+                v-for="chip in filterChips"
+                :key="chip.key"
+                class="cartoon-btn rounded-lg border px-2 py-1 text-xs transition"
+                :class="friendFilters[chip.key]
+                  ? chip.activeClass + ' font-bold'
+                  : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'"
+                @click="toggleFilterChip(chip.key)"
+              >
+                {{ chip.label }}
+              </button>
+              <button
+                class="cartoon-btn rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500 transition dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                :class="showFilterPanel ? '!bg-amber-50 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-300' : ''"
+                @click="showFilterPanel = !showFilterPanel"
+              >
+                📊 等级 {{ showFilterPanel ? '×' : '+' }}
+              </button>
+              <button
+                v-if="hasActiveFilter"
+                class="cartoon-btn rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-700 transition hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-300"
+                @click="resetFriendFilters"
+              >
+                🔄 重置
+              </button>
+            </div>
+            <div v-if="showFilterPanel" class="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 dark:border-gray-700">
+              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">等级范围</span>
+              <input
+                v-model.number="friendLevelMin"
+                type="number"
+                min="0"
+                placeholder="最小"
+                class="farm-input w-20 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+              <span class="text-xs text-gray-400">~</span>
+              <input
+                v-model.number="friendLevelMax"
+                type="number"
+                min="0"
+                placeholder="最大"
+                class="farm-input w-20 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+              >
+              <button
+                v-for="r in levelPresets"
+                :key="r.label"
+                class="cartoon-btn rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                @click="friendLevelMin = r.min; friendLevelMax = r.max"
+              >
+                {{ r.label }}
+              </button>
+            </div>
+          </div>
+
           <div
             v-for="(friend, idx) in paginatedFriends"
             :key="friend.gid"
@@ -1385,7 +1610,7 @@ async function handleRejectAllApplications() {
           </div>
 
           <!-- 分页控件 -->
-          <div v-if="filteredFriends.length > pageSize" class="animate-stagger-7 mt-4 flex flex-wrap animate-fade-in-up items-center justify-center gap-2">
+          <div v-if="filteredSortedFriends.length > pageSize" class="animate-stagger-7 mt-4 flex flex-wrap animate-fade-in-up items-center justify-center gap-2">
             <button
               class="cartoon-btn border border-gray-200 rounded-xl bg-white px-3 py-1.5 text-sm text-gray-600 transition dark:border-gray-600 dark:bg-gray-800 hover:bg-gray-50 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-700"
               :disabled="currentPage === 1"
@@ -1434,7 +1659,7 @@ async function handleRejectAllApplications() {
               🏁 末页
             </button>
             <span class="text-sm text-gray-500 dark:text-gray-400">
-              共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ filteredFriends.length.toLocaleString('zh-CN') }}</span> 位好友
+              共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ filteredSortedFriends.length.toLocaleString('zh-CN') }}</span> 位好友
             </span>
           </div>
         </template>
