@@ -66,6 +66,10 @@ export interface AccountConfig {
   friendsListCacheTtlSec: number;
   friendBlacklist: number[];
   friendGuardDogGids: number[];
+  /** 护主犬帮忙黑名单：开启"只帮护主犬"时，命中的 gid 强制跳过（优先级最高） */
+  friendGuardDogBlacklist: number[];
+  /** 护主犬帮忙白名单：开启"只帮护主犬"且非空时，只帮白名单中的 gid（覆盖 enterReply 检测） */
+  friendGuardDogWhitelist: number[];
   plantBlacklist: number[];
   stealDelaySeconds: number;
   plantOrderRandom: boolean;

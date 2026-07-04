@@ -497,6 +497,193 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: [] });
     });
 
+    // ============ 护主犬帮忙黑/白名单 API ============
+
+    // 护主犬帮忙黑名单
+    app.get('/api/friend-guard-dog-blacklist', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = store.getFriendGuardDogBlacklist ? store.getFriendGuardDogBlacklist(id) : [];
+        const list = await buildGuardDogListWithInfo(id, gids);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-blacklist/toggle', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gid = Number((req.body || {}).gid);
+        if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
+        const current = store.getFriendGuardDogBlacklist ? store.getFriendGuardDogBlacklist(id) : [];
+        let next: number[];
+        if (current.includes(gid)) {
+            next = current.filter((g: number) => g !== gid);
+            if (store.removeFriendGuardDogBlacklistGid) store.removeFriendGuardDogBlacklistGid(id, gid);
+        } else {
+            next = [...current, gid];
+            if (store.addFriendGuardDogBlacklistGid) store.addFriendGuardDogBlacklistGid(id, gid);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const list = await buildGuardDogListWithInfo(id, next);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-blacklist/batch-add', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = Array.isArray((req.body || {}).gids) ? (req.body || {}).gids : [];
+        const validGids = gids.map(Number).filter((g: number) => g > 0);
+        if (validGids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+        const current = store.getFriendGuardDogBlacklist ? store.getFriendGuardDogBlacklist(id) : [];
+        for (const g of validGids) {
+            if (store.addFriendGuardDogBlacklistGid) store.addFriendGuardDogBlacklistGid(id, g);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogBlacklist ? store.getFriendGuardDogBlacklist(id) : current;
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-blacklist/batch-remove', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = Array.isArray((req.body || {}).gids) ? (req.body || {}).gids : [];
+        const validGids = gids.map(Number).filter((g: number) => g > 0);
+        if (validGids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+        for (const g of validGids) {
+            if (store.removeFriendGuardDogBlacklistGid) store.removeFriendGuardDogBlacklistGid(id, g);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogBlacklist ? store.getFriendGuardDogBlacklist(id) : [];
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-blacklist/clear', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        if (store.setFriendGuardDogBlacklist) store.setFriendGuardDogBlacklist(id, []);
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        res.json({ ok: true, data: [] });
+    });
+
+    // 护主犬帮忙白名单
+    app.get('/api/friend-guard-dog-whitelist', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = store.getFriendGuardDogWhitelist ? store.getFriendGuardDogWhitelist(id) : [];
+        const list = await buildGuardDogListWithInfo(id, gids);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-whitelist/toggle', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gid = Number((req.body || {}).gid);
+        if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
+        const current = store.getFriendGuardDogWhitelist ? store.getFriendGuardDogWhitelist(id) : [];
+        if (current.includes(gid)) {
+            if (store.removeFriendGuardDogWhitelistGid) store.removeFriendGuardDogWhitelistGid(id, gid);
+        } else {
+            if (store.addFriendGuardDogWhitelistGid) store.addFriendGuardDogWhitelistGid(id, gid);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogWhitelist ? store.getFriendGuardDogWhitelist(id) : current;
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-whitelist/batch-add', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = Array.isArray((req.body || {}).gids) ? (req.body || {}).gids : [];
+        const validGids = gids.map(Number).filter((g: number) => g > 0);
+        if (validGids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+        for (const g of validGids) {
+            if (store.addFriendGuardDogWhitelistGid) store.addFriendGuardDogWhitelistGid(id, g);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogWhitelist ? store.getFriendGuardDogWhitelist(id) : [];
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-whitelist/batch-remove', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids = Array.isArray((req.body || {}).gids) ? (req.body || {}).gids : [];
+        const validGids = gids.map(Number).filter((g: number) => g > 0);
+        if (validGids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+        for (const g of validGids) {
+            if (store.removeFriendGuardDogWhitelistGid) store.removeFriendGuardDogWhitelistGid(id, g);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogWhitelist ? store.getFriendGuardDogWhitelist(id) : [];
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
+    app.post('/api/friend-guard-dog-whitelist/clear', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        if (store.setFriendGuardDogWhitelist) store.setFriendGuardDogWhitelist(id, []);
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        res.json({ ok: true, data: [] });
+    });
+
     // ============ 好友GID管理 API ============
 
     // 获取已知好友GID设置

@@ -30,6 +30,8 @@ export const useFriendStore = defineStore('friend', () => {
   const friendLandsLoading = ref<Record<string, boolean>>({})
   const blacklist = ref<BlacklistItem[]>([])
   const guardDogFriends = ref<BlacklistItem[]>([])
+  const guardDogBlacklist = ref<BlacklistItem[]>([])
+  const guardDogWhitelist = ref<BlacklistItem[]>([])
   const interactRecords = ref<any[]>([])
   const interactLoading = ref(false)
   const interactError = ref('')
@@ -241,6 +243,124 @@ export const useFriendStore = defineStore('friend', () => {
     })
     if (res.data.ok) {
       guardDogFriends.value = []
+    }
+  }
+
+  // ============ 护主犬帮忙黑/白名单 ============
+
+  async function fetchGuardDogBlacklist(accountId: string) {
+    if (!accountId)
+      return
+    try {
+      const res = await api.get('/api/friend-guard-dog-blacklist', {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data.ok) {
+        guardDogBlacklist.value = res.data.data || []
+      }
+    }
+    catch { /* ignore */ }
+  }
+
+  async function toggleGuardDogBlacklist(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return
+    const res = await api.post('/api/friend-guard-dog-blacklist/toggle', { gid }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogBlacklist.value = res.data.data || []
+    }
+  }
+
+  async function batchAddGuardDogBlacklist(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return
+    const res = await api.post('/api/friend-guard-dog-blacklist/batch-add', { gids }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogBlacklist.value = res.data.data || []
+    }
+  }
+
+  async function batchRemoveGuardDogBlacklist(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return
+    const res = await api.post('/api/friend-guard-dog-blacklist/batch-remove', { gids }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogBlacklist.value = res.data.data || []
+    }
+  }
+
+  async function clearGuardDogBlacklist(accountId: string) {
+    if (!accountId)
+      return
+    const res = await api.post('/api/friend-guard-dog-blacklist/clear', {}, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogBlacklist.value = []
+    }
+  }
+
+  async function fetchGuardDogWhitelist(accountId: string) {
+    if (!accountId)
+      return
+    try {
+      const res = await api.get('/api/friend-guard-dog-whitelist', {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data.ok) {
+        guardDogWhitelist.value = res.data.data || []
+      }
+    }
+    catch { /* ignore */ }
+  }
+
+  async function toggleGuardDogWhitelist(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return
+    const res = await api.post('/api/friend-guard-dog-whitelist/toggle', { gid }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogWhitelist.value = res.data.data || []
+    }
+  }
+
+  async function batchAddGuardDogWhitelist(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return
+    const res = await api.post('/api/friend-guard-dog-whitelist/batch-add', { gids }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogWhitelist.value = res.data.data || []
+    }
+  }
+
+  async function batchRemoveGuardDogWhitelist(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return
+    const res = await api.post('/api/friend-guard-dog-whitelist/batch-remove', { gids }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogWhitelist.value = res.data.data || []
+    }
+  }
+
+  async function clearGuardDogWhitelist(accountId: string) {
+    if (!accountId)
+      return
+    const res = await api.post('/api/friend-guard-dog-whitelist/clear', {}, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogWhitelist.value = []
     }
   }
 
@@ -603,6 +723,8 @@ export const useFriendStore = defineStore('friend', () => {
     friendLandsLoading,
     blacklist,
     guardDogFriends,
+    guardDogBlacklist,
+    guardDogWhitelist,
     scanningGuardDogAccountId,
     scanGuardDogResult,
     scanGuardDogProgress,
@@ -629,6 +751,16 @@ export const useFriendStore = defineStore('friend', () => {
     addGuardDogFriend,
     removeGuardDogFriend,
     clearGuardDogFriends,
+    fetchGuardDogBlacklist,
+    toggleGuardDogBlacklist,
+    batchAddGuardDogBlacklist,
+    batchRemoveGuardDogBlacklist,
+    clearGuardDogBlacklist,
+    fetchGuardDogWhitelist,
+    toggleGuardDogWhitelist,
+    batchAddGuardDogWhitelist,
+    batchRemoveGuardDogWhitelist,
+    clearGuardDogWhitelist,
     scanGuardDogFriends,
     fetchScanStatus,
     startScanStatusPoll,

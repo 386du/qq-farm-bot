@@ -12,6 +12,8 @@ const {
     getFriendsListCacheTtlSec,
     addFriendGuardDogGid,
     getFriendGuardDogGids,
+    getFriendGuardDogBlacklist,
+    getFriendGuardDogWhitelist,
 } = require('../../models/store');
 const { getUserState } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
@@ -668,9 +670,42 @@ const GUARD_DOG_IDS: ReadonlySet<number> = new Set<number>([
  * 仅在开启"只帮护主犬好友"时，按服务端返回的 brief_dog_info 判断是否护主。
  * 返回 true 表示当前好友未携带护主犬，帮忙操作应被跳过。
  * 若检测到携带护主犬，会自动登记到该账号的"护主犬好友"清单。
+ *
+ * 黑/白名单优先级：
+ *   1. 黑名单命中 → 直接跳过（不管有没有护主犬，也不调用 enterReply）
+ *   2. 白名单非空 + 当前 gid 在白名单 → 直接放行（不走护主犬检测，也不登记）
+ *   3. 白名单非空 + 当前 gid 不在白名单 → 跳过
+ *   4. 白名单为空 → 走原护主犬检测
  */
 function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any, accountId?: any): boolean {
     if (!isAutomationOn('friend_help_only_guard_dog')) return false;
+
+    const gidNum: number = toNum(gid);
+
+    // 1. 黑名单优先级最高
+    if (gidNum > 0) {
+        try {
+            const blackList: number[] = getFriendGuardDogBlacklist ? (getFriendGuardDogBlacklist(accountId) || []) : [];
+            if (blackList.includes(gidNum)) {
+                return true;
+            }
+        } catch { /* ignore */ }
+    }
+
+    // 2-3. 白名单模式：非空时只允许白名单内的 gid
+    let whitelist: number[] = [];
+    try {
+        whitelist = getFriendGuardDogWhitelist ? (getFriendGuardDogWhitelist(accountId) || []) : [];
+    } catch { /* ignore */ }
+    if (whitelist.length > 0) {
+        if (gidNum > 0 && whitelist.includes(gidNum)) {
+            // 白名单命中，直接放行（不调用 enterReply，不登记到护主犬清单）
+            return false;
+        }
+        return true;
+    }
+
+    // 4. 白名单为空，走原护主犬检测
     const brief: any = enterReply && enterReply.brief_dog_info;
     if (!brief) {
         // 首次遇到无字段时，把 enterReply 的可序列化片段打出来，便于排查真实字段名
@@ -706,7 +741,6 @@ function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any,
         });
         // 自动登记到"护主犬好友"清单（去重）
         try {
-            const gidNum: number = toNum(gid);
             if (gidNum > 0) {
                 addFriendGuardDogGid(accountId, gidNum);
             }

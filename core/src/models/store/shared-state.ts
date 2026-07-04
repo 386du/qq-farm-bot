@@ -89,6 +89,8 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
     friendsListCacheTtlSec: DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
     friendBlacklist: [],
     friendGuardDogGids: [],
+    friendGuardDogBlacklist: [],
+    friendGuardDogWhitelist: [],
     plantBlacklist: [
         20002,
         20003,
@@ -262,6 +264,8 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
 
     const rawBlacklist: number[] = Array.isArray(base.friendBlacklist) ? base.friendBlacklist : [];
     const rawGuardDogGids: number[] = Array.isArray(base.friendGuardDogGids) ? base.friendGuardDogGids : [];
+    const rawGuardDogBlacklist: number[] = Array.isArray(base.friendGuardDogBlacklist) ? base.friendGuardDogBlacklist : [];
+    const rawGuardDogWhitelist: number[] = Array.isArray(base.friendGuardDogWhitelist) ? base.friendGuardDogWhitelist : [];
 
     const knownFriendGids = normalizeKnownFriendGids(base.knownFriendGids);
     const knownFriendGidSyncCooldownSec = normalizeKnownFriendGidSyncCooldownSec(base.knownFriendGidSyncCooldownSec);
@@ -280,6 +284,8 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
         friendsListCacheTtlSec,
         friendBlacklist: rawBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
         friendGuardDogGids: rawGuardDogGids.map(Number).filter(n => Number.isFinite(n) && n > 0),
+        friendGuardDogBlacklist: rawGuardDogBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
+        friendGuardDogWhitelist: rawGuardDogWhitelist.map(Number).filter(n => Number.isFinite(n) && n > 0),
         plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(base.plantingStrategy || '') as PlantingStrategy)
             ? String(base.plantingStrategy) as PlantingStrategy
             : DEFAULT_ACCOUNT_CONFIG.plantingStrategy,
@@ -353,6 +359,14 @@ function normalizeAccountConfig(input: unknown, fallback: AccountConfig = accoun
 
     if (Array.isArray(src.friendGuardDogGids)) {
         cfg.friendGuardDogGids = src.friendGuardDogGids.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
+    }
+
+    if (Array.isArray(src.friendGuardDogBlacklist)) {
+        cfg.friendGuardDogBlacklist = src.friendGuardDogBlacklist.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
+    }
+
+    if (Array.isArray(src.friendGuardDogWhitelist)) {
+        cfg.friendGuardDogWhitelist = src.friendGuardDogWhitelist.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
     }
 
     if (src.knownFriendGids !== undefined) {
