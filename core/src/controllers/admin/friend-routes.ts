@@ -33,7 +33,16 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
 
         try {
             const data = await ctx.provider.getFriends(id, forceSync);
-            res.json({ ok: true, data });
+            // 检测被删好友（强制刷新时也检测，第一次只记录快照不算被删）
+            let newDeletedCount = 0;
+            if (Array.isArray(data) && store.detectAndRecordDeletedFriends) {
+                try {
+                    newDeletedCount = store.detectAndRecordDeletedFriends(id, data) || 0;
+                } catch (e) {
+                    // 静默失败，不影响好友列表返回
+                }
+            }
+            res.json({ ok: true, data, newDeletedCount });
         } catch (e: any) {
             handleApiError(res, e);
         }
@@ -895,6 +904,61 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
                 data: buildKnownFriendGidSettings(id),
                 removedCount,
             });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
+
+    // ============ 被好友删除记录 API ============
+
+    // 获取被好友删除记录列表
+    app.get('/api/friend-deleted-records', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        try {
+            const list = store.getFriendDeletedRecords ? store.getFriendDeletedRecords(id) : [];
+            return res.json({ ok: true, data: list });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
+
+    // 清空被好友删除记录
+    app.post('/api/friend-deleted-records/clear', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        try {
+            const count = store.clearFriendDeletedRecords ? store.clearFriendDeletedRecords(id) : 0;
+            return res.json({ ok: true, clearedCount: count });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
+
+    // 删除单条被好友删除记录
+    app.post('/api/friend-deleted-records/remove', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const body = (req.body && typeof req.body === 'object') ? req.body : {};
+        const gid = Number(body.gid);
+        if (!Number.isFinite(gid) || gid <= 0) {
+            return res.status(400).json({ ok: false, error: 'GID 无效' });
+        }
+        try {
+            const removed = store.removeFriendDeletedRecord
+                ? store.removeFriendDeletedRecord(id, gid, body.deletedAt)
+                : false;
+            const list = store.getFriendDeletedRecords ? store.getFriendDeletedRecords(id) : [];
+            return res.json({ ok: true, removed, data: list });
         } catch (e: any) {
             return handleApiError(res, e);
         }

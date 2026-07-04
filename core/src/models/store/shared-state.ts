@@ -463,6 +463,8 @@ const globalConfig: GlobalConfig = {
     },
     announcementReadRecords: {},
     systemConfig: null,
+    friendDeletedRecords: {},
+    friendListSnapshot: {},
 };
 
 function resolveAccountId(accountId: unknown): string {
@@ -558,6 +560,39 @@ function loadGlobalConfig(): void {
                         ? !!(data.systemConfig as any).autoResumeEnabled
                         : true,
                 };
+            }
+
+            // 加载被好友删除记录（key 为 accountId）
+            if (data.friendDeletedRecords && typeof data.friendDeletedRecords === 'object') {
+                globalConfig.friendDeletedRecords = {};
+                for (const [accId, list] of Object.entries(data.friendDeletedRecords)) {
+                    if (!accId || !Array.isArray(list)) continue;
+                    globalConfig.friendDeletedRecords[accId] = list.filter((item: any) =>
+                        item && typeof item === 'object'
+                        && Number.isFinite(Number(item.gid))
+                        && Number(item.gid) > 0
+                        && Number(item.deletedAt) > 0,
+                    );
+                }
+            }
+            if (!globalConfig.friendDeletedRecords) {
+                globalConfig.friendDeletedRecords = {};
+            }
+
+            // 加载好友列表快照（key 为 accountId）
+            if (data.friendListSnapshot && typeof data.friendListSnapshot === 'object') {
+                globalConfig.friendListSnapshot = {};
+                for (const [accId, list] of Object.entries(data.friendListSnapshot)) {
+                    if (!accId || !Array.isArray(list)) continue;
+                    globalConfig.friendListSnapshot[accId] = list.filter((item: any) =>
+                        item && typeof item === 'object'
+                        && Number.isFinite(Number(item.gid))
+                        && Number(item.gid) > 0,
+                    );
+                }
+            }
+            if (!globalConfig.friendListSnapshot) {
+                globalConfig.friendListSnapshot = {};
             }
         }
     } catch (e: any) {

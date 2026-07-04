@@ -36,6 +36,9 @@ const {
   applicationsLoading,
   applicationsError,
   applicationActionLoading,
+  deletedRecords,
+  deletedRecordsLoading,
+  deletedRecordsActionLoading,
 } = storeToRefs(friendStore)
 const { status, loading: statusLoading, realtimeConnected } = storeToRefs(statusStore)
 
@@ -98,6 +101,7 @@ const TABS = [
   { key: 'guardDog', label: '护主犬好友', icon: '🐶' },
   { key: 'applications', label: '好友申请', icon: '📨' },
   { key: 'blacklist', label: '好友黑名单', icon: '🚫' },
+  { key: 'deleted', label: '被删记录', icon: '💔' },
   { key: 'visitors', label: '最近访客', icon: '👀' },
 ] as const
 
@@ -417,6 +421,7 @@ async function loadData() {
       friendStore.fetchGuardDogWhitelist(currentAccountId.value)
       friendStore.fetchInteractRecords(currentAccountId.value)
       friendStore.fetchApplications(currentAccountId.value)
+      friendStore.fetchDeletedRecords(currentAccountId.value)
       if (isQqAccount.value) {
         friendStore.fetchKnownFriendSettings(currentAccountId.value)
       }
@@ -1219,6 +1224,58 @@ async function handleRejectAllApplications() {
     return result
   })
 }
+
+// ============ 被删记录 ============
+
+async function refreshDeletedRecords() {
+  if (!currentAccountId.value)
+    return
+  await friendStore.fetchDeletedRecords(currentAccountId.value)
+}
+
+async function handleClearDeletedRecords() {
+  if (!currentAccountId.value)
+    return
+  confirmAction(`确定清空全部被删记录吗？此操作不可撤销。`, async () => {
+    const result = await friendStore.clearDeletedRecords(currentAccountId.value!)
+    if (result.ok) {
+      toast.success(`已清空 ${result.clearedCount || 0} 条被删记录`)
+    }
+    else {
+      toast.error(result.error || '清空失败')
+    }
+    return result
+  })
+}
+
+async function handleRemoveDeletedRecord(item: { gid: number; deletedAt: number }) {
+  if (!currentAccountId.value)
+    return
+  const result = await friendStore.removeDeletedRecord(currentAccountId.value, Number(item.gid), Number(item.deletedAt))
+  if (result.ok) {
+    toast.success('已移除该记录')
+  }
+  else {
+    toast.error(result.error || '移除失败')
+  }
+}
+
+function formatDeletedAt(timestamp: number) {
+  const ts = Number(timestamp) || 0
+  if (!ts)
+    return '--'
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime()))
+    return '--'
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
 </script>
 
 <template>
@@ -1246,6 +1303,9 @@ async function handleRejectAllApplications() {
         </div>
         <div v-if="activeTab === 'blacklist'" class="text-sm text-gray-500">
           共 <span class="text-red-600 font-bold dark:text-red-400">{{ blacklist.length.toLocaleString('zh-CN') }}</span> 人
+        </div>
+        <div v-if="activeTab === 'deleted'" class="text-sm text-gray-500">
+          共 <span class="text-pink-600 font-bold dark:text-pink-400">{{ deletedRecords.length.toLocaleString('zh-CN') }}</span> 人
         </div>
         <div v-if="activeTab === 'guardDog'" class="text-sm text-gray-500">
           共 <span class="text-amber-600 font-bold dark:text-amber-400">{{ guardDogFriends.length.toLocaleString('zh-CN') }}</span> 人
@@ -1288,6 +1348,13 @@ async function handleRejectAllApplications() {
               {{ blacklist.length.toLocaleString('zh-CN') }}
             </span>
             <span
+              v-if="tab.key === 'deleted' && deletedRecords.length > 0"
+              class="rounded-full px-1.5 py-0.5 text-xs font-bold"
+              :class="activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400'"
+            >
+              {{ deletedRecords.length.toLocaleString('zh-CN') }}
+            </span>
+            <span
               v-if="tab.key === 'guardDog' && guardDogFriends.length > 0"
               class="rounded-full px-1.5 py-0.5 text-xs font-bold"
               :class="activeTab === tab.key ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'"
@@ -1311,7 +1378,7 @@ async function handleRejectAllApplications() {
       </div>
     </div>
 
-    <div v-if="loading || statusLoading || interactLoading || applicationsLoading" class="animate-stagger-3 flex animate-fade-in-up justify-center py-12">
+    <div v-if="loading || statusLoading || interactLoading || applicationsLoading || deletedRecordsLoading" class="animate-stagger-3 flex animate-fade-in-up justify-center py-12">
       <span class="animate-spin text-4xl">⏳</span>
     </div>
 
@@ -1882,6 +1949,83 @@ async function handleRejectAllApplications() {
               @click="handleRemoveFromBlacklist(item.gid)"
             >
               ⬆️ 移出黑名单
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="activeTab === 'deleted'" class="space-y-4">
+        <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xl">💔</span>
+            <p class="flex-1 text-sm text-gray-500 dark:text-gray-400">
+              系统通过对比好友列表快照自动记录被好友删除的 GID，可用于追溯关系变化。
+            </p>
+            <button
+              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+              :disabled="deletedRecordsLoading"
+              @click="refreshDeletedRecords"
+            >
+              🔄 刷新
+            </button>
+            <button
+              v-if="deletedRecords.length > 0"
+              class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+              :disabled="deletedRecordsActionLoading"
+              @click="handleClearDeletedRecords"
+            >
+              🗑️ 清空记录
+            </button>
+          </div>
+        </div>
+
+        <div v-if="deletedRecords.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
+          <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+            💔
+          </div>
+          <div class="text-lg font-display">
+            暂无被删记录
+          </div>
+          <div class="mt-1 text-sm text-gray-400">
+            第一次拉取好友列表时会建立基准快照，之后若发现好友消失会记录在此
+          </div>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div
+            v-for="(item, idx) in deletedRecords"
+            :key="`${item.gid}-${item.deletedAt}`"
+            class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+            :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
+          >
+            <div class="flex items-center gap-3">
+              <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-pink-200/50 dark:bg-gray-600 dark:ring-pink-700/30">
+                <img
+                  v-if="item.avatarUrl"
+                  :src="item.avatarUrl"
+                  class="h-full w-full object-cover"
+                  loading="lazy"
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                >
+                <span v-else class="text-gray-400">👤</span>
+                <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-pink-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span class="rounded bg-pink-100 px-1.5 py-0.5 text-xs text-pink-700 font-bold dark:bg-pink-900/30 dark:text-pink-400">已删除</span>
+                </div>
+                <div class="mt-0.5 text-xs text-gray-400">
+                  GID {{ item.gid }} · 💔 {{ formatDeletedAt(item.deletedAt) }}
+                </div>
+              </div>
+            </div>
+            <button
+              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+              :disabled="deletedRecordsActionLoading"
+              @click="handleRemoveDeletedRecord(item)"
+            >
+              ⬆️ 移除记录
             </button>
           </div>
         </div>

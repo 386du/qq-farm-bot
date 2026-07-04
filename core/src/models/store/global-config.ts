@@ -1,4 +1,4 @@
-import type { AccountConfig, Announcement, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
+import type { AccountConfig, Announcement, DeletedFriendRecord, FriendSnapshotItem, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
 export {};
 
 const fs = require('node:fs');
@@ -313,6 +313,199 @@ for (const [username, cfg] of Object.entries(globalConfig.userOfflineReminders |
     globalConfig.userOfflineReminders[username] = normalizeOfflineReminder(cfg);
 }
 
+// ============ 被好友删除记录（per-account） ============
+
+function normalizeDeletedFriendRecord(input: unknown): DeletedFriendRecord | null {
+    if (!input || typeof input !== 'object') return null;
+    const src = input as Record<string, any>;
+    const gid = Number.parseInt(String(src.gid ?? ''), 10);
+    if (!Number.isFinite(gid) || gid <= 0) return null;
+    const deletedAt = Number(src.deletedAt) || 0;
+    if (deletedAt <= 0) return null;
+    return {
+        gid,
+        name: String(src.name || `GID:${gid}`).trim() || `GID:${gid}`,
+        avatarUrl: String(src.avatarUrl || '').trim(),
+        deletedAt,
+    };
+}
+
+function normalizeFriendSnapshotItem(input: unknown): FriendSnapshotItem | null {
+    if (!input || typeof input !== 'object') return null;
+    const src = input as Record<string, any>;
+    const gid = Number.parseInt(String(src.gid ?? ''), 10);
+    if (!Number.isFinite(gid) || gid <= 0) return null;
+    return {
+        gid,
+        name: String(src.name || `GID:${gid}`).trim() || `GID:${gid}`,
+        avatarUrl: String(src.avatarUrl || '').trim(),
+    };
+}
+
+function getFriendDeletedRecords(accountId: unknown): DeletedFriendRecord[] {
+    const id = sharedState.resolveAccountId(accountId);
+    if (!id) return [];
+    const map = (globalConfig.friendDeletedRecords && typeof globalConfig.friendDeletedRecords === 'object')
+        ? globalConfig.friendDeletedRecords
+        : {};
+    const list = map[id];
+    if (!Array.isArray(list)) return [];
+    return list
+        .map(normalizeDeletedFriendRecord)
+        .filter((item): item is DeletedFriendRecord => !!item)
+        .sort((a, b) => b.deletedAt - a.deletedAt);
+}
+
+function getFriendListSnapshot(accountId: unknown): FriendSnapshotItem[] {
+    const id = sharedState.resolveAccountId(accountId);
+    if (!id) return [];
+    const map = (globalConfig.friendListSnapshot && typeof globalConfig.friendListSnapshot === 'object')
+        ? globalConfig.friendListSnapshot
+        : {};
+    const list = map[id];
+    if (!Array.isArray(list)) return [];
+    return list
+        .map(normalizeFriendSnapshotItem)
+        .filter((item): item is FriendSnapshotItem => !!item);
+}
+
+function setFriendListSnapshot(accountId: unknown, snapshot: unknown[]): FriendSnapshotItem[] {
+    const id = sharedState.resolveAccountId(accountId);
+    if (!id) return [];
+    if (!globalConfig.friendListSnapshot || typeof globalConfig.friendListSnapshot !== 'object') {
+        globalConfig.friendListSnapshot = {};
+    }
+    const normalized: FriendSnapshotItem[] = (Array.isArray(snapshot) ? snapshot : [])
+        .map(normalizeFriendSnapshotItem)
+        .filter((item): item is FriendSnapshotItem => !!item);
+    // 去重（同 gid 只保留第一次出现）
+    const seen = new Set<number>();
+    const unique: FriendSnapshotItem[] = [];
+    for (const item of normalized) {
+        if (seen.has(item.gid)) continue;
+        seen.add(item.gid);
+        unique.push(item);
+    }
+    globalConfig.friendListSnapshot[id] = unique;
+    saveGlobalConfig();
+    return unique;
+}
+
+/**
+ * 对比当前好友列表与上次快照，追加被删记录到列表头部（最多 5000 条，防止 store.json 无限增长）。
+ * 返回新增的记录条数。
+ */
+function detectAndRecordDeletedFriends(accountId: unknown, currentFriends: unknown[]): number {
+    const id = sharedState.resolveAccountId(accountId);
+    if (!id) return 0;
+
+    const currentList: FriendSnapshotItem[] = (Array.isArray(currentFriends) ? currentFriends : [])
+        .map((f: any) => {
+            const gid = Number.parseInt(String(f?.gid ?? ''), 10);
+            if (!Number.isFinite(gid) || gid <= 0) return null;
+            return {
+                gid,
+                name: String(f?.name || `GID:${gid}`).trim() || `GID:${gid}`,
+                avatarUrl: String(f?.avatarUrl || f?.avatar_url || '').trim(),
+            } as FriendSnapshotItem;
+        })
+        .filter((item): item is FriendSnapshotItem => !!item);
+
+    const previousSnapshot = getFriendListSnapshot(id);
+    const currentGidSet = new Set(currentList.map(f => f.gid));
+
+    // 找出快照中存在、当前列表中不存在的 gid
+    const removed: DeletedFriendRecord[] = [];
+    const now = Date.now();
+    for (const prev of previousSnapshot) {
+        if (!currentGidSet.has(prev.gid)) {
+            removed.push({
+                gid: prev.gid,
+                name: prev.name,
+                avatarUrl: prev.avatarUrl,
+                deletedAt: now,
+            });
+        }
+    }
+
+    // 首次填充快照时（previousSnapshot 为空），不算"被删"，直接写入快照
+    if (previousSnapshot.length === 0) {
+        if (currentList.length > 0) {
+            setFriendListSnapshot(id, currentList);
+        }
+        return 0;
+    }
+
+    // 写入新的被删记录（去重：同 gid 只保留最新一条）
+    if (removed.length > 0) {
+        if (!globalConfig.friendDeletedRecords || typeof globalConfig.friendDeletedRecords !== 'object') {
+            globalConfig.friendDeletedRecords = {};
+        }
+        const existing = Array.isArray(globalConfig.friendDeletedRecords[id])
+            ? globalConfig.friendDeletedRecords[id]
+            : [];
+        const existingMap = new Map<number, DeletedFriendRecord>();
+        for (const item of existing) {
+            const normalized = normalizeDeletedFriendRecord(item);
+            if (normalized) existingMap.set(normalized.gid, normalized);
+        }
+        for (const item of removed) {
+            existingMap.set(item.gid, item);
+        }
+        // 按 deletedAt 倒序
+        const merged = Array.from(existingMap.values()).sort((a, b) => b.deletedAt - a.deletedAt);
+        // 上限 5000 条，超出时丢弃最旧的
+        const MAX = 5000;
+        if (merged.length > MAX) merged.length = MAX;
+        globalConfig.friendDeletedRecords[id] = merged;
+    }
+
+    // 更新快照为当前列表
+    setFriendListSnapshot(id, currentList);
+
+    if (removed.length > 0) {
+        saveGlobalConfig();
+    }
+    return removed.length;
+}
+
+function clearFriendDeletedRecords(accountId: unknown): number {
+    const id = sharedState.resolveAccountId(accountId);
+    if (!id) return 0;
+    if (!globalConfig.friendDeletedRecords || !Array.isArray(globalConfig.friendDeletedRecords[id])) {
+        return 0;
+    }
+    const count = globalConfig.friendDeletedRecords[id].length;
+    delete globalConfig.friendDeletedRecords[id];
+    saveGlobalConfig();
+    return count;
+}
+
+function removeFriendDeletedRecord(accountId: unknown, gid: unknown, deletedAt: unknown): boolean {
+    const id = sharedState.resolveAccountId(accountId);
+    const gidNum = Number.parseInt(String(gid ?? ''), 10);
+    if (!id || !Number.isFinite(gidNum) || gidNum <= 0) return false;
+    const list = globalConfig.friendDeletedRecords?.[id];
+    if (!Array.isArray(list)) return false;
+    const before = list.length;
+    const filtered = list.filter((item: any) => {
+        const n = normalizeDeletedFriendRecord(item);
+        if (!n) return false;
+        if (n.gid !== gidNum) return true;
+        // 优先按 deletedAt 精确匹配；未传 deletedAt 时按 gid 全部移除
+        if (deletedAt === undefined || deletedAt === null) return false;
+        return n.deletedAt !== Number(deletedAt);
+    });
+    if (filtered.length === before) return false;
+    if (filtered.length === 0) {
+        delete globalConfig.friendDeletedRecords![id];
+    } else {
+        globalConfig.friendDeletedRecords![id] = filtered;
+    }
+    saveGlobalConfig();
+    return true;
+}
+
 module.exports = {
     saveGlobalConfig,
     getAdminPasswordHash,
@@ -333,4 +526,10 @@ module.exports = {
     getSystemConfig,
     setSystemConfig,
     getAutoResumeEnabled,
+    getFriendDeletedRecords,
+    getFriendListSnapshot,
+    setFriendListSnapshot,
+    detectAndRecordDeletedFriends,
+    clearFriendDeletedRecords,
+    removeFriendDeletedRecord,
 };

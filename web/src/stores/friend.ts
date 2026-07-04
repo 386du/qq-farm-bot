@@ -8,6 +8,13 @@ export interface BlacklistItem {
   avatarUrl: string
 }
 
+export interface DeletedFriendRecord {
+  gid: number
+  name: string
+  avatarUrl: string
+  deletedAt: number
+}
+
 export interface KnownFriendSettings {
   knownFriendGids: number[]
   knownFriendGidSyncCooldownSec: number
@@ -47,6 +54,10 @@ export const useFriendStore = defineStore('friend', () => {
   const applicationsError = ref('')
   const blockApplications = ref(false)
   const applicationActionLoading = ref(false)
+
+  const deletedRecords = ref<DeletedFriendRecord[]>([])
+  const deletedRecordsLoading = ref(false)
+  const deletedRecordsActionLoading = ref(false)
 
   function buildPlantSummaryFromDetail(lands: any[], summary: any) {
     let stealNum = 0
@@ -727,6 +738,71 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  // ============ 被好友删除记录 ============
+
+  async function fetchDeletedRecords(accountId: string) {
+    if (!accountId)
+      return
+    deletedRecordsLoading.value = true
+    try {
+      const res = await api.get('/api/friend-deleted-records', {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data && res.data.ok) {
+        deletedRecords.value = Array.isArray(res.data.data) ? res.data.data : []
+      }
+    }
+    catch { /* ignore */ }
+    finally {
+      deletedRecordsLoading.value = false
+    }
+  }
+
+  async function clearDeletedRecords(accountId: string) {
+    if (!accountId)
+      return { ok: false }
+    deletedRecordsActionLoading.value = true
+    try {
+      const res = await api.post('/api/friend-deleted-records/clear', {}, {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data && res.data.ok) {
+        deletedRecords.value = []
+      }
+      return { ok: !!res.data?.ok, clearedCount: res.data?.clearedCount || 0 }
+    }
+    catch (e: any) {
+      return { ok: false, error: e?.response?.data?.error || e?.message || '清空失败' }
+    }
+    finally {
+      deletedRecordsActionLoading.value = false
+    }
+  }
+
+  async function removeDeletedRecord(accountId: string, gid: number, deletedAt?: number) {
+    if (!accountId || !gid)
+      return { ok: false }
+    deletedRecordsActionLoading.value = true
+    try {
+      const body: Record<string, any> = { gid }
+      if (deletedAt !== undefined && deletedAt !== null)
+        body.deletedAt = deletedAt
+      const res = await api.post('/api/friend-deleted-records/remove', body, {
+        headers: { 'x-account-id': accountId },
+      })
+      if (res.data && res.data.ok) {
+        deletedRecords.value = Array.isArray(res.data.data) ? res.data.data : []
+      }
+      return { ok: !!res.data?.ok, removed: !!res.data?.removed }
+    }
+    catch (e: any) {
+      return { ok: false, error: e?.response?.data?.error || e?.message || '删除失败' }
+    }
+    finally {
+      deletedRecordsActionLoading.value = false
+    }
+  }
+
   // 切换"屏蔽加好友申请"全局开关（游戏 FriendService 唯一支持的屏蔽维度）
   async function setBlockApplications(accountId: string, block: boolean) {
     if (!accountId)
@@ -801,6 +877,9 @@ export const useFriendStore = defineStore('friend', () => {
     applicationsError,
     blockApplications,
     applicationActionLoading,
+    deletedRecords,
+    deletedRecordsLoading,
+    deletedRecordsActionLoading,
     fetchFriends,
     fetchBlacklist,
     toggleBlacklist,
@@ -839,5 +918,8 @@ export const useFriendStore = defineStore('friend', () => {
     rejectApplications,
     setBlockApplications,
     blockFriend,
+    fetchDeletedRecords,
+    clearDeletedRecords,
+    removeDeletedRecord,
   }
 })

@@ -63,6 +63,12 @@ module.exports = {
     deleteUserYybConfig: globalConfig.deleteUserYybConfig,
     getAdminPasswordHash: globalConfig.getAdminPasswordHash,
     setAdminPasswordHash: globalConfig.setAdminPasswordHash,
+    getFriendDeletedRecords: globalConfig.getFriendDeletedRecords,
+    getFriendListSnapshot: globalConfig.getFriendListSnapshot,
+    setFriendListSnapshot: globalConfig.setFriendListSnapshot,
+    detectAndRecordDeletedFriends: globalConfig.detectAndRecordDeletedFriends,
+    clearFriendDeletedRecords: globalConfig.clearFriendDeletedRecords,
+    removeFriendDeletedRecord: globalConfig.removeFriendDeletedRecord,
 
     // Accounts
     getAccounts: accounts.getAccounts,

@@ -119,6 +119,20 @@ export interface SystemConfig {
   autoResumeEnabled?: boolean;
 }
 
+export interface DeletedFriendRecord {
+  gid: number;
+  name: string;
+  avatarUrl: string;
+  // 检测到被删时的 Unix 毫秒时间戳
+  deletedAt: number;
+}
+
+export interface FriendSnapshotItem {
+  gid: number;
+  name: string;
+  avatarUrl: string;
+}
+
 export interface Announcement {
   content: string;
   showOnce: boolean;
@@ -155,4 +169,8 @@ export interface GlobalConfig {
   announcement: Announcement;
   announcementReadRecords: Record<string, number>;
   systemConfig: SystemConfig | null;
+  // 被好友删除记录（key 为 accountId），按 deletedAt 倒序
+  friendDeletedRecords?: Record<string, DeletedFriendRecord[]>;
+  // 好友列表快照（key 为 accountId），用于下次对比发现"被删好友"
+  friendListSnapshot?: Record<string, FriendSnapshotItem[]>;
 }
