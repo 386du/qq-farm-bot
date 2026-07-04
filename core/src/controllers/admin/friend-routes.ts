@@ -438,6 +438,28 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, removed, data: list });
     });
 
+    app.post('/api/friend-guard-dog-gids/batch-add', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gids: number[] = Array.isArray((req.body || {}).gids) ? (req.body || {}).gids : [];
+        const validGids: number[] = gids.map(Number).filter((g: number) => g > 0);
+        if (validGids.length === 0) {
+            return res.status(400).json({ ok: false, error: '缺少有效的 gid 列表' });
+        }
+        for (const g of validGids) {
+            if (store.addFriendGuardDogGid) store.addFriendGuardDogGid(id, g);
+        }
+        if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+            ctx.provider.broadcastConfig(id);
+        }
+        const saved = store.getFriendGuardDogGids ? store.getFriendGuardDogGids(id) : [];
+        const list = await buildGuardDogListWithInfo(id, saved);
+        res.json({ ok: true, data: list });
+    });
+
     app.post('/api/friend-guard-dog-gids/scan', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });

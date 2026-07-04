@@ -246,6 +246,17 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  async function batchAddGuardDogFriends(accountId: string, gids: number[]) {
+    if (!accountId || !gids || gids.length === 0)
+      return
+    const res = await api.post('/api/friend-guard-dog-gids/batch-add', { gids }, {
+      headers: { 'x-account-id': accountId },
+    })
+    if (res.data.ok) {
+      guardDogFriends.value = res.data.data || []
+    }
+  }
+
   // ============ 护主犬帮忙黑/白名单 ============
 
   async function fetchGuardDogBlacklist(accountId: string) {
@@ -751,6 +762,7 @@ export const useFriendStore = defineStore('friend', () => {
     addGuardDogFriend,
     removeGuardDogFriend,
     clearGuardDogFriends,
+    batchAddGuardDogFriends,
     fetchGuardDogBlacklist,
     toggleGuardDogBlacklist,
     batchAddGuardDogBlacklist,
