@@ -576,8 +576,8 @@ async function handleTryDeleteFriend(friend: any, e: Event) {
         toast.success(result.message || '删除请求已发送')
       }
       else {
-        // 失败时把详细错误也展示出来，方便排查
-        toast.error(result.message || '实验性删好友失败', { duration: 8000 })
+        // 失败时把详细错误也展示出来，方便排查（延长显示时间到 8s）
+        toast.error(result.message || '实验性删好友失败', 8000)
       }
       return result
     },
@@ -600,7 +600,7 @@ async function handleTryBlockFriend(friend: any, e: Event) {
         toast.success(result.message || '拉黑请求已发送')
       }
       else {
-        toast.error(result.message || '实验性拉黑失败', { duration: 8000 })
+        toast.error(result.message || '实验性拉黑失败', 8000)
       }
       return result
     },
