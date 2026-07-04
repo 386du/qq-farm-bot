@@ -306,8 +306,7 @@ interface DailyReport {
     harvestKingAccount: DailyReportAccount | null;
 }
 
-function generateReport(dateKey: string, runningMap: Record<string, boolean> = {}): DailyReport {
-    ensureGamifDir();
+function buildReportData(dateKey: string, runningMap: Record<string, boolean> = {}): DailyReport {
     const accounts = store.getAccounts() || { accounts: [] };
     const accountReports: DailyReportAccount[] = (accounts.accounts || []).map((a: any) => {
         const s = summarizeAccount(a.id, a.name, a.platform, dateKey, !!runningMap[String(a.id)]);
@@ -356,7 +355,7 @@ function generateReport(dateKey: string, runningMap: Record<string, boolean> = {
     const sortedBySteal = [...accountReports].sort((a, b) => b.steal - a.steal);
     const sortedByHarvest = [...accountReports].sort((a, b) => b.harvest - a.harvest);
 
-    const report: DailyReport = {
+    return {
         date: dateKey,
         generatedAt: nowMs(),
         totalAccounts: accountReports.length,
@@ -367,30 +366,30 @@ function generateReport(dateKey: string, runningMap: Record<string, boolean> = {
         stealKingAccount: sortedBySteal[0] && sortedBySteal[0].steal > 0 ? sortedBySteal[0] : null,
         harvestKingAccount: sortedByHarvest[0] && sortedByHarvest[0].harvest > 0 ? sortedByHarvest[0] : null,
     };
+}
 
+/**
+ * 仅计算当日/昨日日报，不写盘。
+ * 用于 GET /api/report/daily 这种"读取展示"接口，避免读路径产生副作用。
+ */
+function computeReport(dateKey: string, runningMap: Record<string, boolean> = {}): DailyReport {
+    return buildReportData(dateKey, runningMap);
+}
+
+/**
+ * 计算并落盘日报。用于：
+ *   - 每日 0:05 的定时任务
+ *   - 管理员手动 POST /api/admin/report/regenerate
+ */
+function generateReport(dateKey: string, runningMap: Record<string, boolean> = {}): DailyReport {
+    ensureGamifDir();
+    const report = buildReportData(dateKey, runningMap);
     try {
         writeJsonFileAtomic(getReportFile(dateKey), report);
     } catch (e: any) {
         gamifLogger.warn('保存日报失败', { error: e.message });
     }
-
     return report;
-}
-
-function loadReport(dateKey: string): DailyReport | null {
-    const file = getReportFile(dateKey);
-    if (!fs.existsSync(file)) {
-        try {
-            return generateReport(dateKey);
-        } catch {
-            return null;
-        }
-    }
-    try {
-        return JSON.parse(fs.readFileSync(file, 'utf8'));
-    } catch {
-        return null;
-    }
 }
 
 /**
@@ -472,9 +471,9 @@ module.exports = {
     loadLeaderboard,
     summarizeAccount,
 
-    // 日报(只生成, 不推送)
+    // 日报(compute=不落盘, generate=落盘)
+    computeReport,
     generateReport,
-    loadReport,
     renderReportText,
 
     // 工具

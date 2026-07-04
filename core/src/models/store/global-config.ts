@@ -392,8 +392,12 @@ function setFriendListSnapshot(accountId: unknown, snapshot: unknown[]): FriendS
 }
 
 /**
- * 对比当前好友列表与上次快照，追加被删记录到列表头部（最多 5000 条，防止 store.json 无限增长）。
- * 返回新增的记录条数。
+ * 对比当前好友列表与上次快照，处理被删/重新加回两种情况。
+ *  - 快照中存在但当前列表中不存在的 gid:追加为"被删"记录（同 gid 只保留最新一条）
+ *  - 已记录的"被删"gid 重新出现在当前列表:从被删记录中移除（视为主动恢复）
+ * 统一在末尾 saveGlobalConfig() 一次，避免重复 IO。
+ * 最多保留 5000 条被删记录，防止 store.json 无限增长。
+ * 返回本次"新增"的被删记录条数。
  */
 function detectAndRecordDeletedFriends(accountId: unknown, currentFriends: unknown[]): number {
     const id = sharedState.resolveAccountId(accountId);
@@ -411,15 +415,41 @@ function detectAndRecordDeletedFriends(accountId: unknown, currentFriends: unkno
         })
         .filter((item): item is FriendSnapshotItem => !!item);
 
-    const previousSnapshot = getFriendListSnapshot(id);
-    const currentGidSet = new Set(currentList.map(f => f.gid));
+    // 去重
+    const seen = new Set<number>();
+    const uniqueCurrent: FriendSnapshotItem[] = [];
+    for (const item of currentList) {
+        if (seen.has(item.gid)) continue;
+        seen.add(item.gid);
+        uniqueCurrent.push(item);
+    }
 
-    // 找出快照中存在、当前列表中不存在的 gid
-    const removed: DeletedFriendRecord[] = [];
+    const previousSnapshot = getFriendListSnapshot(id);
+    const currentGidSet = new Set(uniqueCurrent.map(f => f.gid));
+
+    // 初始化全局容器
+    if (!globalConfig.friendListSnapshot || typeof globalConfig.friendListSnapshot !== 'object') {
+        globalConfig.friendListSnapshot = {};
+    }
+    if (!globalConfig.friendDeletedRecords || typeof globalConfig.friendDeletedRecords !== 'object') {
+        globalConfig.friendDeletedRecords = {};
+    }
+
+    // 首次填充快照时（previousSnapshot 为空），不算"被删"，直接写入快照
+    if (previousSnapshot.length === 0) {
+        if (uniqueCurrent.length > 0) {
+            globalConfig.friendListSnapshot[id] = uniqueCurrent;
+            saveGlobalConfig();
+        }
+        return 0;
+    }
+
+    // 找出快照中存在、当前列表中不存在的 gid → 新增被删
+    const newlyRemoved: DeletedFriendRecord[] = [];
     const now = Date.now();
     for (const prev of previousSnapshot) {
         if (!currentGidSet.has(prev.gid)) {
-            removed.push({
+            newlyRemoved.push({
                 gid: prev.gid,
                 name: prev.name,
                 avatarUrl: prev.avatarUrl,
@@ -428,45 +458,40 @@ function detectAndRecordDeletedFriends(accountId: unknown, currentFriends: unkno
         }
     }
 
-    // 首次填充快照时（previousSnapshot 为空），不算"被删"，直接写入快照
-    if (previousSnapshot.length === 0) {
-        if (currentList.length > 0) {
-            setFriendListSnapshot(id, currentList);
-        }
-        return 0;
+    // 已有被删记录中、当前又出现在好友列表里的 gid → 视为恢复，自动清理
+    const existing = Array.isArray(globalConfig.friendDeletedRecords[id])
+        ? globalConfig.friendDeletedRecords[id]
+        : [];
+    const existingMap = new Map<number, DeletedFriendRecord>();
+    for (const item of existing) {
+        const normalized = normalizeDeletedFriendRecord(item);
+        if (normalized) existingMap.set(normalized.gid, normalized);
     }
-
-    // 写入新的被删记录（去重：同 gid 只保留最新一条）
-    if (removed.length > 0) {
-        if (!globalConfig.friendDeletedRecords || typeof globalConfig.friendDeletedRecords !== 'object') {
-            globalConfig.friendDeletedRecords = {};
-        }
-        const existing = Array.isArray(globalConfig.friendDeletedRecords[id])
-            ? globalConfig.friendDeletedRecords[id]
-            : [];
-        const existingMap = new Map<number, DeletedFriendRecord>();
-        for (const item of existing) {
-            const normalized = normalizeDeletedFriendRecord(item);
-            if (normalized) existingMap.set(normalized.gid, normalized);
-        }
-        for (const item of removed) {
-            existingMap.set(item.gid, item);
-        }
-        // 按 deletedAt 倒序
-        const merged = Array.from(existingMap.values()).sort((a, b) => b.deletedAt - a.deletedAt);
-        // 上限 5000 条，超出时丢弃最旧的
-        const MAX = 5000;
-        if (merged.length > MAX) merged.length = MAX;
+    for (const item of newlyRemoved) {
+        existingMap.set(item.gid, item);
+    }
+    // 删除已恢复的项
+    for (const gid of currentGidSet) {
+        existingMap.delete(gid);
+    }
+    // 按 deletedAt 倒序，超出上限丢弃最旧
+    const merged = Array.from(existingMap.values()).sort((a, b) => b.deletedAt - a.deletedAt);
+    const MAX = 5000;
+    if (merged.length > MAX) merged.length = MAX;
+    if (merged.length === 0) {
+        delete globalConfig.friendDeletedRecords[id];
+    } else {
         globalConfig.friendDeletedRecords[id] = merged;
     }
 
-    // 更新快照为当前列表
-    setFriendListSnapshot(id, currentList);
+    // 更新快照
+    globalConfig.friendListSnapshot[id] = uniqueCurrent;
 
-    if (removed.length > 0) {
+    // 统一一次落盘
+    if (newlyRemoved.length > 0 || merged.length !== existing.length) {
         saveGlobalConfig();
     }
-    return removed.length;
+    return newlyRemoved.length;
 }
 
 function clearFriendDeletedRecords(accountId: unknown): number {

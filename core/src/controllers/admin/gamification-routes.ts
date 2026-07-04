@@ -137,6 +137,7 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
     /**
      * 每日日报(只读, 仅展示用)
      * GET /api/report/daily?date=today|yesterday|<YYYY-MM-DD>&refresh=1
+     * 注意: 这是 GET(读路径), 不应落盘, 因此用 computeReport 而非 generateReport
      */
     app.get('/api/report/daily', async (req: Request, res: Response) => {
         try {
@@ -150,9 +151,9 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
                 : dateParam === 'today'
                     ? gamif.getDateKey()
                     : dateParam;
-            // 日报总是重算（不读缓存，确保数据最新）
+            // 日报总是实时重算(不读缓存, 不写盘, 确保数据最新)
             const runningMap = buildRunningMap();
-            const data = gamif.generateReport(dateKey, runningMap);
+            const data = gamif.computeReport(dateKey, runningMap);
             if (!data) {
                 return res.json({ ok: true, data: null });
             }

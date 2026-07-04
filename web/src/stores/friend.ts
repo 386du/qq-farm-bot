@@ -33,6 +33,8 @@ export interface FriendApplication {
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<any[]>([])
   const loading = ref(false)
+  /** 好友列表是否已成功拉取过至少一次（用于区分"还在加载"和"真的没好友"） */
+  const friendsLoaded = ref(false)
   const friendLands = ref<Record<string, any[]>>({})
   const friendLandsLoading = ref<Record<string, boolean>>({})
   const blacklist = ref<BlacklistItem[]>([])
@@ -108,9 +110,53 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  async function fetchFriends(accountId: string, forceSync = false) {
+  // ============ localStorage 缓存:首屏秒渲染上次好友列表 ============
+  const FRIENDS_CACHE_PREFIX = 'qq-farm-bot:friends-cache:'
+  const FRIENDS_CACHE_TTL_MS = 30 * 60 * 1000 // 30 分钟,超过则视为过期
+
+  function readFriendsCache(accountId: string): any[] | null {
+    if (!accountId)
+      return null
+    try {
+      const raw = localStorage.getItem(FRIENDS_CACHE_PREFIX + accountId)
+      if (!raw)
+        return null
+      const obj = JSON.parse(raw)
+      if (!obj || !Array.isArray(obj.list)) return null
+      if (Date.now() - (Number(obj.ts) || 0) > FRIENDS_CACHE_TTL_MS) return null
+      return obj.list
+    }
+    catch {
+      return null
+    }
+  }
+
+  function writeFriendsCache(accountId: string, list: any[]) {
     if (!accountId)
       return
+    try {
+      localStorage.setItem(
+        FRIENDS_CACHE_PREFIX + accountId,
+        JSON.stringify({ ts: Date.now(), list }),
+      )
+    }
+    catch {
+      /* 容量满或隐私模式,忽略 */
+    }
+  }
+
+  /** 从 localStorage 同步读出上次的好友列表,直接灌进 store */
+  function hydrateFriendsFromCache(accountId: string): boolean {
+    const list = readFriendsCache(accountId)
+    if (!list)
+      return false
+    friends.value = list
+    return true
+  }
+
+  async function fetchFriends(accountId: string, forceSync = false): Promise<number> {
+    if (!accountId)
+      return 0
     loading.value = true
     try {
       const res = await api.get('/api/friends', {
@@ -118,8 +164,13 @@ export const useFriendStore = defineStore('friend', () => {
         params: forceSync ? { forceSync: 'true' } : {},
       })
       if (res.data.ok) {
-        friends.value = res.data.data || []
+        const list = res.data.data || []
+        friends.value = list
+        writeFriendsCache(accountId, list)
+        friendsLoaded.value = true
+        return Number(res.data.newDeletedCount) || 0
       }
+      return 0
     }
     finally {
       loading.value = false
@@ -654,6 +705,11 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  /** 批量从已知 GID 列表中移除（任何 gid，不限是否同步） */
+  async function batchRemoveKnownFriendGids(accountId: string, gids: number[]) {
+    return removeUnsyncedKnownFriendGids(accountId, gids)
+  }
+
   async function fetchApplications(accountId: string) {
     if (!accountId)
       return
@@ -851,9 +907,18 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  /** 切换账号时清空好友相关状态（避免上一个账号的数据残留） */
+  function resetFriendsState() {
+    friends.value = []
+    friendsLoaded.value = false
+    friendLands.value = {}
+    friendLandsLoading.value = {}
+  }
+
   return {
     friends,
     loading,
+    friendsLoaded,
     friendLands,
     friendLandsLoading,
     blacklist,
@@ -881,6 +946,8 @@ export const useFriendStore = defineStore('friend', () => {
     deletedRecordsLoading,
     deletedRecordsActionLoading,
     fetchFriends,
+    hydrateFriendsFromCache,
+    resetFriendsState,
     fetchBlacklist,
     toggleBlacklist,
     batchAddBlacklist,
@@ -913,6 +980,7 @@ export const useFriendStore = defineStore('friend', () => {
     removeKnownFriendGid,
     batchAddKnownFriendGids,
     removeUnsyncedKnownFriendGids,
+    batchRemoveKnownFriendGids,
     fetchApplications,
     acceptApplications,
     rejectApplications,

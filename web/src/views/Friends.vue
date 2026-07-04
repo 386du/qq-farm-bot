@@ -18,6 +18,7 @@ const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const {
   friends,
   loading,
+  friendsLoaded,
   friendLands,
   friendLandsLoading,
   blacklist,
@@ -48,6 +49,24 @@ const isQqAccount = computed(() => {
     return false
   const platform = String(acc.platform || 'qq').toLowerCase()
   return platform === 'qq'
+})
+
+// ============ 空状态判断 ============
+// 区分 4 种场景:未选账号 / 账号未启动 / 连接断开 / 真的没好友
+const emptyState = computed(() => {
+  if (!currentAccountId.value)
+    return { kind: 'no-account' as const }
+  const acc = currentAccount.value
+  if (!acc)
+    return { kind: 'no-account' as const }
+  if (!acc.running)
+    return { kind: 'not-running' as const }
+  // 账号已启动,但还没拿到 connection.connected 状态(status 可能还在拉取)
+  if (!status.value || status.value?.connection === undefined)
+    return { kind: 'loading-status' as const }
+  if (!status.value?.connection?.connected)
+    return { kind: 'disconnected' as const }
+  return null // 一切正常,业务层自行处理
 })
 
 const knownFriendGidCount = computed(() => knownFriendGids.value.length)
@@ -97,12 +116,12 @@ function openGidListModal() {
 }
 
 const TABS = [
-  { key: 'friends', label: '好友列表', icon: '👥' },
-  { key: 'guardDog', label: '护主犬好友', icon: '🐶' },
-  { key: 'applications', label: '好友申请', icon: '📨' },
-  { key: 'blacklist', label: '好友黑名单', icon: '🚫' },
-  { key: 'deleted', label: '被删记录', icon: '💔' },
-  { key: 'visitors', label: '最近访客', icon: '👀' },
+  { key: 'friends', label: '好友列表', short: '好友', icon: '👥' },
+  { key: 'guardDog', label: '护主犬', short: '护主犬', icon: '🐶' },
+  { key: 'applications', label: '好友申请', short: '申请', icon: '📨' },
+  { key: 'blacklist', label: '黑名单', short: '黑名单', icon: '🚫' },
+  { key: 'deleted', label: '被删记录', short: '被删', icon: '💔' },
+  { key: 'visitors', label: '最近访客', short: '访客', icon: '👀' },
 ] as const
 
 type TabKey = typeof TABS[number]['key']
@@ -202,9 +221,211 @@ function handleBatchWhitelist() {
   })
 }
 
+// ============ 多选模式批量操作 ============
+
+async function handleMultiSelectBatchBlacklist() {
+  if (!currentAccountId.value || selectedCount.value === 0) return
+  // 过滤掉已在黑名单中的
+  const gids: number[] = []
+  for (const gid of selectedFriendGids.value) {
+    if (!blacklistGidSet.value.has(Number(gid))) {
+      gids.push(Number(gid))
+    }
+  }
+  if (gids.length === 0) {
+    toast.info('所选好友都已在黑名单中')
+    return
+  }
+  confirmAction(`确定将所选 ${gids.length} 名好友加入黑名单？`, async () => {
+    multiSelectBusy.value = true
+    try {
+      const result = await friendStore.batchAddBlacklist(currentAccountId.value!, gids)
+      if (result.ok) {
+        toast.success(`已拉黑 ${gids.length} 名好友`)
+        // 拉黑的好友从选择中移除
+        const next = new Set(selectedFriendGids.value)
+        for (const gid of gids) next.delete(String(gid))
+        selectedFriendGids.value = next
+      }
+      else {
+        toast.error(result.error || '批量拉黑失败')
+      }
+    }
+    finally {
+      multiSelectBusy.value = false
+    }
+  })
+}
+
+async function handleMultiSelectBatchGuardBlack() {
+  if (!currentAccountId.value || selectedCount.value === 0) return
+  const gids: number[] = []
+  for (const gid of selectedFriendGids.value) {
+    if (!guardDogBlacklistGidSet.value.has(Number(gid))) {
+      gids.push(Number(gid))
+    }
+  }
+  if (gids.length === 0) {
+    toast.info('所选好友都已在护主犬帮忙黑名单')
+    return
+  }
+  confirmAction(`确定将所选 ${gids.length} 名好友加入护主犬帮忙黑名单？`, async () => {
+    multiSelectBusy.value = true
+    try {
+      await friendStore.batchAddGuardDogBlacklist(currentAccountId.value!, gids)
+      toast.success(`已加入 ${gids.length} 名好友到护主犬帮忙黑名单`)
+    }
+    catch (e: any) {
+      toast.error(e?.message || '操作失败')
+    }
+    finally {
+      multiSelectBusy.value = false
+    }
+  })
+}
+
+async function handleMultiSelectBatchGuardWhite() {
+  if (!currentAccountId.value || selectedCount.value === 0) return
+  const gids: number[] = []
+  for (const gid of selectedFriendGids.value) {
+    if (!guardDogWhitelistGidSet.value.has(Number(gid))) {
+      gids.push(Number(gid))
+    }
+  }
+  if (gids.length === 0) {
+    toast.info('所选好友都已在护主犬帮忙白名单')
+    return
+  }
+  confirmAction(`确定将所选 ${gids.length} 名好友加入护主犬帮忙白名单？`, async () => {
+    multiSelectBusy.value = true
+    try {
+      await friendStore.batchAddGuardDogWhitelist(currentAccountId.value!, gids)
+      toast.success(`已加入 ${gids.length} 名好友到护主犬帮忙白名单`)
+    }
+    catch (e: any) {
+      toast.error(e?.message || '操作失败')
+    }
+    finally {
+      multiSelectBusy.value = false
+    }
+  })
+}
+
+async function handleMultiSelectBatchRemoveFromKnownList() {
+  if (!currentAccountId.value || selectedCount.value === 0) return
+  if (!isQqAccount.value) {
+    toast.warning('此功能仅 QQ 账号可用')
+    return
+  }
+  // 只移除在已知 GID 列表中的
+  const gids: number[] = []
+  for (const gid of selectedFriendGids.value) {
+    if (knownFriendGidSet.value.has(Number(gid))) {
+      gids.push(Number(gid))
+    }
+  }
+  if (gids.length === 0) {
+    toast.info('所选好友都不在同步列表中')
+    return
+  }
+  confirmAction(
+    `确定将所选 ${gids.length} 名好友从同步列表移出？后续最近访客再次命中可自动同步回来。`,
+    async () => {
+      multiSelectBusy.value = true
+      try {
+        const result = await friendStore.batchRemoveKnownFriendGids(currentAccountId.value!, gids)
+        if (result.ok) {
+          toast.success(`已移出 ${result.removedCount || 0} 个 GID`)
+          await friendStore.fetchFriends(currentAccountId.value!, true)
+        }
+        else {
+          toast.error('移出失败')
+        }
+      }
+      catch (e: any) {
+        toast.error(e?.message || '操作失败')
+      }
+      finally {
+        multiSelectBusy.value = false
+      }
+    },
+  )
+}
+
 const expandedFriends = ref<Set<string>>(new Set())
 const currentPage = ref(1)
 const pageSize = 25
+
+// ============ 多选模式 ============
+const isMultiSelectMode = ref(false)
+const selectedFriendGids = ref<Set<string>>(new Set())
+const multiSelectBusy = ref(false)
+
+const selectedCount = computed(() => selectedFriendGids.value.size)
+
+// 当前页可见好友的 gid（用于"全选当前页"等操作）
+const visibleFriendGids = computed(() => paginatedFriends.value.map(f => String(f.gid)))
+const allVisibleSelected = computed(() => {
+  if (visibleFriendGids.value.length === 0) return false
+  return visibleFriendGids.value.every(gid => selectedFriendGids.value.has(gid))
+})
+
+function enterMultiSelectMode() {
+  isMultiSelectMode.value = true
+}
+
+function exitMultiSelectMode() {
+  isMultiSelectMode.value = false
+  selectedFriendGids.value = new Set()
+}
+
+function toggleSelectFriend(gid: string) {
+  const next = new Set(selectedFriendGids.value)
+  if (next.has(gid)) {
+    next.delete(gid)
+  }
+  else {
+    next.add(gid)
+  }
+  selectedFriendGids.value = next
+}
+
+function toggleSelectAllVisible() {
+  if (allVisibleSelected.value) {
+    // 取消当前页所有
+    const next = new Set(selectedFriendGids.value)
+    for (const gid of visibleFriendGids.value) {
+      next.delete(gid)
+    }
+    selectedFriendGids.value = next
+  }
+  else {
+    // 全选当前页
+    const next = new Set(selectedFriendGids.value)
+    for (const gid of visibleFriendGids.value) {
+      next.add(gid)
+    }
+    selectedFriendGids.value = next
+  }
+}
+
+function clearSelection() {
+  selectedFriendGids.value = new Set()
+}
+
+watch(currentAccountId, () => {
+  // 切账号时清空多选状态
+  selectedFriendGids.value = new Set()
+  isMultiSelectMode.value = false
+})
+
+watch(activeTab, (newTab) => {
+  // 切到非好友列表的 tab 时退出多选
+  if (newTab !== 'friends') {
+    isMultiSelectMode.value = false
+    selectedFriendGids.value = new Set()
+  }
+})
 
 // ============ 好友筛选 + 排序 ============
 
@@ -403,29 +624,42 @@ const filteredInteractRecords = computed(() => {
 const visibleInteractRecords = computed(() => filteredInteractRecords.value.slice(0, 50))
 
 async function loadData() {
-  if (currentAccountId.value) {
-    const acc = currentAccount.value
-    if (!acc)
-      return
+  if (!currentAccountId.value)
+    return
+  const acc = currentAccount.value
+  if (!acc)
+    return
 
-    if (!realtimeConnected.value) {
+  // 拉一次最新状态（如果实时通道还没就绪就走 HTTP）
+  if (!realtimeConnected.value) {
+    try {
       await statusStore.fetchStatus(currentAccountId.value)
     }
+    catch { /* ignore */ }
+  }
 
-    if (acc.running && status.value?.connection?.connected) {
-      avatarErrorKeys.value.clear()
-      friendStore.fetchFriends(currentAccountId.value)
-      friendStore.fetchBlacklist(currentAccountId.value)
-      friendStore.fetchGuardDogFriends(currentAccountId.value)
-      friendStore.fetchGuardDogBlacklist(currentAccountId.value)
-      friendStore.fetchGuardDogWhitelist(currentAccountId.value)
-      friendStore.fetchInteractRecords(currentAccountId.value)
-      friendStore.fetchApplications(currentAccountId.value)
-      friendStore.fetchDeletedRecords(currentAccountId.value)
-      if (isQqAccount.value) {
-        friendStore.fetchKnownFriendSettings(currentAccountId.value)
-      }
-    }
+  // 好友列表 / 黑名单 / 申请 / 互动记录 / 被删记录 这些数据
+  // 即使 worker 还没起来或实时连接未就绪也应尽量拉取（后端有缓存），
+  // 避免页面刷新后看到"暂无好友"但实际有数据。
+  avatarErrorKeys.value.clear()
+  const newDeletedCount = await friendStore.fetchFriends(currentAccountId.value)
+  friendStore.fetchBlacklist(currentAccountId.value)
+  friendStore.fetchGuardDogFriends(currentAccountId.value)
+  friendStore.fetchGuardDogBlacklist(currentAccountId.value)
+  friendStore.fetchGuardDogWhitelist(currentAccountId.value)
+  friendStore.fetchInteractRecords(currentAccountId.value)
+  friendStore.fetchApplications(currentAccountId.value)
+  friendStore.fetchDeletedRecords(currentAccountId.value)
+  if (newDeletedCount > 0) {
+    toast.warning(`检测到 ${newDeletedCount} 位好友把你删了，可到「被删记录」页签查看`)
+  }
+  if (isQqAccount.value) {
+    friendStore.fetchKnownFriendSettings(currentAccountId.value)
+  }
+
+  // 实时连接就绪后，如果某些依赖连接的接口失败，可以再重试一次
+  if (acc.running && status.value?.connection?.connected) {
+    friendStore.fetchInteractRecords(currentAccountId.value)
   }
 }
 
@@ -440,6 +674,10 @@ useIntervalFn(() => {
 }, 1000)
 
 onMounted(() => {
+  // 优先用 localStorage 缓存秒渲染好友列表,避免刷新看到空白
+  if (currentAccountId.value) {
+    friendStore.hydrateFriendsFromCache(currentAccountId.value)
+  }
   loadData()
   // 页面刷新时如果 worker 仍在扫描中（master 端保留状态 5min），
   // 这里拉一次续上轮询，避免 store 重置后丢失进度显示
@@ -447,6 +685,17 @@ onMounted(() => {
     void ensureScanStatusPolling()
   }
 })
+
+// 实时通道建立后若好友列表仍为空，补拉一次
+// 修复:刷新页面时如果连接尚未就绪，首屏会看到"暂无好友"
+watch(
+  () => [realtimeConnected.value, status.value?.connection?.connected],
+  ([connected, statusConnected]) => {
+    if ((connected || statusConnected) && currentAccountId.value && friends.value.length === 0) {
+      void loadData()
+    }
+  },
+)
 
 watch(currentAccountId, () => {
   expandedFriends.value.clear()
@@ -457,6 +706,12 @@ watch(currentAccountId, () => {
   friendLevelMax.value = null
   for (const k of Object.keys(friendFilters.value) as FriendFilterKey[]) {
     friendFilters.value[k] = false
+  }
+  // 切账号时清空上一个账号的好友相关状态(避免残留)
+  friendStore.resetFriendsState()
+  // 先用缓存秒渲染,再后台拉新数据
+  if (currentAccountId.value) {
+    friendStore.hydrateFriendsFromCache(currentAccountId.value)
   }
   loadData()
 })
@@ -479,7 +734,46 @@ async function handleRefreshFriends() {
   catch {
     // ignore
   }
-  await friendStore.fetchFriends(currentAccountId.value, true)
+  const newDeletedCount = await friendStore.fetchFriends(currentAccountId.value, true)
+  if (newDeletedCount > 0) {
+    friendStore.fetchDeletedRecords(currentAccountId.value)
+    toast.warning(`检测到 ${newDeletedCount} 位好友把你删了，可到「被删记录」页签查看`)
+  }
+}
+
+// 启动账号（用于"账号未启动"空状态的快捷入口）
+async function handleStartAccount() {
+  if (!currentAccountId.value)
+    return
+  try {
+    await accountStore.startAccount(currentAccountId.value)
+    toast.success('账号启动指令已发送')
+    // 重新拉取状态,触发空状态切换
+    await statusStore.fetchStatus(currentAccountId.value)
+    loadData()
+  }
+  catch (e: any) {
+    toast.error(e?.response?.data?.error || e?.message || '启动账号失败')
+  }
+}
+
+// 重新拉取状态（用于"连接断开"空状态的快捷入口）
+async function handleRecheckConnection() {
+  if (!currentAccountId.value)
+    return
+  try {
+    await statusStore.fetchStatus(currentAccountId.value)
+    if (status.value?.connection?.connected) {
+      // 状态恢复正常,顺手再拉一次好友列表
+      void loadData()
+    }
+    else {
+      toast.warning('账号仍未连接到游戏服务器')
+    }
+  }
+  catch (e: any) {
+    toast.error(e?.message || '状态拉取失败')
+  }
 }
 
 function toggleFriend(friendId: string) {
@@ -1260,6 +1554,27 @@ async function handleRemoveDeletedRecord(item: { gid: number; deletedAt: number 
   }
 }
 
+// 被删记录 → 一键拉黑（游戏 BlockFriend RPC）
+async function handleBlockDeletedFriend(item: { gid: number; name?: string; deletedAt: number }) {
+  if (!currentAccountId.value)
+    return
+  const displayName = item.name || `GID:${item.gid}`
+  confirmAction(`确定把 ${displayName} 加入游戏内黑名单吗？`, async () => {
+    const result = await friendStore.blockFriend(currentAccountId.value!, Number(item.gid))
+    if (result.ok) {
+      toast.success(`${displayName} 已加入黑名单`)
+      // 拉黑成功后，移除该被删记录
+      await friendStore.removeDeletedRecord(currentAccountId.value!, Number(item.gid), Number(item.deletedAt))
+      // 同步刷新黑名单页签数据
+      friendStore.fetchBlacklist(currentAccountId.value!)
+    }
+    else {
+      toast.error(result.message || '拉黑失败')
+    }
+    return { ok: !!result.ok }
+  })
+}
+
 function formatDeletedAt(timestamp: number) {
   const ts = Number(timestamp) || 0
   if (!ts)
@@ -1279,7 +1594,7 @@ function formatDeletedAt(timestamp: number) {
 </script>
 
 <template>
-  <div class="friends-page p-4">
+  <div class="friends-page p-4" :class="isMultiSelectMode ? 'pb-24 sm:pb-20' : ''">
     <div class="animate-stagger-1 mb-4 flex flex-col animate-fade-in-up gap-4 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="flex items-center gap-2 text-2xl font-bold font-display">
         <span class="title-wheat">🌾</span>
@@ -1318,11 +1633,11 @@ function formatDeletedAt(timestamp: number) {
 
     <div class="farm-card-enhanced animate-stagger-2 mb-4 animate-fade-in-up overflow-hidden p-0">
       <div class="border-b" :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 15%, transparent)' }">
-        <nav class="flex gap-1.5 p-2.5">
+        <nav class="flex gap-1 overflow-x-auto p-1.5" style="-webkit-overflow-scrolling: touch; scrollbar-width: thin;">
           <button
             v-for="tab in TABS"
             :key="tab.key"
-            class="relative flex items-center gap-2 overflow-hidden rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300"
+            class="relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-bold transition-all duration-300"
             :class="activeTab === tab.key
               ? 'text-white shadow-md scale-105'
               : 'hover:scale-105'"
@@ -1339,7 +1654,8 @@ function formatDeletedAt(timestamp: number) {
             <div
               :class="[tab.icon, { 'animate-sparkle': activeTab === tab.key }]"
             />
-            {{ tab.label }}
+            <span class="hidden sm:inline">{{ tab.label }}</span>
+            <span class="sm:hidden">{{ tab.short }}</span>
             <span
               v-if="tab.key === 'blacklist' && blacklist.length > 0"
               class="rounded-full px-1.5 py-0.5 text-xs font-bold"
@@ -1382,28 +1698,64 @@ function formatDeletedAt(timestamp: number) {
       <span class="animate-spin text-4xl">⏳</span>
     </div>
 
-    <div v-else-if="!currentAccountId" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-4 p-12 text-center text-gray-500">
+    <div v-else-if="emptyState?.kind === 'no-account'" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-3 p-12 text-center text-gray-500">
       <span class="animate-float-slow text-4xl text-gray-400">👤</span>
       <div>
         <div class="text-lg text-gray-700 font-medium font-display dark:text-gray-300">
-          未登录账号
+          未选择账号
         </div>
         <div class="mt-1 text-sm text-gray-400">
-          请先添加农场账号
+          请先在顶部添加并选择一个农场账号
         </div>
       </div>
     </div>
 
-    <div v-else-if="!status?.connection?.connected" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-4 p-12 text-center text-gray-500">
+    <div v-else-if="emptyState?.kind === 'not-running'" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-4 p-12 text-center text-gray-500">
+      <span class="animate-float-medium text-4xl text-gray-400">⏸️</span>
+      <div>
+        <div class="text-lg text-gray-700 font-medium font-display dark:text-gray-300">
+          账号尚未启动
+        </div>
+        <div class="mt-1 text-sm text-gray-400">
+          启动账号后才会连接到游戏服务器并拉取好友列表
+        </div>
+      </div>
+      <button
+        class="cartoon-btn rounded-xl bg-amber-100 px-4 py-2 text-sm text-amber-700 transition dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-400 dark:hover:bg-amber-900/50"
+        @click="handleStartAccount"
+      >
+        ▶️ 启动账号
+      </button>
+    </div>
+
+    <div v-else-if="emptyState?.kind === 'loading-status'" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-3 p-12 text-center text-gray-500">
+      <span class="animate-spin text-4xl">⏳</span>
+      <div>
+        <div class="text-lg text-gray-700 font-medium font-display dark:text-gray-300">
+          正在拉取账号状态…
+        </div>
+        <div class="mt-1 text-sm text-gray-400">
+          稍等片刻
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="emptyState?.kind === 'disconnected'" class="farm-card-enhanced animate-stagger-3 flex flex-col animate-fade-in-up items-center justify-center gap-4 p-12 text-center text-gray-500">
       <span class="animate-float-medium text-4xl text-gray-400">📡</span>
       <div>
         <div class="text-lg text-gray-700 font-medium font-display dark:text-gray-300">
-          账号未登录
+          连接已断开
         </div>
         <div class="mt-1 text-sm text-gray-400">
-          请先运行账号或检查网络连接
+          账号已启动但未连接到游戏服务器，请检查网络或稍后重试
         </div>
       </div>
+      <button
+        class="cartoon-btn rounded-xl bg-blue-100 px-4 py-2 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-900/50"
+        @click="handleRecheckConnection"
+      >
+        🔄 重新检测
+      </button>
     </div>
 
     <template v-else>
@@ -1476,16 +1828,67 @@ function formatDeletedAt(timestamp: number) {
         </div>
 
         <div v-if="friends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
-          <div class="mx-auto mb-3 text-4xl text-gray-300">
-            👥
-          </div>
-          暂无好友或数据加载失败
+          <template v-if="loading">
+            <div class="animate-spin mx-auto mb-3 text-4xl text-gray-300">
+              ⏳
+            </div>
+            <div class="text-lg font-display">
+              正在拉取好友列表…
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              首次可能需要 5~10 秒
+            </div>
+          </template>
+          <template v-else-if="!friendsLoaded">
+            <div class="mx-auto mb-3 text-4xl text-gray-300">
+              ⚠️
+            </div>
+            <div class="text-lg font-display">
+              好友列表加载失败
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              可能 worker 还在初始化或游戏接口暂时不可用
+            </div>
+            <button
+              class="cartoon-btn mt-4 rounded-xl bg-blue-100 px-4 py-2 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-900/50"
+              @click="loadData"
+            >
+              🔄 重试
+            </button>
+          </template>
+          <template v-else>
+            <div class="mx-auto mb-3 text-4xl text-gray-300">
+              👥
+            </div>
+            <div class="text-lg font-display">
+              暂无好友
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              当前账号在游戏中没有好友，可能是新号或好友都被拉黑了
+            </div>
+            <div class="mt-3 flex justify-center gap-2">
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
+                @click="handleRefreshFriends"
+              >
+                🔄 重新拉取
+              </button>
+              <button
+                v-if="blacklist.length > 0"
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
+                @click="activeTab = 'blacklist'"
+              >
+                🚫 查看黑名单 ({{ blacklist.length }})
+              </button>
+            </div>
+          </template>
         </div>
 
         <template v-else>
           <div class="farm-card-enhanced animate-stagger-4 flex flex-wrap animate-fade-in-up items-center gap-2 p-3">
             <div class="flex-1" />
             <button
+              v-if="!isMultiSelectMode"
               class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
               :disabled="loading"
               @click="handleBatchBlacklist"
@@ -1493,12 +1896,46 @@ function formatDeletedAt(timestamp: number) {
               一键拉黑
             </button>
             <button
+              v-if="!isMultiSelectMode"
               class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
               :disabled="loading"
               @click="handleBatchWhitelist"
             >
               一键拉白
             </button>
+            <button
+              v-if="!isMultiSelectMode"
+              class="cartoon-btn rounded-xl bg-indigo-100 px-3 py-1.5 text-sm text-indigo-700 transition dark:bg-indigo-900/30 hover:bg-indigo-200 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
+              @click="enterMultiSelectMode"
+            >
+              ☑️ 多选
+            </button>
+            <template v-else>
+              <span class="text-sm text-gray-600 dark:text-gray-300">
+                已选 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span>/{{ filteredSortedFriends.length.toLocaleString('zh-CN') }} 人
+              </span>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
+                :disabled="multiSelectBusy"
+                @click="toggleSelectAllVisible"
+              >
+                {{ allVisibleSelected ? '取消全选' : '全选当前页' }}
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
+                :disabled="selectedCount === 0 || multiSelectBusy"
+                @click="clearSelection"
+              >
+                清空选择
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
+                :disabled="multiSelectBusy"
+                @click="exitMultiSelectMode"
+              >
+                ❌ 退出多选
+              </button>
+            </template>
             <button
               class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
               :disabled="loading"
@@ -1586,23 +2023,39 @@ function formatDeletedAt(timestamp: number) {
           <div
             v-for="(friend, idx) in paginatedFriends"
             :key="friend.gid"
-            class="farm-card-enhanced animate-fade-in-up overflow-hidden"
+            class="farm-card-enhanced animate-fade-in-up overflow-hidden transition-all"
+            :class="[
+              isMultiSelectMode && selectedFriendGids.has(String(friend.gid))
+                ? 'ring-2 ring-indigo-400 dark:ring-indigo-500'
+                : '',
+            ]"
             :style="{ animationDelay: `${0.05 * (idx + 5)}s` }"
           >
             <div
               class="relative flex flex-col cursor-pointer justify-between gap-4 p-4 transition-all duration-300 sm:flex-row hover:scale-[1.01] sm:items-center"
               :class="[
                 blacklistGidSet.has(Number(friend.gid)) ? 'opacity-60' : '',
-                expandedFriends.has(friend.gid) ? 'bg-gradient-to-r from-green-50/50 to-transparent dark:from-green-900/10' : '',
+                expandedFriends.has(friend.gid) && !isMultiSelectMode ? 'bg-gradient-to-r from-green-50/50 to-transparent dark:from-green-900/10' : '',
               ]"
-              @click="toggleFriend(friend.gid)"
+              @click="isMultiSelectMode ? toggleSelectFriend(String(friend.gid)) : toggleFriend(friend.gid)"
             >
               <div
-                v-if="expandedFriends.has(friend.gid)"
+                v-if="expandedFriends.has(friend.gid) && !isMultiSelectMode"
                 class="absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl"
                 :style="{ backgroundColor: 'var(--theme-primary)' }"
               />
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <!-- 多选模式下的复选框 -->
+                <div
+                  v-if="isMultiSelectMode"
+                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all"
+                  :class="selectedFriendGids.has(String(friend.gid))
+                    ? 'border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500'
+                    : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700'"
+                  @click.stop="toggleSelectFriend(String(friend.gid))"
+                >
+                  <span v-if="selectedFriendGids.has(String(friend.gid))" class="text-xs">✓</span>
+                </div>
                 <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-amber-200/50 dark:bg-gray-600 dark:ring-amber-700/30">
                   <img
                     v-if="canShowFriendAvatar(friend)"
@@ -1646,7 +2099,7 @@ function formatDeletedAt(timestamp: number) {
                 </div>
               </div>
 
-              <div class="flex flex-wrap gap-2">
+              <div v-if="!isMultiSelectMode" class="flex flex-wrap gap-2">
                 <button
                   class="cartoon-btn rounded-xl bg-blue-100 px-3 py-2 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-900/50"
                   @click="handleOp(friend.gid, 'steal', $event)"
@@ -1712,7 +2165,7 @@ function formatDeletedAt(timestamp: number) {
               </div>
             </div>
 
-            <div v-if="expandedFriends.has(friend.gid)" class="border-t p-4 dark:border-gray-700" :style="{ background: 'linear-gradient(180deg, rgba(139,105,20,0.03) 0%, transparent 100%)' }">
+            <div v-if="expandedFriends.has(friend.gid) && !isMultiSelectMode" class="border-t p-4 dark:border-gray-700" :style="{ background: 'linear-gradient(180deg, rgba(139,105,20,0.03) 0%, transparent 100%)' }">
               <div v-if="friendLandsLoading[friend.gid]" class="flex justify-center py-4">
                 <div class="i-svg-spinners-90-ring-with-bg text-2xl text-blue-500" />
               </div>
@@ -2020,13 +2473,22 @@ function formatDeletedAt(timestamp: number) {
                 </div>
               </div>
             </div>
-            <button
-              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-              :disabled="deletedRecordsActionLoading"
-              @click="handleRemoveDeletedRecord(item)"
-            >
-              ⬆️ 移除记录
-            </button>
+            <div class="flex shrink-0 gap-2">
+              <button
+                class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+                :disabled="deletedRecordsActionLoading"
+                @click="handleBlockDeletedFriend(item)"
+              >
+                🚫 拉黑
+              </button>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+                :disabled="deletedRecordsActionLoading"
+                @click="handleRemoveDeletedRecord(item)"
+              >
+                ⬆️ 移除记录
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2429,6 +2891,72 @@ function formatDeletedAt(timestamp: number) {
       @confirm="onConfirm"
       @cancel="!confirmLoading && (showConfirm = false)"
     />
+
+    <Teleport to="body">
+      <!-- 多选模式底部操作栏 -->
+      <div
+        v-if="isMultiSelectMode"
+        class="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-indigo-200 bg-white/95 shadow-2xl backdrop-blur dark:border-indigo-800 dark:bg-gray-800/95"
+        style="padding-bottom: env(safe-area-inset-bottom, 0);"
+      >
+        <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-3">
+          <span class="text-sm text-gray-600 dark:text-gray-300">
+            已选 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span> 人
+          </span>
+          <button
+            class="cartoon-btn rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50"
+            :disabled="multiSelectBusy"
+            @click="toggleSelectAllVisible"
+          >
+            {{ allVisibleSelected ? '取消全选' : '全选当前页' }}
+          </button>
+          <button
+            class="cartoon-btn rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="clearSelection"
+          >
+            清空选择
+          </button>
+          <div class="flex-1" />
+          <button
+            class="cartoon-btn rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50"
+            :disabled="multiSelectBusy"
+            @click="exitMultiSelectMode"
+          >
+            ❌ 退出
+          </button>
+          <button
+            class="cartoon-btn rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-700 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-200 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="handleMultiSelectBatchBlacklist"
+          >
+            🚫 加入黑名单
+          </button>
+          <button
+            class="cartoon-btn rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="handleMultiSelectBatchGuardBlack"
+          >
+            🚫 批量护黑
+          </button>
+          <button
+            class="cartoon-btn rounded-xl bg-green-100 px-3 py-2 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="handleMultiSelectBatchGuardWhite"
+          >
+            ✅ 批量护白
+          </button>
+          <button
+            v-if="isQqAccount"
+            class="cartoon-btn rounded-xl bg-amber-100 px-3 py-2 text-sm text-amber-700 transition dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-400 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="handleMultiSelectBatchRemoveFromKnownList"
+          >
+            📋 移出同步列表
+          </button>
+        </div>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div
