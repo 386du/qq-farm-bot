@@ -79,6 +79,7 @@ function getConfigSnapshot(accountId?: unknown): AccountConfig & { ui: typeof gl
         friendGuardDogGids: [...(cfg.friendGuardDogGids || [])],
         friendGuardDogBlacklist: [...(cfg.friendGuardDogBlacklist || [])],
         friendGuardDogWhitelist: [...(cfg.friendGuardDogWhitelist || [])],
+        friendBlockedGids: [...(cfg.friendBlockedGids || [])],
         plantBlacklist: [...(cfg.plantBlacklist || [])],
         stealDelaySeconds: Math.max(0, Math.min(300, Number(cfg.stealDelaySeconds) || 0)),
         plantOrderRandom: !!cfg.plantOrderRandom,
@@ -451,6 +452,40 @@ function removeFriendGuardDogWhitelistGid(accountId: unknown, gid: unknown): boo
     return true;
 }
 
+// ============ 游戏内已拉黑名单（BlockFriend RPC 调用成功后自动登记） ============
+
+function getFriendBlockedGids(accountId?: unknown): number[] {
+    return [...(getAccountConfigSnapshot(accountId).friendBlockedGids || [])];
+}
+
+function setFriendBlockedGids(accountId: unknown, list: unknown[]): number[] {
+    const current = getAccountConfigSnapshot(accountId);
+    const next = normalizeAccountConfig(current, sharedState.accountFallbackConfig);
+    next.friendBlockedGids = Array.isArray(list) ? list.map(Number).filter(n => Number.isFinite(n) && n > 0) : [];
+    setAccountConfigSnapshot(accountId, next);
+    return [...next.friendBlockedGids];
+}
+
+function addFriendBlockedGid(accountId: unknown, gid: unknown): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getFriendBlockedGids(accountId);
+    if (current.includes(gidNum)) return false;
+    const newList = [...current, gidNum];
+    setFriendBlockedGids(accountId, newList);
+    return true;
+}
+
+function removeFriendBlockedGid(accountId: unknown, gid: unknown): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getFriendBlockedGids(accountId);
+    if (!current.includes(gidNum)) return false;
+    const newList = current.filter((g: number) => g !== gidNum);
+    setFriendBlockedGids(accountId, newList);
+    return true;
+}
+
 function getStealDelaySeconds(accountId?: unknown): number {
     return Math.max(0, Math.min(300, Number(getAccountConfigSnapshot(accountId).stealDelaySeconds) || 0));
 }
@@ -553,6 +588,10 @@ module.exports = {
     setFriendGuardDogWhitelist,
     addFriendGuardDogWhitelistGid,
     removeFriendGuardDogWhitelistGid,
+    getFriendBlockedGids,
+    setFriendBlockedGids,
+    addFriendBlockedGid,
+    removeFriendBlockedGid,
     getStealDelaySeconds,
     getPlantOrderRandom,
     getPlantDelaySeconds,

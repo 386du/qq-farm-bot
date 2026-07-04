@@ -691,7 +691,7 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = await setFriendBlockApplications(args[0]);
                 break;
             case 'blockFriend':
-                result = await blockFriendRpc(args[0]);
+                result = await blockFriendRpc(args[0], id);
                 break;
             case 'scanGuardDogFriends': {
                 const { scanAllFriendsForGuardDog: _scan } = require('../services/friend');

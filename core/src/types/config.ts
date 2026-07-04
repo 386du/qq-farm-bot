@@ -70,6 +70,8 @@ export interface AccountConfig {
   friendGuardDogBlacklist: number[];
   /** 护主犬帮忙白名单：开启"只帮护主犬"且非空时，只帮白名单中的 gid（覆盖 enterReply 检测） */
   friendGuardDogWhitelist: number[];
+  /** 游戏内已拉黑名单：通过"🚫 拉黑"按钮（BlockFriend RPC）成功后自动登记 */
+  friendBlockedGids: number[];
   plantBlacklist: number[];
   stealDelaySeconds: number;
   plantOrderRandom: boolean;

@@ -24,6 +24,7 @@ const {
   guardDogFriends,
   guardDogBlacklist,
   guardDogWhitelist,
+  blockedFriends,
   interactRecords,
   interactLoading,
   interactError,
@@ -53,6 +54,7 @@ const friendGidSet = computed(() => new Set(friends.value.map(f => Number(f.gid)
 const blacklistGidSet = computed(() => new Set(blacklist.value.map(item => Number(item.gid))))
 const guardDogWhitelistGidSet = computed(() => new Set(guardDogWhitelist.value.map(item => Number(item.gid))))
 const guardDogBlacklistGidSet = computed(() => new Set(guardDogBlacklist.value.map(item => Number(item.gid))))
+const blockedGidSet = computed(() => new Set((blockedFriends.value || []).map(item => Number(item.gid))))
 
 const filteredKnownFriendGids = computed(() => {
   const keyword = gidSearchKeyword.value.trim().toLowerCase()
@@ -136,6 +138,9 @@ const guardDogSubTabs = [
 const guardDogBatchInput = ref('')
 const guardDogBatchSaving = ref(false)
 
+// 黑名单子 Tab
+const blacklistSubTab = ref<'appBlacklist' | 'gameBlocked'>('appBlacklist')
+
 function confirmAction(msg: string, action: () => Promise<any>) {
   confirmMessage.value = msg
   pendingAction.value = action
@@ -205,7 +210,7 @@ const pageSize = 25
 // ============ 好友筛选 + 排序 ============
 
 type FriendSortKey = 'level' | 'gold' | 'name' | 'lastActive'
-type FriendFilterKey = 'hasGuardDog' | 'inBlacklist' | 'inGuardDogBlacklist' | 'inGuardDogWhitelist' | 'hasStealable'
+type FriendFilterKey = 'hasGuardDog' | 'inBlacklist' | 'inGuardDogBlacklist' | 'inGuardDogWhitelist' | 'hasStealable' | 'inGameBlocked'
 
 const friendSortKey = ref<FriendSortKey>('level')
 const friendSortOrder = ref<'desc' | 'asc'>('desc')
@@ -215,6 +220,7 @@ const friendFilters = ref<Record<FriendFilterKey, boolean>>({
   inGuardDogBlacklist: false,
   inGuardDogWhitelist: false,
   hasStealable: false,
+  inGameBlocked: false,
 })
 const friendLevelMin = ref<number | null>(null)
 const friendLevelMax = ref<number | null>(null)
@@ -291,6 +297,10 @@ const filteredSortedFriends = computed(() => {
   if (filters.hasStealable) {
     result = result.filter((f: any) => Number(f?.plant?.stealNum || 0) > 0)
   }
+  if (filters.inGameBlocked) {
+    const set = blockedGidSet.value
+    result = result.filter((f: any) => set.has(Number(f.gid)))
+  }
 
   // 4. 排序
   const key = friendSortKey.value
@@ -334,6 +344,7 @@ const filterChips: Array<{ key: FriendFilterKey; label: string; activeClass: str
   { key: 'inBlacklist', label: '已屏蔽', activeClass: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600' },
   { key: 'inGuardDogBlacklist', label: '🚫 护黑', activeClass: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border-red-300 dark:border-red-700' },
   { key: 'inGuardDogWhitelist', label: '✅ 护白', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-700' },
+  { key: 'inGameBlocked', label: '🎮 已拉黑', activeClass: 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-300 dark:border-red-700' },
 ]
 
 const levelPresets: Array<{ label: string; min: number | null; max: number | null }> = [
@@ -415,6 +426,7 @@ async function loadData() {
       friendStore.fetchGuardDogFriends(currentAccountId.value)
       friendStore.fetchGuardDogBlacklist(currentAccountId.value)
       friendStore.fetchGuardDogWhitelist(currentAccountId.value)
+      friendStore.fetchBlockedFriends(currentAccountId.value)
       friendStore.fetchInteractRecords(currentAccountId.value)
       friendStore.fetchApplications(currentAccountId.value)
       if (isQqAccount.value) {
@@ -668,6 +680,50 @@ async function handleRemoveFromBlacklist(gid: number) {
   if (!currentAccountId.value)
     return
   await friendStore.toggleBlacklist(currentAccountId.value, gid)
+}
+
+async function handleRemoveBlockedFriend(item: any) {
+  if (!currentAccountId.value)
+    return
+  const gid = Number(item?.gid) || 0
+  if (!gid)
+    return
+  const name = String(item?.name || `GID:${gid}`).trim()
+  confirmAction(
+    `确定从"游戏内已拉黑名单"移除 ${name} 吗？\n（本操作仅删除本机记录，不会调用游戏解除拉黑；要真正解除请到游戏内操作）`,
+    async () => {
+      const result = await friendStore.removeBlockedFriend(currentAccountId.value!, gid)
+      if (result.ok) {
+        toast.success(result.message || '已从名单移除')
+      }
+      else {
+        toast.error(result.message || '移除失败')
+      }
+      return result
+    },
+  )
+}
+
+async function handleClearBlockedFriends() {
+  if (!currentAccountId.value)
+    return
+  if (!blockedFriends.value || blockedFriends.value.length === 0) {
+    toast.info('名单已为空')
+    return
+  }
+  confirmAction(
+    `确定清空"游戏内已拉黑名单"吗？\n共 ${blockedFriends.value.length} 个记录，仅清本机名单，不会调用游戏解除拉黑。`,
+    async () => {
+      const result = await friendStore.clearBlockedFriends(currentAccountId.value!)
+      if (result.ok) {
+        toast.success(result.message || '已清空')
+      }
+      else {
+        toast.error(result.message || '清空失败')
+      }
+      return result
+    },
+  )
 }
 
 async function handleRemoveGuardDogFriend(gid: number) {
@@ -1555,6 +1611,7 @@ async function handleRejectAllApplications() {
                     <span v-if="blacklistGidSet.has(Number(friend.gid))" class="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">已屏蔽</span>
                     <span v-if="guardDogBlacklistGidSet.has(Number(friend.gid))" class="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400">护黑</span>
                     <span v-if="guardDogWhitelistGidSet.has(Number(friend.gid))" class="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">护白</span>
+                    <span v-if="blockedGidSet.has(Number(friend.gid))" class="rounded bg-red-200 px-1.5 py-0.5 text-xs text-red-800 dark:bg-red-800/40 dark:text-red-300" title="已在游戏内拉黑名单">🎮 已拉黑</span>
                   </div>
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     <span
@@ -1836,55 +1893,149 @@ async function handleRejectAllApplications() {
       </div>
 
       <div v-else-if="activeTab === 'blacklist'" class="space-y-4">
-        <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
-          <div class="flex items-center gap-2">
-            <span class="text-xl">🚫</span>
-            <p class="text-sm text-gray-500 dark:text-gray-400">
-              加入黑名单的好友在自动偷菜和帮助时会被跳过。
-            </p>
-          </div>
-        </div>
-        <div v-if="blacklist.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
-          <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
-            🚫
-          </div>
-          <div class="text-lg font-display">
-            暂无黑名单好友
-          </div>
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="(item, idx) in blacklist"
-            :key="item.gid"
-            class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
-            :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
-          >
-            <div class="flex items-center gap-3">
-              <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-red-200/50 dark:bg-gray-600 dark:ring-red-700/30">
-                <img
-                  v-if="item.avatarUrl"
-                  :src="item.avatarUrl"
-                  class="h-full w-full object-cover"
-                  loading="lazy"
-                  @error="($event.target as HTMLImageElement).style.display = 'none'"
-                >
-                <span v-else class="text-gray-400">👤</span>
-                <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-red-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
-              </div>
-              <div>
-                <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
-                <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
-              </div>
-            </div>
+        <!-- 黑名单子 Tab 切换：app 黑名单 / 游戏拉黑名单 -->
+        <div class="farm-card-enhanced animate-fade-in-up p-3">
+          <div class="flex flex-wrap gap-2">
             <button
-              class="cartoon-btn rounded-xl bg-green-100 px-3 py-1.5 text-sm text-green-700 dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 dark:hover:bg-green-900/50"
-              @click="handleRemoveFromBlacklist(item.gid)"
+              class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+              :class="blacklistSubTab === 'appBlacklist'
+                ? 'bg-gray-700 text-white'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+              @click="blacklistSubTab = 'appBlacklist'"
             >
-              ⬆️ 移出黑名单
+              🚫 app 黑名单
+              <span v-if="blacklist.length > 0" class="ml-1 text-xs opacity-80">({{ blacklist.length }})</span>
+            </button>
+            <button
+              class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+              :class="blacklistSubTab === 'gameBlocked'
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+              @click="blacklistSubTab = 'gameBlocked'; if (currentAccountId) friendStore.fetchBlockedFriends(currentAccountId)"
+            >
+              🎮 游戏拉黑名单
+              <span v-if="blockedFriends.length > 0" class="ml-1 text-xs opacity-80">({{ blockedFriends.length }})</span>
             </button>
           </div>
         </div>
+
+        <!-- app 黑名单子 Tab -->
+        <template v-if="blacklistSubTab === 'appBlacklist'">
+          <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🚫</span>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                加入黑名单的好友在自动偷菜和帮助时会被跳过。
+              </p>
+            </div>
+          </div>
+          <div v-if="blacklist.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
+            <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+              🚫
+            </div>
+            <div class="text-lg font-display">
+              暂无黑名单好友
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="(item, idx) in blacklist"
+              :key="item.gid"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+              :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-red-200/50 dark:bg-gray-600 dark:ring-red-700/30">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    class="h-full w-full object-cover"
+                    loading="lazy"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  >
+                  <span v-else class="text-gray-400">👤</span>
+                  <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-red-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+                </div>
+                <div>
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
+                </div>
+              </div>
+              <button
+                class="cartoon-btn rounded-xl bg-green-100 px-3 py-1.5 text-sm text-green-700 dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 dark:hover:bg-green-900/50"
+                @click="handleRemoveFromBlacklist(item.gid)"
+              >
+                ⬆️ 移出黑名单
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 游戏拉黑名单子 Tab -->
+        <template v-else-if="blacklistSubTab === 'gameBlocked'">
+          <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <span class="text-base">🎮</span>
+                <span>通过"🚫 拉黑"按钮（BlockFriend RPC）成功拉黑的好友会自动登记到这里。</span>
+              </div>
+              <button
+                v-if="blockedFriends.length > 0"
+                class="cartoon-btn rounded-xl bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
+                @click="handleClearBlockedFriends"
+              >
+                🗑 清空
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!blockedFriends || blockedFriends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
+            <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+              🎮
+            </div>
+            <div class="text-lg font-display">
+              暂无游戏内拉黑记录
+            </div>
+            <div class="mt-2 text-sm text-gray-400">
+              去好友列表里对某个好友点"🚫 拉黑"即可
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="(item, idx) in blockedFriends"
+              :key="item.gid"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+              :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-red-200/50 dark:bg-gray-600 dark:ring-red-700/30">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    class="h-full w-full object-cover"
+                    loading="lazy"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  >
+                  <span v-else class="text-gray-400">👤</span>
+                  <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-red-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+                </div>
+                <div>
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
+                </div>
+              </div>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-700 dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
+                title="仅删除本机记录，不会调用游戏解除拉黑"
+                @click="handleRemoveBlockedFriend(item)"
+              >
+                ➖ 移出本机名单
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div v-else-if="activeTab === 'guardDog'" class="space-y-4">
