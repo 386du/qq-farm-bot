@@ -51,6 +51,8 @@ const knownFriendGidCount = computed(() => knownFriendGids.value.length)
 const knownFriendGidSet = computed(() => new Set(knownFriendGids.value.map(Number)))
 const friendGidSet = computed(() => new Set(friends.value.map(f => Number(f.gid))))
 const blacklistGidSet = computed(() => new Set(blacklist.value.map(item => Number(item.gid))))
+const guardDogWhitelistGidSet = computed(() => new Set(guardDogWhitelist.value.map(item => Number(item.gid))))
+const guardDogBlacklistGidSet = computed(() => new Set(guardDogBlacklist.value.map(item => Number(item.gid))))
 
 const filteredKnownFriendGids = computed(() => {
   const keyword = gidSearchKeyword.value.trim().toLowerCase()
@@ -374,6 +376,32 @@ async function handleToggleBlacklist(friend: any, e: Event) {
   if (!currentAccountId.value)
     return
   await friendStore.toggleBlacklist(currentAccountId.value, Number(friend.gid))
+}
+
+async function handleToggleGuardDogBlacklist(friend: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(friend.gid)
+  if (guardDogBlacklistGidSet.value.has(gid)) {
+    await friendStore.batchRemoveGuardDogBlacklist(currentAccountId.value, [gid])
+  }
+  else {
+    await friendStore.batchAddGuardDogBlacklist(currentAccountId.value, [gid])
+  }
+}
+
+async function handleToggleGuardDogWhitelist(friend: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(friend.gid)
+  if (guardDogWhitelistGidSet.value.has(gid)) {
+    await friendStore.batchRemoveGuardDogWhitelist(currentAccountId.value, [gid])
+  }
+  else {
+    await friendStore.batchAddGuardDogWhitelist(currentAccountId.value, [gid])
+  }
 }
 
 function getFriendStatusText(friend: any) {
@@ -1255,6 +1283,8 @@ async function handleRejectAllApplications() {
                     <span class="text-xs text-gray-400 font-normal">({{ friend.gid }})</span>
 
                     <span v-if="blacklistGidSet.has(Number(friend.gid))" class="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">已屏蔽</span>
+                    <span v-if="guardDogBlacklistGidSet.has(Number(friend.gid))" class="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400">护黑</span>
+                    <span v-if="guardDogWhitelistGidSet.has(Number(friend.gid))" class="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">护白</span>
                   </div>
                   <div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     <span
@@ -1306,6 +1336,26 @@ async function handleRejectAllApplications() {
                   @click="handleToggleBlacklist(friend, $event)"
                 >
                   {{ blacklistGidSet.has(Number(friend.gid)) ? '⬆️ 移出黑名单' : '🚫 加入黑名单' }}
+                </button>
+                <button
+                  class="cartoon-btn rounded-xl px-3 py-2 text-sm transition"
+                  :class="guardDogBlacklistGidSet.has(Number(friend.gid))
+                    ? 'bg-red-200 text-red-700 hover:bg-red-300 dark:bg-red-900/40 dark:text-red-300'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30'"
+                  :title="guardDogBlacklistGidSet.has(Number(friend.gid)) ? '已在护主犬帮忙黑名单，点此移除' : '加入护主犬帮忙黑名单（强制跳过帮忙）'"
+                  @click="handleToggleGuardDogBlacklist(friend, $event)"
+                >
+                  {{ guardDogBlacklistGidSet.has(Number(friend.gid)) ? '🚫 护黑' : '🚫 护黑' }}
+                </button>
+                <button
+                  class="cartoon-btn rounded-xl px-3 py-2 text-sm transition"
+                  :class="guardDogWhitelistGidSet.has(Number(friend.gid))
+                    ? 'bg-green-200 text-green-700 hover:bg-green-300 dark:bg-green-900/40 dark:text-green-300'
+                    : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'"
+                  :title="guardDogWhitelistGidSet.has(Number(friend.gid)) ? '已在护主犬帮忙白名单，点此移除' : '加入护主犬帮忙白名单（只帮白名单内 gid）'"
+                  @click="handleToggleGuardDogWhitelist(friend, $event)"
+                >
+                  {{ guardDogWhitelistGidSet.has(Number(friend.gid)) ? '✅ 护白' : '✅ 护白' }}
                 </button>
                 <button
                   v-if="isQqAccount && knownFriendGidSet.has(Number(friend.gid))"
@@ -1643,10 +1693,10 @@ async function handleRejectAllApplications() {
             <div
               v-for="(item, idx) in guardDogFriends"
               :key="item.gid"
-              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between px-3 py-2 transition-all duration-300 hover:scale-[1.01]"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between gap-2 px-3 py-2 transition-all duration-300 hover:scale-[1.01]"
               :style="{ animationDelay: `${0.03 * (idx + 1)}s` }"
             >
-              <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
                 <div class="relative h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-amber-200/50 dark:bg-gray-600 dark:ring-amber-700/30">
                   <img
                     v-if="item.avatarUrl"
@@ -1668,12 +1718,35 @@ async function handleRejectAllApplications() {
                   </div>
                 </div>
               </div>
-              <button
-                class="cartoon-btn shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                @click="handleRemoveGuardDogFriend(item.gid)"
-              >
-                🗑️
-              </button>
+              <div class="flex shrink-0 gap-1">
+                <button
+                  class="cartoon-btn rounded-lg px-2 py-1 text-xs transition"
+                  :class="guardDogBlacklistGidSet.has(Number(item.gid))
+                    ? 'bg-red-200 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30'"
+                  :title="guardDogBlacklistGidSet.has(Number(item.gid)) ? '已在护黑，点此移除' : '加入护主犬帮忙黑名单'"
+                  @click="handleToggleGuardDogBlacklist({ gid: item.gid }, $event)"
+                >
+                  🚫
+                </button>
+                <button
+                  class="cartoon-btn rounded-lg px-2 py-1 text-xs transition"
+                  :class="guardDogWhitelistGidSet.has(Number(item.gid))
+                    ? 'bg-green-200 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                    : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'"
+                  :title="guardDogWhitelistGidSet.has(Number(item.gid)) ? '已在护白，点此移除' : '加入护主犬帮忙白名单'"
+                  @click="handleToggleGuardDogWhitelist({ gid: item.gid }, $event)"
+                >
+                  ✅
+                </button>
+                <button
+                  class="cartoon-btn shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                  :title="`从护主犬清单中移除`"
+                  @click="handleRemoveGuardDogFriend(item.gid)"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           </div>
         </template>
