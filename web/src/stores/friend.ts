@@ -727,6 +727,77 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
+  // 切换"屏蔽加好友申请"全局开关（游戏 FriendService 唯一支持的屏蔽维度）
+  async function setBlockApplications(accountId: string, block: boolean) {
+    if (!accountId)
+      return { ok: false, message: '参数无效' }
+    applicationActionLoading.value = true
+    try {
+      const res = await api.post('/api/friend-block-applications', { block }, {
+        headers: { 'x-account-id': accountId },
+      })
+      const data = res.data?.data || {}
+      if (res.data.ok) {
+        blockApplications.value = !!data.block
+      }
+      return {
+        ok: !!res.data.ok,
+        message: data.message || (res.data.ok ? '已切换屏蔽加好友申请' : '操作失败'),
+        block: !!data.block,
+      }
+    }
+    catch (e: any) {
+      return { ok: false, message: e?.response?.data?.error || e?.message || '切换屏蔽加好友申请失败' }
+    }
+    finally {
+      applicationActionLoading.value = false
+    }
+  }
+
+  // ============ 【实验性】游戏内删好友 / 拉黑 ============
+
+  async function tryDeleteFriend(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return { ok: false, message: '参数无效' }
+    try {
+      const res = await api.post('/api/friend-try-delete', { gid }, {
+        headers: { 'x-account-id': accountId },
+        timeout: 60000,
+      })
+      const data = res.data?.data || {}
+      return {
+        ok: !!res.data.ok && !!data.ok,
+        message: data.message || (res.data.ok ? '已尝试删除好友' : '操作失败'),
+        method: data.method || '',
+        experimental: true,
+      }
+    }
+    catch (e: any) {
+      return { ok: false, message: e?.response?.data?.error || e?.message || '实验性删好友失败', experimental: true }
+    }
+  }
+
+  async function tryBlockFriend(accountId: string, gid: number) {
+    if (!accountId || !gid)
+      return { ok: false, message: '参数无效' }
+    try {
+      const res = await api.post('/api/friend-try-block', { gid }, {
+        headers: { 'x-account-id': accountId },
+        timeout: 60000,
+      })
+      const data = res.data?.data || {}
+      return {
+        ok: !!res.data.ok && !!data.ok,
+        message: data.message || (res.data.ok ? '已尝试拉黑好友' : '操作失败'),
+        method: data.method || '',
+        experimental: true,
+      }
+    }
+    catch (e: any) {
+      return { ok: false, message: e?.response?.data?.error || e?.message || '实验性拉黑失败', experimental: true }
+    }
+  }
+
   return {
     friends,
     loading,
@@ -789,5 +860,8 @@ export const useFriendStore = defineStore('friend', () => {
     fetchApplications,
     acceptApplications,
     rejectApplications,
+    setBlockApplications,
+    tryDeleteFriend,
+    tryBlockFriend,
   }
 })

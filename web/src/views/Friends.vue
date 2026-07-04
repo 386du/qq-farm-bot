@@ -555,6 +555,78 @@ async function handleToggleGuardDogWhitelist(friend: any, e: Event) {
   }
 }
 
+// ============ 【实验性】游戏内删好友 / 拉黑 ============
+// 这两个按钮会按常见命名猜几个方法名逐一尝试调用游戏服务端，
+// 大概率会失败（friendpb.proto 未声明 DeleteFriend/BlockFriend）。
+// 仅作为探索性功能开放给愿意尝鲜的用户。点之前会弹二次确认。
+
+async function handleTryDeleteFriend(friend: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(friend?.gid) || 0
+  if (!gid)
+    return
+  const name = String(friend?.name || `GID:${gid}`).trim()
+  confirmAction(
+    `【实验性】确定尝试在游戏内删除好友 ${name} 吗？\n本功能会按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象。`,
+    async () => {
+      const result = await friendStore.tryDeleteFriend(currentAccountId.value!, gid)
+      if (result.ok) {
+        toast.success(result.message || '删除请求已发送')
+      }
+      else {
+        // 失败时把详细错误也展示出来，方便排查
+        toast.error(result.message || '实验性删好友失败', { duration: 8000 })
+      }
+      return result
+    },
+  )
+}
+
+async function handleTryBlockFriend(friend: any, e: Event) {
+  e.stopPropagation()
+  if (!currentAccountId.value)
+    return
+  const gid = Number(friend?.gid) || 0
+  if (!gid)
+    return
+  const name = String(friend?.name || `GID:${gid}`).trim()
+  confirmAction(
+    `【实验性】确定尝试在游戏内拉黑 ${name} 吗？\n本功能会按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象。`,
+    async () => {
+      const result = await friendStore.tryBlockFriend(currentAccountId.value!, gid)
+      if (result.ok) {
+        toast.success(result.message || '拉黑请求已发送')
+      }
+      else {
+        toast.error(result.message || '实验性拉黑失败', { duration: 8000 })
+      }
+      return result
+    },
+  )
+}
+
+async function handleToggleBlockApplications() {
+  if (!currentAccountId.value)
+    return
+  const nextBlock = !friendStore.blockApplications
+  const action = nextBlock ? '开启' : '关闭'
+  confirmAction(
+    `确定${action}"屏蔽加好友申请"吗？\n${nextBlock ? '开启后将自动拒绝所有向你发起的好友申请' : '关闭后允许他人向你发起好友申请'}。`,
+    async () => {
+      const result = await friendStore.setBlockApplications(currentAccountId.value!, nextBlock)
+      if (result.ok) {
+        toast.success(result.message || `已${action}屏蔽加好友申请`)
+      }
+      else {
+        toast.error(result.message || '切换屏蔽加好友申请失败')
+      }
+      return result
+    },
+  )
+}
+
 function getFriendStatusText(friend: any) {
   const p = friend.plant || {}
   const info = []
@@ -1589,6 +1661,21 @@ async function handleRejectAllApplications() {
                 >
                   📋 移出同步列表
                 </button>
+                <!-- 【实验性】游戏内删好友 / 拉黑 -->
+                <button
+                  class="cartoon-btn rounded-xl border border-dashed border-red-300 bg-red-50/50 px-3 py-2 text-sm text-red-600 transition hover:bg-red-100 dark:border-red-700 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/30"
+                  title="实验性：按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象"
+                  @click="handleTryDeleteFriend(friend, $event)"
+                >
+                  🗑 实验删
+                </button>
+                <button
+                  class="cartoon-btn rounded-xl border border-dashed border-red-300 bg-red-50/50 px-3 py-2 text-sm text-red-600 transition hover:bg-red-100 dark:border-red-700 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/30"
+                  title="实验性：按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象"
+                  @click="handleTryBlockFriend(friend, $event)"
+                >
+                  🚫 实验拉黑
+                </button>
               </div>
             </div>
 
@@ -1695,6 +1782,17 @@ async function handleRejectAllApplications() {
             @click="handleRejectAllApplications"
           >
             ❌ 全部拒绝
+          </button>
+          <button
+            class="cartoon-btn rounded-xl px-3 py-1.5 text-sm transition"
+            :class="friendStore.blockApplications
+              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'"
+            :disabled="applicationActionLoading"
+            :title="friendStore.blockApplications ? '当前已开启：拒绝所有向你发起的好友申请' : '当前已关闭：允许他人向你发起好友申请'"
+            @click="handleToggleBlockApplications"
+          >
+            🛡 {{ friendStore.blockApplications ? '屏蔽申请：开' : '屏蔽申请：关' }}
           </button>
         </div>
 

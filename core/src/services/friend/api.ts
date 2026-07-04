@@ -81,6 +81,92 @@ export async function getApplications(): Promise<any> {
     return types.GetApplicationsReply.decode(replyBody);
 }
 
+/**
+ * 屏蔽/允许他人加好友申请（全局开关，对应游戏内"屏蔽加好友申请"）。
+ * 注：游戏未提供按好友粒度的拉黑 API，此为唯一真正由游戏支持的"屏蔽"功能。
+ */
+export async function setBlockApplications(block: boolean): Promise<any> {
+    if (!types.SetBlockApplicationsRequest || !types.SetBlockApplicationsReply) {
+        throw new Error('SetBlockApplications 协议未注册');
+    }
+    const body: Uint8Array = types.SetBlockApplicationsRequest.encode(types.SetBlockApplicationsRequest.create({
+        block: !!block,
+    })).finish();
+    const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', 'SetBlockApplications', body);
+    if (replyBody.length === 0) {
+        return { block: !!block };
+    }
+    const reply: any = types.SetBlockApplicationsReply.decode(replyBody);
+    return { block: !!reply.block };
+}
+
+/**
+ * 【实验性】尝试调用游戏服务端的"删好友" RPC。
+ * 已知 friendpb.proto 未定义 DeleteFriend/RemoveFriend/BlockFriend 等方法，
+ * 本函数按常见命名猜几个方法名逐一尝试，看游戏服务端是否真的实现过。
+ * 成功即赚到，失败也不破坏主流程（捕获错误后返回 null）。
+ */
+export async function tryDeleteFriend(gid: number): Promise<{ method: string; ok: boolean; error?: string }> {
+    if (!gid) throw new Error('gid 无效');
+    // 按 protobuf 编码规则，int64 字段 (field_number=1, wire_type=0/varint)
+    // 构造 { friend_gid: <int64> } 的 body；用 long 编码 8 字节大端。
+    const buf: Buffer = encodeInt64Field(1, gid);
+    const candidates: string[] = ['DeleteFriend', 'RemoveFriend', 'DeleteGameFriend', 'KickFriend'];
+    const tried: Array<{ method: string; ok: boolean; error?: string }> = [];
+    for (const method of candidates) {
+        try {
+            const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', method, buf);
+            return { method, ok: true, error: replyBody.length === 0 ? '调用成功（响应体为空）' : undefined };
+        } catch (e: any) {
+            tried.push({ method, ok: false, error: e && e.message ? String(e.message) : String(e) });
+        }
+    }
+    const err = tried.map(t => `${t.method}: ${t.error}`).join(' | ');
+    return { method: candidates[candidates.length - 1], ok: false, error: `所有候选方法均失败 → ${err}` };
+}
+
+/**
+ * 【实验性】尝试调用游戏服务端的"拉黑好友" RPC。
+ * 协议里未定义 BlockFriend，按常见命名猜。请求体同样猜 { friend_gid: int64 }。
+ */
+export async function tryBlockFriend(gid: number): Promise<{ method: string; ok: boolean; error?: string }> {
+    if (!gid) throw new Error('gid 无效');
+    const buf: Buffer = encodeInt64Field(1, gid);
+    const candidates: string[] = ['BlockFriend', 'AddBlacklist', 'SetBlacklist', 'BlockGameFriend'];
+    const tried: Array<{ method: string; ok: boolean; error?: string }> = [];
+    for (const method of candidates) {
+        try {
+            const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', method, buf);
+            return { method, ok: true, error: replyBody.length === 0 ? '调用成功（响应体为空）' : undefined };
+        } catch (e: any) {
+            tried.push({ method, ok: false, error: e && e.message ? String(e.message) : String(e) });
+        }
+    }
+    const err = tried.map(t => `${t.method}: ${t.error}`).join(' | ');
+    return { method: candidates[candidates.length - 1], ok: false, error: `所有候选方法均失败 → ${err}` };
+}
+
+/**
+ * 把 int64 字段按 protobuf 规则编码为 buffer：
+ *   tag = (field_number << 3) | wire_type
+ *   wire_type=0 (varint)：tag 后接变长整数（小端）
+ * 注意：protobuf int64 是 64 位有符号；gid 一般 < 2^53，可直接当正数编码。
+ */
+function encodeInt64Field(fieldNumber: number, value: number): Buffer {
+    const tag = (fieldNumber << 3) | 0; // wire_type=0 = varint
+    const tagBuf: number[] = [];
+    let t = tag;
+    while (t > 0x7f) { tagBuf.push((t & 0x7f) | 0x80); t >>>= 7; }
+    tagBuf.push(t & 0x7f);
+    // varint for int64 (大值情况手动拆 8 字节小端)
+    const val = BigInt(value);
+    const valBytes: number[] = [];
+    let v = val >= 0n ? val : (1n << 64n) + val; // 二补码
+    while (v > 0x7fn) { valBytes.push(Number(v & 0x7fn) | 0x80); v >>= 7n; }
+    valBytes.push(Number(v & 0x7fn));
+    return Buffer.from([...tagBuf, ...valBytes]);
+}
+
 export async function enterFriendFarm(friendGid: number): Promise<any> {
     const body: Uint8Array = types.VisitEnterRequest.encode(types.VisitEnterRequest.create({
         host_gid: toLong(friendGid),

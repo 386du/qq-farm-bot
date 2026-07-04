@@ -169,6 +169,59 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
+    // 切换"屏蔽加好友申请"全局开关（游戏 FriendService 唯一支持的屏蔽维度）
+    app.post('/api/friend-block-applications', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const block = !!(req.body || {}).block;
+        try {
+            const data = await ctx.provider.setFriendBlockApplications(id, block);
+            res.json({ ok: true, data });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    // ============ 【实验性】游戏内删好友 / 拉黑 ============
+    // 这两个端点会按常见命名猜几个方法名逐一尝试调用游戏服务端，
+    // 已知 friendpb.proto 未定义 DeleteFriend/BlockFriend，调用大概率会失败。
+    // 仅作为探索性功能开放给愿意尝鲜的用户。
+
+    app.post('/api/friend-try-delete', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gid = Number((req.body || {}).gid);
+        if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
+        try {
+            const data = await ctx.provider.tryDeleteFriend(id, gid);
+            res.json({ ok: true, data, experimental: true });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
+    app.post('/api/friend-try-block', async (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const gid = Number((req.body || {}).gid);
+        if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
+        try {
+            const data = await ctx.provider.tryBlockFriend(id, gid);
+            res.json({ ok: true, data, experimental: true });
+        } catch (e: any) {
+            handleApiError(res, e);
+        }
+    });
+
     // API: 好友黑名单
     app.get('/api/friend-blacklist', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);

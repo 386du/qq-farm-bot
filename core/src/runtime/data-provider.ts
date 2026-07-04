@@ -120,6 +120,9 @@ function createDataProvider(options: DataProviderOptions) {
         getFriendApplications: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getFriendApplications'),
         acceptFriendApplications: (accountRef: string, gids: number[]) => callWorkerApi(resolveAccountRefId(accountRef), 'acceptFriendApplications', gids),
         rejectFriendApplications: (accountRef: string, gids: number[]) => callWorkerApi(resolveAccountRefId(accountRef), 'rejectFriendApplications', gids),
+        setFriendBlockApplications: (accountRef: string, block: boolean) => callWorkerApi(resolveAccountRefId(accountRef), 'setFriendBlockApplications', block),
+        tryDeleteFriend: (accountRef: string, gid: number) => callWorkerApi(resolveAccountRefId(accountRef), 'tryDeleteFriend', gid),
+        tryBlockFriend: (accountRef: string, gid: number) => callWorkerApi(resolveAccountRefId(accountRef), 'tryBlockFriend', gid),
         scanGuardDogFriends: (accountRef: string, options?: any) => {
             const opts = (options && typeof options === 'object') ? options : {};
             const accountId = resolveAccountRefId(accountRef);

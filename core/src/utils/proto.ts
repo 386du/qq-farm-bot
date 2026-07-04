@@ -169,6 +169,8 @@ async function loadProto(): Promise<void> {
     types.GetGameFriendsReply = root.lookupType('gamepb.friendpb.GetGameFriendsReply');
     types.GetShareKeyRequest = root.lookupType('gamepb.friendpb.GetShareKeyRequest');
     types.GetShareKeyReply = root.lookupType('gamepb.friendpb.GetShareKeyReply');
+    types.SetBlockApplicationsRequest = root.lookupType('gamepb.friendpb.SetBlockApplicationsRequest');
+    types.SetBlockApplicationsReply = root.lookupType('gamepb.friendpb.SetBlockApplicationsReply');
 
     // 访问
     types.VisitEnterRequest = root.lookupType('gamepb.visitpb.EnterRequest');

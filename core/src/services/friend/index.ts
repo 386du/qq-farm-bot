@@ -28,4 +28,7 @@ export {
     getFriendsList,
     rejectFriendApplications,
     scanAllFriendsForGuardDog,
+    setFriendBlockApplications,
+    tryBlockFriendRpc,
+    tryDeleteFriendRpc,
 } from './visit-strategy';
