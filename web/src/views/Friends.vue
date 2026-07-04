@@ -22,6 +22,8 @@ const {
   friendLandsLoading,
   blacklist,
   guardDogFriends,
+  guardDogBlacklist,
+  guardDogWhitelist,
   interactRecords,
   interactLoading,
   interactError,
