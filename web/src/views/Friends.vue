@@ -122,6 +122,16 @@ const interactFilters = [
   { key: 'bad', label: '捣乱' },
 ]
 
+// 护主犬子 Tab
+const guardDogSubTab = ref<'friends' | 'blacklist' | 'whitelist'>('friends')
+const guardDogSubTabs = [
+  { key: 'friends' as const, label: '🐶 护主犬清单', color: 'amber' },
+  { key: 'blacklist' as const, label: '🚫 帮忙黑名单', color: 'red' },
+  { key: 'whitelist' as const, label: '✅ 帮忙白名单', color: 'green' },
+]
+const guardDogBatchInput = ref('')
+const guardDogBatchSaving = ref(false)
+
 function confirmAction(msg: string, action: () => Promise<any>) {
   confirmMessage.value = msg
   pendingAction.value = action
@@ -256,6 +266,8 @@ async function loadData() {
       friendStore.fetchFriends(currentAccountId.value)
       friendStore.fetchBlacklist(currentAccountId.value)
       friendStore.fetchGuardDogFriends(currentAccountId.value)
+      friendStore.fetchGuardDogBlacklist(currentAccountId.value)
+      friendStore.fetchGuardDogWhitelist(currentAccountId.value)
       friendStore.fetchInteractRecords(currentAccountId.value)
       friendStore.fetchApplications(currentAccountId.value)
       if (isQqAccount.value) {
@@ -451,6 +463,115 @@ async function handleClearGuardDogFriends() {
     await friendStore.clearGuardDogFriends(currentAccountId.value!)
     toast.success('已清空护主犬好友清单')
   })
+}
+
+// ============ 护主犬帮忙黑/白名单 handler ============
+
+function parseGidList(raw: string): number[] {
+  return raw
+    .split(/[\s,，;；\n\r]+/)
+    .map(s => Number(s.trim()))
+    .filter(n => Number.isFinite(n) && n > 0)
+}
+
+async function handleBatchAddGuardDogBlacklist() {
+  if (!currentAccountId.value)
+    return
+  const gids = parseGidList(guardDogBatchInput.value)
+  if (gids.length === 0) {
+    toast.error('请输入有效的 GID 列表')
+    return
+  }
+  try {
+    guardDogBatchSaving.value = true
+    await friendStore.batchAddGuardDogBlacklist(currentAccountId.value, gids)
+    guardDogBatchInput.value = ''
+    toast.success(`已添加 ${gids.length} 名好友到护主犬帮忙黑名单`)
+  }
+  catch (e: any) {
+    toast.error(e?.message || '批量添加失败')
+  }
+  finally {
+    guardDogBatchSaving.value = false
+  }
+}
+
+async function handleBatchAddGuardDogWhitelist() {
+  if (!currentAccountId.value)
+    return
+  const gids = parseGidList(guardDogBatchInput.value)
+  if (gids.length === 0) {
+    toast.error('请输入有效的 GID 列表')
+    return
+  }
+  try {
+    guardDogBatchSaving.value = true
+    await friendStore.batchAddGuardDogWhitelist(currentAccountId.value, gids)
+    guardDogBatchInput.value = ''
+    toast.success(`已添加 ${gids.length} 名好友到护主犬帮忙白名单`)
+  }
+  catch (e: any) {
+    toast.error(e?.message || '批量添加失败')
+  }
+  finally {
+    guardDogBatchSaving.value = false
+  }
+}
+
+async function handleRemoveGuardDogBlacklistItem(gid: number) {
+  if (!currentAccountId.value)
+    return
+  try {
+    await friendStore.batchRemoveGuardDogBlacklist(currentAccountId.value, [gid])
+    toast.success('已移出护主犬帮忙黑名单')
+  }
+  catch (e: any) {
+    toast.error(e?.message || '移出失败')
+  }
+}
+
+async function handleRemoveGuardDogWhitelistItem(gid: number) {
+  if (!currentAccountId.value)
+    return
+  try {
+    await friendStore.batchRemoveGuardDogWhitelist(currentAccountId.value, [gid])
+    toast.success('已移出护主犬帮忙白名单')
+  }
+  catch (e: any) {
+    toast.error(e?.message || '移出失败')
+  }
+}
+
+async function handleClearGuardDogBlacklistList() {
+  if (!currentAccountId.value)
+    return
+  confirmAction('确定清空护主犬帮忙黑名单吗？此操作不可撤销。', async () => {
+    await friendStore.clearGuardDogBlacklist(currentAccountId.value!)
+    toast.success('已清空护主犬帮忙黑名单')
+  })
+}
+
+async function handleClearGuardDogWhitelistList() {
+  if (!currentAccountId.value)
+    return
+  confirmAction('确定清空护主犬帮忙白名单吗？此操作不可撤销。', async () => {
+    await friendStore.clearGuardDogWhitelist(currentAccountId.value!)
+    toast.success('已清空护主犬帮忙白名单')
+  })
+}
+
+async function handleFetchGuardDogSubTab(tab: 'friends' | 'blacklist' | 'whitelist') {
+  if (!currentAccountId.value)
+    return
+  if (tab === 'friends') {
+    await friendStore.fetchGuardDogFriends(currentAccountId.value)
+  }
+  else if (tab === 'blacklist') {
+    await friendStore.fetchGuardDogBlacklist(currentAccountId.value)
+  }
+  else if (tab === 'whitelist') {
+    await friendStore.fetchGuardDogWhitelist(currentAccountId.value)
+  }
 }
 
 // ============ 护主犬扫描状态（全局 store，与组件生命周期解耦）============
@@ -1404,103 +1525,311 @@ async function handleRejectAllApplications() {
       </div>
 
       <div v-else-if="activeTab === 'guardDog'" class="space-y-4">
-        <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xl">🐶</span>
-              <p class="text-sm text-gray-500 dark:text-gray-400">
-                开启「只帮护主犬好友」后，系统会自动把检测到护主犬的好友加入此清单。后续可在此手动增删。
-              </p>
-            </div>
-            <div class="flex shrink-0 flex-wrap gap-2">
-              <button
-                class="cartoon-btn rounded-xl bg-amber-100 px-3 py-1.5 text-sm text-amber-700 transition dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-400 dark:hover:bg-amber-900/50 disabled:opacity-50"
-                :disabled="loading || scanningGuardDog"
-                @click="handleScanGuardDogFriends"
-              >
-                <span v-if="scanningGuardDog">⏳ 扫描中 {{ scanProgressText }}</span>
-                <span v-else>🔍 扫描全部好友</span>
-              </button>
-              <button
-                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-                :disabled="loading"
-                @click="handleRefreshGuardDogFriends"
-              >
-                🔄 刷新
-              </button>
-              <button
-                v-if="guardDogFriends.length > 0"
-                class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
-                @click="handleClearGuardDogFriends"
-              >
-                🗑️ 清空
-              </button>
-            </div>
-          </div>
-          <div v-if="scanGuardDogResult" class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-700/50 dark:text-gray-300">
-            扫描完成：共扫 {{ scanGuardDogResult.scanned }} 人，命中 {{ scanGuardDogResult.guardDogCount }} 人，新增 {{ scanGuardDogResult.newGids.length }} 人，失败 {{ scanGuardDogResult.errorCount }} 人，耗时 {{ Math.round(scanGuardDogResult.durationMs / 1000) }}s
-            <span v-if="scanGuardDogResult.newGids.length > 0" class="ml-2 text-amber-600 dark:text-amber-400">
-              新增：{{ scanGuardDogResult.newGids.join(', ') }}
-            </span>
-          </div>
-          <div v-else-if="scanWasInterrupted" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-            ⚠️ 上一次扫描被中断（账号已重启，例如应用宝自动重连）。请重新点击「扫描全部好友」继续。
-          </div>
-        </div>
-        <div v-if="guardDogFriends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
-          <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
-            🐶
-          </div>
-          <div class="text-lg font-display">
-            暂未发现携带护主犬的好友
-          </div>
-          <div class="mt-1 text-sm text-gray-400">
-            开启「只帮护主犬好友」后，访问好友农场时若检测到护主犬会自动登记
-          </div>
-        </div>
-
-        <div v-else class="space-y-3">
-          <div
-            v-for="(item, idx) in guardDogFriends"
-            :key="item.gid"
-            class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
-            :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
-          >
-            <div class="flex items-center gap-3">
-              <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-amber-200/50 dark:bg-gray-600 dark:ring-amber-700/30">
-                <img
-                  v-if="item.avatarUrl"
-                  :src="item.avatarUrl"
-                  class="h-full w-full object-cover"
-                  loading="lazy"
-                  @error="($event.target as HTMLImageElement).style.display = 'none'"
-                >
-                <span v-else class="text-gray-400">👤</span>
-                <div class="absolute h-5 w-5 border-2 border-white rounded-full bg-amber-500 -bottom-0.5 -right-0.5 flex items-center justify-center text-[10px] dark:border-gray-800">
-                  🐶
-                </div>
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
-                  <span class="text-sm text-gray-400">({{ item.gid }})</span>
-                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 font-bold dark:bg-amber-900/30 dark:text-amber-400">
-                    已携带护主犬
-                  </span>
-                </div>
-                <div v-if="(item as any).level" class="mt-1 text-xs text-gray-500">
-                  Lv.{{ (item as any).level }}
-                </div>
-              </div>
-            </div>
+        <!-- 护主犬子 Tab 切换 -->
+        <div class="farm-card-enhanced animate-fade-in-up p-3">
+          <div class="flex flex-wrap gap-2">
             <button
-              class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
-              @click="handleRemoveGuardDogFriend(item.gid)"
+              v-for="tab in guardDogSubTabs"
+              :key="tab.key"
+              class="cartoon-btn rounded-xl px-3 py-1.5 text-sm font-bold transition-all duration-200"
+              :class="guardDogSubTab === tab.key
+                ? 'text-white shadow-md scale-105'
+                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 hover:scale-105 dark:hover:bg-gray-600'"
+              :style="guardDogSubTab === tab.key ? {
+                backgroundColor: tab.color === 'amber' ? '#f59e0b' : tab.color === 'red' ? '#ef4444' : '#10b981',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              } : {}"
+              @click="guardDogSubTab = tab.key; handleFetchGuardDogSubTab(tab.key)"
             >
-              🗑️ 移出清单
+              {{ tab.label }}
+              <span
+                v-if="(tab.key === 'friends' && guardDogFriends.length > 0)
+                  || (tab.key === 'blacklist' && guardDogBlacklist.length > 0)
+                  || (tab.key === 'whitelist' && guardDogWhitelist.length > 0)"
+                class="ml-1 rounded-full bg-white/30 px-1.5 py-0.5 text-xs"
+              >
+                {{ tab.key === 'friends' ? guardDogFriends.length
+                  : tab.key === 'blacklist' ? guardDogBlacklist.length
+                  : guardDogWhitelist.length }}
+              </span>
             </button>
           </div>
         </div>
+
+        <!-- 子 Tab: 护主犬清单 -->
+        <template v-if="guardDogSubTab === 'friends'">
+          <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🐶</span>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  开启「只帮护主犬好友」后，系统会自动把检测到护主犬的好友加入此清单。后续可在此手动增删。
+                </p>
+              </div>
+              <div class="flex shrink-0 flex-wrap gap-2">
+                <button
+                  class="cartoon-btn rounded-xl bg-amber-100 px-3 py-1.5 text-sm text-amber-700 transition dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-400 dark:hover:bg-amber-900/50 disabled:opacity-50"
+                  :disabled="loading || scanningGuardDog"
+                  @click="handleScanGuardDogFriends"
+                >
+                  <span v-if="scanningGuardDog">⏳ 扫描中 {{ scanProgressText }}</span>
+                  <span v-else>🔍 扫描全部好友</span>
+                </button>
+                <button
+                  class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+                  :disabled="loading"
+                  @click="handleRefreshGuardDogFriends"
+                >
+                  🔄 刷新
+                </button>
+                <button
+                  v-if="guardDogFriends.length > 0"
+                  class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
+                  @click="handleClearGuardDogFriends"
+                >
+                  🗑️ 清空
+                </button>
+              </div>
+            </div>
+            <div v-if="scanGuardDogResult" class="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-700/50 dark:text-gray-300">
+              扫描完成：共扫 {{ scanGuardDogResult.scanned }} 人，命中 {{ scanGuardDogResult.guardDogCount }} 人，新增 {{ scanGuardDogResult.newGids.length }} 人，失败 {{ scanGuardDogResult.errorCount }} 人，耗时 {{ Math.round(scanGuardDogResult.durationMs / 1000) }}s
+              <span v-if="scanGuardDogResult.newGids.length > 0" class="ml-2 text-amber-600 dark:text-amber-400">
+                新增：{{ scanGuardDogResult.newGids.join(', ') }}
+              </span>
+            </div>
+            <div v-else-if="scanWasInterrupted" class="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+              ⚠️ 上一次扫描被中断（账号已重启，例如应用宝自动重连）。请重新点击「扫描全部好友」继续。
+            </div>
+          </div>
+          <div v-if="guardDogFriends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
+            <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+              🐶
+            </div>
+            <div class="text-lg font-display">
+              暂未发现携带护主犬的好友
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              开启「只帮护主犬好友」后，访问好友农场时若检测到护主犬会自动登记
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="(item, idx) in guardDogFriends"
+              :key="item.gid"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+              :style="{ animationDelay: `${0.05 * (idx + 4)}s` }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-amber-200/50 dark:bg-gray-600 dark:ring-amber-700/30">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    class="h-full w-full object-cover"
+                    loading="lazy"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  >
+                  <span v-else class="text-gray-400">👤</span>
+                  <div class="absolute h-5 w-5 border-2 border-white rounded-full bg-amber-500 -bottom-0.5 -right-0.5 flex items-center justify-center text-[10px] dark:border-gray-800">
+                    🐶
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                    <span class="text-sm text-gray-400">({{ item.gid }})</span>
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 font-bold dark:bg-amber-900/30 dark:text-amber-400">
+                      已携带护主犬
+                    </span>
+                  </div>
+                  <div v-if="(item as any).level" class="mt-1 text-xs text-gray-500">
+                    Lv.{{ (item as any).level }}
+                  </div>
+                </div>
+              </div>
+              <button
+                class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
+                @click="handleRemoveGuardDogFriend(item.gid)"
+              >
+                🗑️ 移出清单
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 子 Tab: 帮忙黑名单 -->
+        <template v-else-if="guardDogSubTab === 'blacklist'">
+          <div class="farm-card-enhanced animate-fade-in-up p-5">
+            <div class="flex items-start gap-2">
+              <span class="text-xl">🚫</span>
+              <div class="flex-1 text-sm text-gray-500 dark:text-gray-400">
+                <p>
+                  开启「只帮护主犬好友」后，命中此黑名单的 gid 会被<strong class="text-red-600 dark:text-red-400">强制跳过</strong>帮忙（优先级最高）。
+                </p>
+                <p class="mt-1 text-xs text-gray-400">
+                  适用于：某个好友护主犬但你不想帮 / 某 gid 反复误判等场景。
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+              <textarea
+                v-model="guardDogBatchInput"
+                rows="3"
+                placeholder="批量添加 GID，每行一个，或用逗号/空格分隔&#10;例如：12345678, 87654321"
+                class="flex-1 border farm-input border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-red-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+              <div class="flex shrink-0 flex-col gap-2 sm:items-end">
+                <button
+                  class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50 dark:hover:bg-red-900/50"
+                  :disabled="guardDogBatchSaving || !guardDogBatchInput.trim()"
+                  @click="handleBatchAddGuardDogBlacklist"
+                >
+                  <div v-if="guardDogBatchSaving" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+                  ➕ 批量添加
+                </button>
+                <button
+                  v-if="guardDogBlacklist.length > 0"
+                  class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
+                  @click="handleClearGuardDogBlacklistList"
+                >
+                  🗑️ 清空
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="guardDogBlacklist.length === 0" class="farm-card-enhanced animate-fade-in-up p-8 text-center text-gray-500">
+            <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+              🚫
+            </div>
+            <div class="text-lg font-display">
+              护主犬帮忙黑名单为空
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              在上方输入 GID 即可添加，空名单不会影响帮忙逻辑
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="(item, idx) in guardDogBlacklist"
+              :key="item.gid"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+              :style="{ animationDelay: `${0.05 * (idx + 1)}s` }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-red-200/50 dark:bg-gray-600 dark:ring-red-700/30">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    class="h-full w-full object-cover"
+                    loading="lazy"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  >
+                  <span v-else class="text-gray-400">👤</span>
+                  <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-red-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+                </div>
+                <div>
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
+                </div>
+              </div>
+              <button
+                class="cartoon-btn rounded-xl bg-green-100 px-3 py-1.5 text-sm text-green-700 dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 dark:hover:bg-green-900/50"
+                @click="handleRemoveGuardDogBlacklistItem(item.gid)"
+              >
+                ⬆️ 移出黑名单
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- 子 Tab: 帮忙白名单 -->
+        <template v-else>
+          <div class="farm-card-enhanced animate-fade-in-up p-5">
+            <div class="flex items-start gap-2">
+              <span class="text-xl">✅</span>
+              <div class="flex-1 text-sm text-gray-500 dark:text-gray-400">
+                <p>
+                  开启「只帮护主犬好友」且白名单非空时，<strong class="text-green-600 dark:text-green-400">只帮白名单内的 gid</strong>，不再走服务端护主犬检测。
+                </p>
+                <p class="mt-1 text-xs text-gray-400">
+                  适用于：固定要帮的几个人 / 不想依赖服务端护主犬字段时手动指定。
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+              <textarea
+                v-model="guardDogBatchInput"
+                rows="3"
+                placeholder="批量添加 GID，每行一个，或用逗号/空格分隔&#10;例如：12345678, 87654321"
+                class="flex-1 border farm-input border-gray-300 rounded-xl bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+              <div class="flex shrink-0 flex-col gap-2 sm:items-end">
+                <button
+                  class="cartoon-btn rounded-xl bg-green-100 px-3 py-1.5 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50 dark:hover:bg-green-900/50"
+                  :disabled="guardDogBatchSaving || !guardDogBatchInput.trim()"
+                  @click="handleBatchAddGuardDogWhitelist"
+                >
+                  <div v-if="guardDogBatchSaving" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+                  ➕ 批量添加
+                </button>
+                <button
+                  v-if="guardDogWhitelist.length > 0"
+                  class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
+                  @click="handleClearGuardDogWhitelistList"
+                >
+                  🗑️ 清空
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="guardDogWhitelist.length === 0" class="farm-card-enhanced animate-fade-in-up p-8 text-center text-gray-500">
+            <div class="animate-float-slow mx-auto mb-3 text-4xl text-gray-300">
+              ✅
+            </div>
+            <div class="text-lg font-display">
+              护主犬帮忙白名单为空
+            </div>
+            <div class="mt-1 text-sm text-gray-400">
+              空名单时会回退到默认的护主犬检测逻辑，添加后才生效
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div
+              v-for="(item, idx) in guardDogWhitelist"
+              :key="item.gid"
+              class="farm-card-enhanced flex animate-fade-in-up items-center justify-between p-4 transition-all duration-300 hover:scale-[1.01]"
+              :style="{ animationDelay: `${0.05 * (idx + 1)}s` }"
+            >
+              <div class="flex items-center gap-3">
+                <div class="relative h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-green-200/50 dark:bg-gray-600 dark:ring-green-700/30">
+                  <img
+                    v-if="item.avatarUrl"
+                    :src="item.avatarUrl"
+                    class="h-full w-full object-cover"
+                    loading="lazy"
+                    @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  >
+                  <span v-else class="text-gray-400">👤</span>
+                  <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-green-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
+                </div>
+                <div>
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
+                </div>
+              </div>
+              <button
+                class="cartoon-btn rounded-xl bg-red-100 px-3 py-1.5 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
+                @click="handleRemoveGuardDogWhitelistItem(item.gid)"
+              >
+                ⬇️ 移出白名单
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div v-else-if="activeTab === 'visitors'" class="space-y-4">
