@@ -32,7 +32,6 @@ export const useFriendStore = defineStore('friend', () => {
   const guardDogFriends = ref<BlacklistItem[]>([])
   const guardDogBlacklist = ref<BlacklistItem[]>([])
   const guardDogWhitelist = ref<BlacklistItem[]>([])
-  const blockedFriends = ref<BlacklistItem[]>([])
   const interactRecords = ref<any[]>([])
   const interactLoading = ref(false)
   const interactError = ref('')
@@ -766,77 +765,13 @@ export const useFriendStore = defineStore('friend', () => {
         timeout: 30000,
       })
       const data = res.data?.data || {}
-      // 成功后自动追加到本地 blockedFriends 列表（后端也会自动登记）
-      if (res.data.ok && data.ok) {
-        const gidNum = Number(gid)
-        if (gidNum && !blockedFriends.value.some(f => Number(f.gid) === gidNum)) {
-          const existing = friends.value.find((f: any) => Number(f.gid) === gidNum)
-          blockedFriends.value.push({
-            gid: gidNum,
-            name: String(existing?.name || existing?.nick || `GID:${gidNum}`),
-            avatarUrl: String(existing?.avatarUrl || existing?.avatar || ''),
-          })
-        }
-      }
       return {
         ok: !!res.data.ok && !!data.ok,
         message: data.message || (res.data.ok ? '已拉黑' : '操作失败'),
-        recorded: !!data.recorded,
       }
     }
     catch (e: any) {
       return { ok: false, message: e?.response?.data?.error || e?.message || '拉黑失败' }
-    }
-  }
-
-  // ============ 游戏内已拉黑名单（CRUD）============
-
-  async function fetchBlockedFriends(accountId: string) {
-    if (!accountId)
-      return
-    try {
-      const res = await api.get('/api/friend-blocked-gids', {
-        headers: { 'x-account-id': accountId },
-      })
-      if (res.data.ok) {
-        blockedFriends.value = res.data.data || []
-      }
-    }
-    catch { /* ignore */ }
-  }
-
-  async function removeBlockedFriend(accountId: string, gid: number) {
-    if (!accountId || !gid)
-      return { ok: false, message: '参数无效' }
-    try {
-      const res = await api.post('/api/friend-blocked-gids/remove', { gid }, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (res.data.ok) {
-        const gidNum = Number(gid)
-        blockedFriends.value = blockedFriends.value.filter(f => Number(f.gid) !== gidNum)
-      }
-      return { ok: !!res.data.ok, message: res.data.ok ? '已从名单移除' : '操作失败' }
-    }
-    catch (e: any) {
-      return { ok: false, message: e?.response?.data?.error || e?.message || '移除失败' }
-    }
-  }
-
-  async function clearBlockedFriends(accountId: string) {
-    if (!accountId)
-      return { ok: false, message: '参数无效' }
-    try {
-      const res = await api.post('/api/friend-blocked-gids/clear', {}, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (res.data.ok) {
-        blockedFriends.value = []
-      }
-      return { ok: !!res.data.ok, message: res.data.ok ? '已清空' : '操作失败' }
-    }
-    catch (e: any) {
-      return { ok: false, message: e?.response?.data?.error || e?.message || '清空失败' }
     }
   }
 
@@ -903,10 +838,6 @@ export const useFriendStore = defineStore('friend', () => {
     acceptApplications,
     rejectApplications,
     setBlockApplications,
-    blockedFriends,
     blockFriend,
-    fetchBlockedFriends,
-    removeBlockedFriend,
-    clearBlockedFriends,
   }
 })

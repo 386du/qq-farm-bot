@@ -15,11 +15,6 @@ const {
     getFriendGuardDogBlacklist,
     getFriendGuardDogWhitelist,
 } = require('../../models/store');
-const accountStore = require('../../models/store');
-// ctxProvider 由 worker.ts 在加载 visit-strategy 时注入，用于 blockFriend 成功后 broadcastConfig
-const ctxProvider: { broadcastConfig?: (id: string) => void } | null = (() => {
-    try { return require('../../runtime/data-provider'); } catch { return null; }
-})();
 const { getUserState } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
 const { types } = require('../../utils/proto');
@@ -1402,49 +1397,30 @@ export async function setFriendBlockApplications(block: boolean): Promise<{ ok: 
 /**
  * 在游戏内拉黑好友（供面板使用）。
  * 经实测 gamepb.friendpb.FriendService.BlockFriend 是真实可用的 RPC（proto 未声明但服务端实现了）。
- * 成功后会**自动**把 gid 加入"游戏内已拉黑名单"（friendBlockedGids），
- * 方便后续前端展示"我已拉黑过谁"。
  */
-export async function blockFriendRpc(gid: number, accountId?: string): Promise<{ ok: boolean; message: string; recorded: boolean }> {
+export async function blockFriendRpc(gid: number): Promise<{ ok: boolean; message: string }> {
     const targetGid: number = toNum(gid);
     if (!targetGid) {
-        return { ok: false, message: 'gid 无效', recorded: false };
+        return { ok: false, message: 'gid 无效' };
     }
     try {
         const result: any = await blockFriend(targetGid);
         if (result.ok) {
-            // 自动登记到"游戏内已拉黑名单"
-            let recorded = false;
-            try {
-                if (accountId && accountStore && typeof accountStore.addFriendBlockedGid === 'function') {
-                    recorded = !!accountStore.addFriendBlockedGid(accountId, targetGid);
-                    if (recorded && ctxProvider && typeof ctxProvider.broadcastConfig === 'function') {
-                        ctxProvider.broadcastConfig(accountId);
-                    }
-                }
-            } catch (e: any) {
-                // 登记失败不影响主流程
-                logWarn('好友', `登记拉黑名单失败（GID=${targetGid}）: ${e.message}`, {
-                    event: 'friend_blocked_record_failed',
-                    module: 'friend',
-                    meta: { gid: targetGid, error: e.message },
-                });
-            }
-            log('好友', `游戏内拉黑好友成功（GID=${targetGid}）${recorded ? '，已登记' : ''}`, {
+            log('好友', `游戏内拉黑好友成功（GID=${targetGid}）`, {
                 event: 'friend_block_success',
                 module: 'friend',
-                meta: { gid: targetGid, method: result.method, recorded },
+                meta: { gid: targetGid, method: result.method },
             });
-            return { ok: true, message: '已拉黑，请到游戏内确认', recorded };
+            return { ok: true, message: '已拉黑，请到游戏内确认' };
         }
         logWarn('好友', `游戏内拉黑好友失败（GID=${targetGid}）: ${result.error}`, {
             event: 'friend_block_failed',
             module: 'friend',
             meta: { gid: targetGid, error: result.error },
         });
-        return { ok: false, message: result.error || '拉黑失败', recorded: false };
+        return { ok: false, message: result.error || '拉黑失败' };
     } catch (e: any) {
-        return { ok: false, message: e?.message || '请求失败', recorded: false };
+        return { ok: false, message: e?.message || '请求失败' };
     }
 }
 

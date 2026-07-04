@@ -91,7 +91,6 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
     friendGuardDogGids: [],
     friendGuardDogBlacklist: [],
     friendGuardDogWhitelist: [],
-    friendBlockedGids: [],
     plantBlacklist: [
         20002,
         20003,
@@ -287,7 +286,6 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
         friendGuardDogGids: rawGuardDogGids.map(Number).filter(n => Number.isFinite(n) && n > 0),
         friendGuardDogBlacklist: rawGuardDogBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
         friendGuardDogWhitelist: rawGuardDogWhitelist.map(Number).filter(n => Number.isFinite(n) && n > 0),
-        friendBlockedGids: rawBlockedGids.map(Number).filter(n => Number.isFinite(n) && n > 0),
         plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(base.plantingStrategy || '') as PlantingStrategy)
             ? String(base.plantingStrategy) as PlantingStrategy
             : DEFAULT_ACCOUNT_CONFIG.plantingStrategy,
@@ -369,10 +367,6 @@ function normalizeAccountConfig(input: unknown, fallback: AccountConfig = accoun
 
     if (Array.isArray(src.friendGuardDogWhitelist)) {
         cfg.friendGuardDogWhitelist = src.friendGuardDogWhitelist.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
-    }
-
-    if (Array.isArray(src.friendBlockedGids)) {
-        cfg.friendBlockedGids = src.friendBlockedGids.map(Number).filter((n: number) => Number.isFinite(n) && n > 0);
     }
 
     if (src.knownFriendGids !== undefined) {
