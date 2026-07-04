@@ -101,49 +101,20 @@ export async function setBlockApplications(block: boolean): Promise<any> {
 }
 
 /**
- * 【实验性】尝试调用游戏服务端的"删好友" RPC。
- * 已知 friendpb.proto 未定义 DeleteFriend/RemoveFriend/BlockFriend 等方法，
- * 本函数按常见命名猜几个方法名逐一尝试，看游戏服务端是否真的实现过。
- * 成功即赚到，失败也不破坏主流程（捕获错误后返回 null）。
+ * 在游戏内拉黑好友（调用 gamepb.friendpb.FriendService.BlockFriend）。
+ * 经实测游戏服务端确实有该 RPC：proto 里没声明，但按"BlockFriend"命名直接调能成功。
+ * 请求体编码 { friend_gid: <int64> }，与 proto 约定的命名习惯一致。
  */
-export async function tryDeleteFriend(gid: number): Promise<{ method: string; ok: boolean; error?: string }> {
-    if (!gid) throw new Error('gid 无效');
-    // 按 protobuf 编码规则，int64 字段 (field_number=1, wire_type=0/varint)
-    // 构造 { friend_gid: <int64> } 的 body；用 long 编码 8 字节大端。
-    const buf: Buffer = encodeInt64Field(1, gid);
-    const candidates: string[] = ['DeleteFriend', 'RemoveFriend', 'DeleteGameFriend', 'KickFriend'];
-    const tried: Array<{ method: string; ok: boolean; error?: string }> = [];
-    for (const method of candidates) {
-        try {
-            const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', method, buf);
-            return { method, ok: true, error: replyBody.length === 0 ? '调用成功（响应体为空）' : undefined };
-        } catch (e: any) {
-            tried.push({ method, ok: false, error: e && e.message ? String(e.message) : String(e) });
-        }
-    }
-    const err = tried.map(t => `${t.method}: ${t.error}`).join(' | ');
-    return { method: candidates[candidates.length - 1], ok: false, error: `所有候选方法均失败 → ${err}` };
-}
-
-/**
- * 【实验性】尝试调用游戏服务端的"拉黑好友" RPC。
- * 协议里未定义 BlockFriend，按常见命名猜。请求体同样猜 { friend_gid: int64 }。
- */
-export async function tryBlockFriend(gid: number): Promise<{ method: string; ok: boolean; error?: string }> {
+export async function blockFriend(gid: number): Promise<{ ok: boolean; method: string; error?: string }> {
     if (!gid) throw new Error('gid 无效');
     const buf: Buffer = encodeInt64Field(1, gid);
-    const candidates: string[] = ['BlockFriend', 'AddBlacklist', 'SetBlacklist', 'BlockGameFriend'];
-    const tried: Array<{ method: string; ok: boolean; error?: string }> = [];
-    for (const method of candidates) {
-        try {
-            const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', method, buf);
-            return { method, ok: true, error: replyBody.length === 0 ? '调用成功（响应体为空）' : undefined };
-        } catch (e: any) {
-            tried.push({ method, ok: false, error: e && e.message ? String(e.message) : String(e) });
-        }
+    const method = 'BlockFriend';
+    try {
+        const { body: replyBody } = await sendMsgAsync('gamepb.friendpb.FriendService', method, buf);
+        return { ok: true, method, error: replyBody.length === 0 ? '调用成功（响应体为空）' : undefined };
+    } catch (e: any) {
+        return { ok: false, method, error: e && e.message ? String(e.message) : String(e) };
     }
-    const err = tried.map(t => `${t.method}: ${t.error}`).join(' | ');
-    return { method: candidates[candidates.length - 1], ok: false, error: `所有候选方法均失败 → ${err}` };
 }
 
 /**

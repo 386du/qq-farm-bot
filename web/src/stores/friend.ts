@@ -754,47 +754,24 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  // ============ 【实验性】游戏内删好友 / 拉黑 ============
+  // ============ 游戏内拉黑好友（BlockFriend RPC，实测可用）============
 
-  async function tryDeleteFriend(accountId: string, gid: number) {
+  async function blockFriend(accountId: string, gid: number) {
     if (!accountId || !gid)
       return { ok: false, message: '参数无效' }
     try {
-      const res = await api.post('/api/friend-try-delete', { gid }, {
+      const res = await api.post('/api/friend-block', { gid }, {
         headers: { 'x-account-id': accountId },
-        timeout: 60000,
+        timeout: 30000,
       })
       const data = res.data?.data || {}
       return {
         ok: !!res.data.ok && !!data.ok,
-        message: data.message || (res.data.ok ? '已尝试删除好友' : '操作失败'),
-        method: data.method || '',
-        experimental: true,
+        message: data.message || (res.data.ok ? '已拉黑' : '操作失败'),
       }
     }
     catch (e: any) {
-      return { ok: false, message: e?.response?.data?.error || e?.message || '实验性删好友失败', experimental: true }
-    }
-  }
-
-  async function tryBlockFriend(accountId: string, gid: number) {
-    if (!accountId || !gid)
-      return { ok: false, message: '参数无效' }
-    try {
-      const res = await api.post('/api/friend-try-block', { gid }, {
-        headers: { 'x-account-id': accountId },
-        timeout: 60000,
-      })
-      const data = res.data?.data || {}
-      return {
-        ok: !!res.data.ok && !!data.ok,
-        message: data.message || (res.data.ok ? '已尝试拉黑好友' : '操作失败'),
-        method: data.method || '',
-        experimental: true,
-      }
-    }
-    catch (e: any) {
-      return { ok: false, message: e?.response?.data?.error || e?.message || '实验性拉黑失败', experimental: true }
+      return { ok: false, message: e?.response?.data?.error || e?.message || '拉黑失败' }
     }
   }
 
@@ -861,7 +838,6 @@ export const useFriendStore = defineStore('friend', () => {
     acceptApplications,
     rejectApplications,
     setBlockApplications,
-    tryDeleteFriend,
-    tryBlockFriend,
+    blockFriend,
   }
 })

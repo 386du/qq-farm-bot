@@ -555,12 +555,9 @@ async function handleToggleGuardDogWhitelist(friend: any, e: Event) {
   }
 }
 
-// ============ 【实验性】游戏内删好友 / 拉黑 ============
-// 这两个按钮会按常见命名猜几个方法名逐一尝试调用游戏服务端，
-// 大概率会失败（friendpb.proto 未声明 DeleteFriend/BlockFriend）。
-// 仅作为探索性功能开放给愿意尝鲜的用户。点之前会弹二次确认。
+// ============ 游戏内拉黑好友（BlockFriend RPC，实测可用）============
 
-async function handleTryDeleteFriend(friend: any, e: Event) {
+async function handleBlockFriend(friend: any, e: Event) {
   e.stopPropagation()
   if (!currentAccountId.value)
     return
@@ -569,38 +566,14 @@ async function handleTryDeleteFriend(friend: any, e: Event) {
     return
   const name = String(friend?.name || `GID:${gid}`).trim()
   confirmAction(
-    `【实验性】确定尝试在游戏内删除好友 ${name} 吗？\n本功能会按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象。`,
+    `确定在游戏内拉黑 ${name} 吗？\n操作会调用游戏服务端的 BlockFriend 接口。`,
     async () => {
-      const result = await friendStore.tryDeleteFriend(currentAccountId.value!, gid)
+      const result = await friendStore.blockFriend(currentAccountId.value!, gid)
       if (result.ok) {
-        toast.success(result.message || '删除请求已发送')
+        toast.success(result.message || '已拉黑')
       }
       else {
-        // 失败时把详细错误也展示出来，方便排查（延长显示时间到 8s）
-        toast.error(result.message || '实验性删好友失败', 8000)
-      }
-      return result
-    },
-  )
-}
-
-async function handleTryBlockFriend(friend: any, e: Event) {
-  e.stopPropagation()
-  if (!currentAccountId.value)
-    return
-  const gid = Number(friend?.gid) || 0
-  if (!gid)
-    return
-  const name = String(friend?.name || `GID:${gid}`).trim()
-  confirmAction(
-    `【实验性】确定尝试在游戏内拉黑 ${name} 吗？\n本功能会按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象。`,
-    async () => {
-      const result = await friendStore.tryBlockFriend(currentAccountId.value!, gid)
-      if (result.ok) {
-        toast.success(result.message || '拉黑请求已发送')
-      }
-      else {
-        toast.error(result.message || '实验性拉黑失败', 8000)
+        toast.error(result.message || '拉黑失败')
       }
       return result
     },
@@ -1661,20 +1634,13 @@ async function handleRejectAllApplications() {
                 >
                   📋 移出同步列表
                 </button>
-                <!-- 【实验性】游戏内删好友 / 拉黑 -->
+                <!-- 游戏内拉黑好友（游戏服务端实现了 BlockFriend RPC） -->
                 <button
-                  class="cartoon-btn rounded-xl border border-dashed border-red-300 bg-red-50/50 px-3 py-2 text-sm text-red-600 transition hover:bg-red-100 dark:border-red-700 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/30"
-                  title="实验性：按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象"
-                  @click="handleTryDeleteFriend(friend, $event)"
+                  class="cartoon-btn rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
+                  title="调用游戏 BlockFriend 接口拉黑此好友"
+                  @click="handleBlockFriend(friend, $event)"
                 >
-                  🗑 实验删
-                </button>
-                <button
-                  class="cartoon-btn rounded-xl border border-dashed border-red-300 bg-red-50/50 px-3 py-2 text-sm text-red-600 transition hover:bg-red-100 dark:border-red-700 dark:bg-red-900/10 dark:text-red-400 dark:hover:bg-red-900/30"
-                  title="实验性：按常见命名猜几个方法名逐一尝试调用游戏服务端，失败属正常现象"
-                  @click="handleTryBlockFriend(friend, $event)"
-                >
-                  🚫 实验拉黑
+                  🚫 拉黑
                 </button>
               </div>
             </div>

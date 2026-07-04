@@ -36,8 +36,7 @@ const {
     acceptFriends,
     rejectFriends,
     setBlockApplications,
-    tryDeleteFriend,
-    tryBlockFriend,
+    blockFriend,
 } = require('./api');
 const {
     postToMaster,
@@ -1396,63 +1395,32 @@ export async function setFriendBlockApplications(block: boolean): Promise<{ ok: 
 }
 
 /**
- * 【实验性】尝试在游戏内删除好友。
- * 已知 friendpb.proto 未声明 DeleteFriend/RemoveFriend，本函数按常见命名猜几个方法名逐一尝试。
- * 返回结果会带具体试过哪些方法、每个方法的错误信息，方便排查。
+ * 在游戏内拉黑好友（供面板使用）。
+ * 经实测 gamepb.friendpb.FriendService.BlockFriend 是真实可用的 RPC（proto 未声明但服务端实现了）。
  */
-export async function tryDeleteFriendRpc(gid: number): Promise<{ ok: boolean; method: string; message: string }> {
+export async function blockFriendRpc(gid: number): Promise<{ ok: boolean; message: string }> {
     const targetGid: number = toNum(gid);
     if (!targetGid) {
-        return { ok: false, method: '', message: 'gid 无效' };
+        return { ok: false, message: 'gid 无效' };
     }
     try {
-        const result: any = await tryDeleteFriend(targetGid);
+        const result: any = await blockFriend(targetGid);
         if (result.ok) {
-            log('好友', `实验性删好友 RPC 命中方法 ${result.method}（GID=${targetGid}）`, {
-                event: 'friend_try_delete_success',
+            log('好友', `游戏内拉黑好友成功（GID=${targetGid}）`, {
+                event: 'friend_block_success',
                 module: 'friend',
                 meta: { gid: targetGid, method: result.method },
             });
-            return { ok: true, method: result.method, message: `删除请求已发送（方法=${result.method}），请到游戏内确认` };
+            return { ok: true, message: '已拉黑，请到游戏内确认' };
         }
-        logWarn('好友', `实验性删好友 RPC 全部失败（GID=${targetGid}）: ${result.error}`, {
-            event: 'friend_try_delete_failed',
+        logWarn('好友', `游戏内拉黑好友失败（GID=${targetGid}）: ${result.error}`, {
+            event: 'friend_block_failed',
             module: 'friend',
             meta: { gid: targetGid, error: result.error },
         });
-        return { ok: false, method: result.method, message: `所有候选方法都未实现：${result.error}` };
+        return { ok: false, message: result.error || '拉黑失败' };
     } catch (e: any) {
-        return { ok: false, method: '', message: e?.message || '请求失败' };
-    }
-}
-
-/**
- * 【实验性】尝试在游戏内拉黑好友。
- * 已知 friendpb.proto 未声明 BlockFriend，本函数按常见命名猜几个方法名逐一尝试。
- */
-export async function tryBlockFriendRpc(gid: number): Promise<{ ok: boolean; method: string; message: string }> {
-    const targetGid: number = toNum(gid);
-    if (!targetGid) {
-        return { ok: false, method: '', message: 'gid 无效' };
-    }
-    try {
-        const result: any = await tryBlockFriend(targetGid);
-        if (result.ok) {
-            log('好友', `实验性拉黑 RPC 命中方法 ${result.method}（GID=${targetGid}）`, {
-                event: 'friend_try_block_success',
-                module: 'friend',
-                meta: { gid: targetGid, method: result.method },
-            });
-            return { ok: true, method: result.method, message: `拉黑请求已发送（方法=${result.method}），请到游戏内确认` };
-        }
-        logWarn('好友', `实验性拉黑 RPC 全部失败（GID=${targetGid}）: ${result.error}`, {
-            event: 'friend_try_block_failed',
-            module: 'friend',
-            meta: { gid: targetGid, error: result.error },
-        });
-        return { ok: false, method: result.method, message: `所有候选方法都未实现：${result.error}` };
-    } catch (e: any) {
-        return { ok: false, method: '', message: e?.message || '请求失败' };
+        return { ok: false, message: e?.message || '请求失败' };
     }
 }
 

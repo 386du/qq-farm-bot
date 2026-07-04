@@ -185,12 +185,8 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    // ============ 【实验性】游戏内删好友 / 拉黑 ============
-    // 这两个端点会按常见命名猜几个方法名逐一尝试调用游戏服务端，
-    // 已知 friendpb.proto 未定义 DeleteFriend/BlockFriend，调用大概率会失败。
-    // 仅作为探索性功能开放给愿意尝鲜的用户。
-
-    app.post('/api/friend-try-delete', async (req: Request, res: Response) => {
+    // 在游戏内拉黑好友（游戏服务端实现了 BlockFriend RPC，proto 未声明但可用）
+    app.post('/api/friend-block', async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -199,24 +195,8 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         const gid = Number((req.body || {}).gid);
         if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
         try {
-            const data = await ctx.provider.tryDeleteFriend(id, gid);
-            res.json({ ok: true, data, experimental: true });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
-
-    app.post('/api/friend-try-block', async (req: Request, res: Response) => {
-        const id = getAccId(ctx, req);
-        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
-        if (!checkAccountAccess(ctx, req as any, id)) {
-            return res.status(403).json({ ok: false, error: '无权访问此账号' });
-        }
-        const gid = Number((req.body || {}).gid);
-        if (!gid) return res.status(400).json({ ok: false, error: 'Missing gid' });
-        try {
-            const data = await ctx.provider.tryBlockFriend(id, gid);
-            res.json({ ok: true, data, experimental: true });
+            const data = await ctx.provider.blockFriend(id, gid);
+            res.json({ ok: true, data });
         } catch (e: any) {
             handleApiError(res, e);
         }

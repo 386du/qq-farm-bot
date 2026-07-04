@@ -21,6 +21,7 @@ export {
 
 export {
     acceptFriendApplications,
+    blockFriendRpc,
     clearFriendsListCache,
     doFriendOperation,
     getFriendApplicationsList,
@@ -29,6 +30,4 @@ export {
     rejectFriendApplications,
     scanAllFriendsForGuardDog,
     setFriendBlockApplications,
-    tryBlockFriendRpc,
-    tryDeleteFriendRpc,
 } from './visit-strategy';
