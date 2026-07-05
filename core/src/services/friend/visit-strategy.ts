@@ -805,6 +805,8 @@ export interface GuardDogScanOptions {
     maxIntervalMs?: number;
     /** 单个好友入农超时 ms，默认 4000 */
     enterTimeoutMs?: number;
+    /** 并发扫描协程数（1=串行），默认 5；过高可能被服务端限流 */
+    concurrency?: number;
     /** 进度回调（可选） */
     onProgress?: (info: { index: number; total: number; gid: number; name: string; status: 'scanned' | 'guard_dog' | 'error' | 'skipped'; message?: string }) => void;
     /** 是否中断扫描（可选，每扫一个会检查） */
@@ -832,6 +834,7 @@ export async function scanAllFriendsForGuardDog(
     const minIntervalMs = Math.max(0, options.minIntervalMs ?? 200);
     const maxIntervalMs = Math.max(minIntervalMs, options.maxIntervalMs ?? 600);
     const enterTimeoutMs = Math.max(500, options.enterTimeoutMs ?? 4000);
+    const concurrency = Math.max(1, Math.min(20, options.concurrency ?? 5));
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const shouldAbort = typeof options.shouldAbort === 'function' ? options.shouldAbort : null;
 
@@ -863,10 +866,15 @@ export async function scanAllFriendsForGuardDog(
     })();
     const existingSet = new Set<number>(existing);
 
-    for (let i = 0; i < friends.length; i++) {
+    // 并发池:每个 worker 顺序从 friends 数组里取下标扫描
+    // 池中每两个扫描之间保留原 min~max 随机间隔,避免被服务端识别为机器人
+    const total = friends.length;
+    let cursor = 0;
+
+    const scanOne = async (i: number): Promise<void> => {
         if (shouldAbort && shouldAbort()) {
-            skippedCount = friends.length - i;
-            break;
+            skippedCount++;
+            return;
         }
         const f: any = friends[i] || {};
         const gidNum: number = toNum(f.gid ?? f.guild_id ?? f.game_friend_gid);
@@ -875,8 +883,8 @@ export async function scanAllFriendsForGuardDog(
 
         if (!Number.isFinite(gidNum) || gidNum <= 0) {
             errorCount++;
-            onProgress && onProgress({ index: i, total: friends.length, gid: 0, name, status: 'error', message: '无效 gid' });
-            continue;
+            onProgress && onProgress({ index: i, total, gid: 0, name, status: 'error', message: '无效 gid' });
+            return;
         }
 
         let enterReply: any;
@@ -887,9 +895,8 @@ export async function scanAllFriendsForGuardDog(
             ]);
         } catch (e: any) {
             errorCount++;
-            onProgress && onProgress({ index: i, total: friends.length, gid: gidNum, name, status: 'error', message: e && e.message ? e.message : String(e) });
-            await sleep(minIntervalMs + Math.floor(Math.random() * (maxIntervalMs - minIntervalMs)));
-            continue;
+            onProgress && onProgress({ index: i, total, gid: gidNum, name, status: 'error', message: e && e.message ? e.message : String(e) });
+            return;
         }
 
         try {
@@ -906,16 +913,32 @@ export async function scanAllFriendsForGuardDog(
                     }
                 } catch { /* ignore */ }
             }
-            onProgress && onProgress({ index: i, total: friends.length, gid: gidNum, name, status: 'guard_dog' });
+            onProgress && onProgress({ index: i, total, gid: gidNum, name, status: 'guard_dog' });
         } else {
-            onProgress && onProgress({ index: i, total: friends.length, gid: gidNum, name, status: 'scanned' });
+            // 顺手把"无护主犬"写进负缓存,让 visit-strategy 下次直接跳过
+            try { markNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
+            onProgress && onProgress({ index: i, total, gid: gidNum, name, status: 'scanned' });
         }
+    };
 
-        if (i < friends.length - 1) {
-            const wait = minIntervalMs + Math.floor(Math.random() * (maxIntervalMs - minIntervalMs));
-            await sleep(wait);
-        }
+    const workers: Array<Promise<void>> = [];
+    const workerCount = Math.min(concurrency, total);
+    for (let w = 0; w < workerCount; w++) {
+        workers.push((async () => {
+            while (true) {
+                if (shouldAbort && shouldAbort()) return;
+                const i = cursor++;
+                if (i >= total) return;
+                await scanOne(i);
+                // 仅在同一 worker 内做随机间隔(并发 worker 之间不互相 sleep)
+                if (cursor < total) {
+                    const wait = minIntervalMs + Math.floor(Math.random() * (maxIntervalMs - minIntervalMs));
+                    await sleep(wait);
+                }
+            }
+        })());
     }
+    await Promise.all(workers);
 
     log('好友', `护主犬扫描完成: 共 ${scanned} 人，命中 ${guardDogCount} 人，新增 ${newGids.length} 人`, {
         module: 'friend',
@@ -926,6 +949,7 @@ export async function scanAllFriendsForGuardDog(
         newGids,
         errorCount,
         durationMs: Date.now() - startedAt,
+        concurrency: workerCount,
     });
 
     return {
@@ -940,6 +964,20 @@ export async function scanAllFriendsForGuardDog(
 
 // ============ 拜访好友 ============
 
+/**
+ * 好友列表快照里 plant 字段全 0 → 草/虫/缺水/可偷 都没有。
+ * 这种好友根本不需要 enterReply,直接跳过即可(对所有模式都有效,跟护主犬过滤正交)。
+ * 注意:这个判断基于 friendsListCache,有缓存 TTL,过几分钟就刷新。
+ */
+function isFriendInactiveBySnapshot(friend: any): boolean {
+    const plant = friend && friend.plant;
+    if (!plant) return false; // 没有快照信息就不替你决定
+    const dryNum = toNum(plant.dryNum);
+    const weedNum = toNum(plant.weedNum);
+    const insectNum = toNum(plant.insectNum);
+    return dryNum <= 0 && weedNum <= 0 && insectNum <= 0;
+}
+
 interface VisitResult {
     acted: boolean;
     entered: boolean;
@@ -947,6 +985,11 @@ interface VisitResult {
 
 export async function visitFriend(friend: any, totalActions: any, myGid: number, accountId: string): Promise<VisitResult> {
     const { gid, name } = friend;
+
+    // 活跃度过滤:好友快照里草/虫/缺水都为 0,根本帮不上忙 → 整段跳过
+    if (isFriendInactiveBySnapshot(friend) && !isAutomationOn('friend_steal') && !isAutomationOn('friend_bad')) {
+        return { acted: false, entered: false };
+    }
 
     // 护主犬过滤的快速跳过:开启后,若该好友在负缓存内(无护主犬)且本轮也不需要偷菜/捣乱,
     // 可以直接跳过 enterReply,节省 RPC 开销
@@ -1219,6 +1262,11 @@ export async function visitFriendForSteal(friend: any, totalActions: any, myGid:
 
 export async function visitFriendForHelp(friend: any, totalActions: any, myGid: number, accountId: string, ignoreExpLimit: boolean = false): Promise<VisitResult | undefined> {
     const { gid, name } = friend;
+
+    // 活跃度过滤:快照里草/虫/缺水都为 0,直接跳过(纯帮忙路径不影响偷菜/捣乱)
+    if (isFriendInactiveBySnapshot(friend)) {
+        return { acted: false, entered: false };
+    }
 
     // 护主犬负缓存命中 → 直接跳过,无需 enterReply
     if (isAutomationOn('friend_help_only_guard_dog') && isNoGuardDogCacheFresh(accountId, gid)) {
