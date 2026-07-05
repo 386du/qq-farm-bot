@@ -805,7 +805,7 @@ export interface GuardDogScanOptions {
     maxIntervalMs?: number;
     /** 单个好友入农超时 ms，默认 4000 */
     enterTimeoutMs?: number;
-    /** 并发扫描协程数（1=串行），默认 5；过高可能被服务端限流 */
+    /** 并发扫描协程数（1=串行），默认 2；过高(5+)会撑爆服务器 RPC 队列(pending=30 上限) */
     concurrency?: number;
     /** 进度回调（可选） */
     onProgress?: (info: { index: number; total: number; gid: number; name: string; status: 'scanned' | 'guard_dog' | 'error' | 'skipped'; message?: string }) => void;
@@ -834,7 +834,7 @@ export async function scanAllFriendsForGuardDog(
     const minIntervalMs = Math.max(0, options.minIntervalMs ?? 200);
     const maxIntervalMs = Math.max(minIntervalMs, options.maxIntervalMs ?? 600);
     const enterTimeoutMs = Math.max(500, options.enterTimeoutMs ?? 4000);
-    const concurrency = Math.max(1, Math.min(20, options.concurrency ?? 5));
+    const concurrency = Math.max(1, Math.min(20, options.concurrency ?? 2));
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const shouldAbort = typeof options.shouldAbort === 'function' ? options.shouldAbort : null;
 

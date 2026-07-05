@@ -72,7 +72,8 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
             if (becameOn && ctx.provider && typeof ctx.provider.scanGuardDogFriends === 'function') {
                 setImmediate(() => {
                     try {
-                        ctx.provider.scanGuardDogFriends(id, {}).catch((e: any) => {
+                        // 自动预热用串行(concurrency=1)以避免撞服务器 RPC 队列上限
+                        ctx.provider.scanGuardDogFriends(id, { concurrency: 1 }).catch((e: any) => {
                             logWarn('好友', `自动预热护主犬扫描失败: ${e && e.message ? e.message : String(e)}`, {
                                 module: 'friend', event: '预热扫描', result: 'error',
                             });
