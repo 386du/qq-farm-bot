@@ -14,6 +14,8 @@ const {
     getFriendGuardDogGids,
     getFriendGuardDogBlacklist,
     getFriendGuardDogWhitelist,
+    markNoGuardDog,
+    isNoGuardDogCacheFresh,
 } = require('../../models/store');
 const { getUserState } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
@@ -549,6 +551,15 @@ export async function doFriendOperation(friendGid: any, opType: string): Promise
     const gid: number = toNum(friendGid);
     if (!gid) return { ok: false, message: '无效好友ID', opType };
 
+    const state: any = getUserState();
+    const currentAccountId: any = state.accountId;
+
+    // 帮忙类操作前先用"无护主犬"负缓存快速跳过,避免不必要的 enterReply
+    const isHelpOp: boolean = opType === 'farming' || opType === 'water' || opType === 'weed' || opType === 'bug';
+    if (isHelpOp && isAutomationOn('friend_help_only_guard_dog') && isNoGuardDogCacheFresh(currentAccountId, gid)) {
+        return { ok: true, opType, count: 0, message: '已开启只帮护主犬，该好友最近未携带护主犬(缓存命中)，跳过' };
+    }
+
     let enterReply: any;
     try {
         enterReply = await enterFriendFarm(gid);
@@ -565,8 +576,6 @@ export async function doFriendOperation(friendGid: any, opType: string): Promise
 
     try {
         const lands: any[] = enterReply.lands || [];
-        const state: any = getUserState();
-        const currentAccountId: any = state.accountId;
         const plantBlacklist: number[] = getPlantBlacklist(currentAccountId);
         const status: AnalyzeResult = analyzeFriendLands(lands, state.gid, '', { plantBlacklist });
         let count: number = 0;
@@ -723,6 +732,10 @@ function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any,
                 });
             }
         } catch { /* ignore */ }
+        // 字段缺失视为无护主犬，写入负缓存以减少后续 enterReply
+        if (gidNum > 0) {
+            try { markNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
+        }
         return true;
     }
     // 服务端可能返回单个 dog_id，也可能是 dogs 列表；兼容两种结构
@@ -731,7 +744,13 @@ function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any,
     if (Array.isArray(brief.dogs)) {
         for (const d of brief.dogs) if (d && Number.isFinite(Number(d.id))) dogIds.push(toNum(d.id));
     }
-    if (dogIds.length === 0) return true;
+    if (dogIds.length === 0) {
+        // 字段存在但为空 → 确认无护主犬，写入负缓存
+        if (gidNum > 0) {
+            try { markNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
+        }
+        return true;
+    }
     const hasGuardDog: boolean = dogIds.some((id) => GUARD_DOG_IDS.has(id));
     if (hasGuardDog) {
         log('好友', `${friendName}: 携带护主犬，执行帮忙`, {
@@ -749,7 +768,10 @@ function isFriendLackingGuardDog(enterReply: any, friendName: string, gid?: any,
         } catch { /* ignore */ }
         return false;
     }
-    // 命中字段但不含护主犬 → 静默跳过，不打日志（避免噪音）
+    // 命中字段但不含护主犬 → 写入负缓存（不再有未命中日志噪音）
+    if (gidNum > 0) {
+        try { markNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
+    }
     return true;
 }
 
@@ -926,6 +948,14 @@ interface VisitResult {
 export async function visitFriend(friend: any, totalActions: any, myGid: number, accountId: string): Promise<VisitResult> {
     const { gid, name } = friend;
 
+    // 护主犬过滤的快速跳过:开启后,若该好友在负缓存内(无护主犬)且本轮也不需要偷菜/捣乱,
+    // 可以直接跳过 enterReply,节省 RPC 开销
+    const onlyGuardDogOn: boolean = isAutomationOn('friend_help_only_guard_dog');
+    const cacheHit: boolean = onlyGuardDogOn && isNoGuardDogCacheFresh(accountId, gid);
+    if (cacheHit && !isAutomationOn('friend_steal') && !isAutomationOn('friend_bad')) {
+        return { acted: false, entered: false };
+    }
+
     let enterReply: any;
     try {
         enterReply = await enterFriendFarm(gid);
@@ -953,7 +983,8 @@ export async function visitFriend(friend: any, totalActions: any, myGid: number,
     const status: AnalyzeResult = analyzeFriendLands(lands, myGid, name, { plantBlacklist });
 
     // 护主犬过滤：开启后仅对携带护主犬的好友执行帮忙；偷菜/捣乱不受影响
-    const skipHelpByGuardDog: boolean = isFriendLackingGuardDog(enterReply, name, gid, accountId);
+    // 负缓存命中时直接跳过帮助(避免重复解析 brief_dog_info)
+    const skipHelpByGuardDog: boolean = cacheHit || isFriendLackingGuardDog(enterReply, name, gid, accountId);
 
     // 执行操作
     const actions: string[] = [];
@@ -1188,6 +1219,11 @@ export async function visitFriendForSteal(friend: any, totalActions: any, myGid:
 
 export async function visitFriendForHelp(friend: any, totalActions: any, myGid: number, accountId: string, ignoreExpLimit: boolean = false): Promise<VisitResult | undefined> {
     const { gid, name } = friend;
+
+    // 护主犬负缓存命中 → 直接跳过,无需 enterReply
+    if (isAutomationOn('friend_help_only_guard_dog') && isNoGuardDogCacheFresh(accountId, gid)) {
+        return { acted: false, entered: false };
+    }
 
     const stopWhenExpLimit: boolean = !!isAutomationOn('friend_help_exp_limit') && !ignoreExpLimit;
     if (!stopWhenExpLimit) schedulerRef().setCanGetHelpExp(true);

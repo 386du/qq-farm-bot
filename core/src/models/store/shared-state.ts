@@ -25,6 +25,7 @@ const FERTILIZER_LAND_TYPE_SET: Set<string> = new Set(DEFAULT_FERTILIZER_LAND_TY
 const INTERVAL_MAX_SEC: number = 86400;
 const DEFAULT_KNOWN_FRIEND_GID_SYNC_COOLDOWN_SEC: number = 300;
 const DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC: number = 60;
+const DEFAULT_NO_GUARD_DOG_CACHE_TTL_SEC: number = 1800;
 
 const DEFAULT_OFFLINE_REMINDER: OfflineReminder = {
     channel: 'webhook',
@@ -91,6 +92,8 @@ const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
     friendGuardDogGids: [],
     friendGuardDogBlacklist: [],
     friendGuardDogWhitelist: [],
+    friendNoGuardDogAt: {},
+    friendNoGuardDogCacheTtlSec: DEFAULT_NO_GUARD_DOG_CACHE_TTL_SEC,
     plantBlacklist: [
         20002,
         20003,
@@ -138,6 +141,26 @@ function normalizeFriendsListCacheTtlSec(input: unknown, fallback: number = DEFA
     const value = Number.parseInt(input as string, 10);
     const base = Number.isFinite(value) ? value : fallback;
     return Math.max(10, Math.min(INTERVAL_MAX_SEC, base));
+}
+
+function normalizeNoGuardDogAt(input: unknown, fallback: Record<number, number> = {}): Record<number, number> {
+    if (!input || typeof input !== 'object') return { ...fallback };
+    const out: Record<number, number> = {};
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+        const gid = Number.parseInt(k, 10);
+        const ts = Number(v);
+        if (!Number.isFinite(gid) || gid <= 0) continue;
+        if (!Number.isFinite(ts) || ts <= 0) continue;
+        out[gid] = ts;
+    }
+    return out;
+}
+
+function normalizeNoGuardDogCacheTtlSec(input: unknown, fallback: number = DEFAULT_NO_GUARD_DOG_CACHE_TTL_SEC): number {
+    const value = Number.parseInt(input as string, 10);
+    const base = Number.isFinite(value) ? value : fallback;
+    // 限制在 1 分钟 ~ 1 天
+    return Math.max(60, Math.min(86400, base));
 }
 
 function normalizeBagSeedPriority(input: unknown): number[] {
@@ -286,6 +309,8 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
         friendGuardDogGids: rawGuardDogGids.map(Number).filter(n => Number.isFinite(n) && n > 0),
         friendGuardDogBlacklist: rawGuardDogBlacklist.map(Number).filter(n => Number.isFinite(n) && n > 0),
         friendGuardDogWhitelist: rawGuardDogWhitelist.map(Number).filter(n => Number.isFinite(n) && n > 0),
+        friendNoGuardDogAt: normalizeNoGuardDogAt(base.friendNoGuardDogAt, DEFAULT_ACCOUNT_CONFIG.friendNoGuardDogAt),
+        friendNoGuardDogCacheTtlSec: normalizeNoGuardDogCacheTtlSec(base.friendNoGuardDogCacheTtlSec, DEFAULT_ACCOUNT_CONFIG.friendNoGuardDogCacheTtlSec),
         plantingStrategy: ALLOWED_PLANTING_STRATEGIES.includes(String(base.plantingStrategy || '') as PlantingStrategy)
             ? String(base.plantingStrategy) as PlantingStrategy
             : DEFAULT_ACCOUNT_CONFIG.plantingStrategy,
@@ -614,6 +639,7 @@ module.exports = {
     INTERVAL_MAX_SEC,
     DEFAULT_KNOWN_FRIEND_GID_SYNC_COOLDOWN_SEC,
     DEFAULT_FRIENDS_LIST_CACHE_TTL_SEC,
+    DEFAULT_NO_GUARD_DOG_CACHE_TTL_SEC,
     DEFAULT_OFFLINE_REMINDER,
     DEFAULT_YYB_CONFIG,
     DEFAULT_ACCOUNT_CONFIG,
@@ -626,6 +652,8 @@ module.exports = {
     normalizeKnownFriendGids,
     normalizeKnownFriendGidSyncCooldownSec,
     normalizeFriendsListCacheTtlSec,
+    normalizeNoGuardDogAt,
+    normalizeNoGuardDogCacheTtlSec,
     normalizeBagSeedPriority,
     normalizeBagSeedFallbackStrategy,
     normalizeFertilizerLandTypes,

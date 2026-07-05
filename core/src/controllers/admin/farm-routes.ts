@@ -12,6 +12,7 @@ export {};
 
 const { getLevelExpProgress } = require('../../config/gameConfig');
 const { getResourcePath } = require('../../config/runtime-paths');
+const { logWarn } = require('../../utils/utils');
 const store = require('../../models/store');
 
 const {
@@ -65,6 +66,24 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
                 lastData = await ctx.provider.setAutomation(id, k, v);
             }
             res.json({ ok: true, data: lastData || {} });
+
+            // 开启"只帮护主犬好友" → 异步预热扫描(在后台跑,不影响 API 响应)
+            const becameOn = req.body && req.body.friend_help_only_guard_dog === true;
+            if (becameOn && ctx.provider && typeof ctx.provider.scanGuardDogFriends === 'function') {
+                setImmediate(() => {
+                    try {
+                        ctx.provider.scanGuardDogFriends(id, {}).catch((e: any) => {
+                            logWarn('好友', `自动预热护主犬扫描失败: ${e && e.message ? e.message : String(e)}`, {
+                                module: 'friend', event: '预热扫描', result: 'error',
+                            });
+                        });
+                    } catch (e: any) {
+                        logWarn('好友', `触发自动预热扫描异常: ${e && e.message ? e.message : String(e)}`, {
+                            module: 'friend', event: '预热扫描', result: 'error',
+                        });
+                    }
+                });
+            }
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
         }

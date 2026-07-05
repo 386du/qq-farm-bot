@@ -70,6 +70,17 @@ export interface AccountConfig {
   friendGuardDogBlacklist: number[];
   /** 护主犬帮忙白名单：开启"只帮护主犬"且非空时，只帮白名单中的 gid（覆盖 enterReply 检测） */
   friendGuardDogWhitelist: number[];
+  /**
+   * "该好友当前未携带护主犬"的检测结果缓存（key 为 gid，value 为 Unix 毫秒时间戳）。
+   * TTL 内的命中可以跳过 enterReply，直接跳过帮忙操作。
+   * 添加/删除护主犬好友/黑名单/白名单时，相应 gid 的缓存应当被失效。
+   */
+  friendNoGuardDogAt: Record<number, number>;
+  /**
+   * friendNoGuardDogAt 缓存的 TTL（秒），默认 1800（30 分钟）。
+   * 缓存过期后再次帮忙时需重新 enterReply 检测。
+   */
+  friendNoGuardDogCacheTtlSec: number;
   plantBlacklist: number[];
   stealDelaySeconds: number;
   plantOrderRandom: boolean;

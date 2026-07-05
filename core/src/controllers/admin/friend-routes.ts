@@ -963,6 +963,75 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             return handleApiError(res, e);
         }
     });
+
+    // ============ "无护主犬" 负缓存管理 API ============
+
+    // 获取负缓存统计信息
+    app.get('/api/friend-no-guard-dog-cache/stats', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        try {
+            const stats = store.getNoGuardDogCacheStats
+                ? store.getNoGuardDogCacheStats(id)
+                : { count: 0, ttlSec: 1800, oldestAt: null, newestAt: null };
+            return res.json({ ok: true, data: stats });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
+
+    // 清空负缓存(可指定 gid 或全部清空)
+    app.post('/api/friend-no-guard-dog-cache/clear', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const body = (req.body && typeof req.body === 'object') ? req.body : {};
+        const gid = body.gid !== undefined && body.gid !== null ? Number(body.gid) : null;
+        try {
+            const cleared = store.clearNoGuardDogCache
+                ? store.clearNoGuardDogCache(id, gid && Number.isFinite(gid) && gid > 0 ? gid : undefined)
+                : 0;
+            if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+                ctx.provider.broadcastConfig(id);
+            }
+            const stats = store.getNoGuardDogCacheStats
+                ? store.getNoGuardDogCacheStats(id)
+                : { count: 0, ttlSec: 1800, oldestAt: null, newestAt: null };
+            return res.json({ ok: true, cleared, data: stats });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
+
+    // 调整负缓存 TTL(秒)
+    app.post('/api/friend-no-guard-dog-cache/ttl', (req: Request, res: Response) => {
+        const id = getAccId(ctx, req);
+        if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
+        if (!checkAccountAccess(ctx, req as any, id)) {
+            return res.status(403).json({ ok: false, error: '无权访问此账号' });
+        }
+        const body = (req.body && typeof req.body === 'object') ? req.body : {};
+        const ttl = body.ttlSec !== undefined ? Number(body.ttlSec) : NaN;
+        if (!Number.isFinite(ttl)) {
+            return res.status(400).json({ ok: false, error: 'ttlSec 必须是数字' });
+        }
+        try {
+            const newTtl = store.setNoGuardDogCacheTtlSec
+                ? store.setNoGuardDogCacheTtlSec(id, ttl)
+                : 1800;
+            if (ctx.provider && typeof ctx.provider.broadcastConfig === 'function') {
+                ctx.provider.broadcastConfig(id);
+            }
+            return res.json({ ok: true, data: { ttlSec: newTtl } });
+        } catch (e: any) {
+            return handleApiError(res, e);
+        }
+    });
 }
 
 module.exports = { mountFriendRoutes };

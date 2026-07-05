@@ -12,6 +12,8 @@ const {
     normalizeKnownFriendGids,
     normalizeKnownFriendGidSyncCooldownSec,
     normalizeFriendsListCacheTtlSec,
+    normalizeNoGuardDogAt,
+    normalizeNoGuardDogCacheTtlSec,
     normalizeBagSeedPriority,
     normalizeBagSeedFallbackStrategy,
     normalizeIntervals,
@@ -374,6 +376,8 @@ function addFriendGuardDogGid(accountId: unknown, gid: unknown): boolean {
     if (current.includes(gidNum)) return false;
     const newList = [...current, gidNum];
     setFriendGuardDogGids(accountId, newList);
+    // 该 gid 确认为携带护主犬 → 失效负缓存
+    try { unmarkNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
     return true;
 }
 
@@ -406,6 +410,8 @@ function addFriendGuardDogBlacklistGid(accountId: unknown, gid: unknown): boolea
     if (current.includes(gidNum)) return false;
     const newList = [...current, gidNum];
     setFriendGuardDogBlacklist(accountId, newList);
+    // 加入"不帮"黑名单 → 失效负缓存,避免下个循环又跳过
+    try { unmarkNoGuardDog(accountId, gidNum); } catch { /* ignore */ }
     return true;
 }
 
@@ -449,6 +455,135 @@ function removeFriendGuardDogWhitelistGid(accountId: unknown, gid: unknown): boo
     const newList = current.filter((g: number) => g !== gidNum);
     setFriendGuardDogWhitelist(accountId, newList);
     return true;
+}
+
+// ============ "无护主犬"负缓存 ============
+
+/**
+ * 获取指定账号的"无护主犬"缓存表 (gid → timestamp 毫秒)。
+ * 不可变副本。
+ */
+function getNoGuardDogAtMap(accountId?: unknown): Record<number, number> {
+    const raw = getAccountConfigSnapshot(accountId).friendNoGuardDogAt;
+    return normalizeNoGuardDogAt(raw, {});
+}
+
+/**
+ * 获取指定账号的 TTL(秒),默认 1800。
+ */
+function getNoGuardDogCacheTtlSec(accountId?: unknown): number {
+    return normalizeNoGuardDogCacheTtlSec(getAccountConfigSnapshot(accountId).friendNoGuardDogCacheTtlSec);
+}
+
+function setNoGuardDogCacheTtlSec(accountId: unknown, sec: unknown): number {
+    const current = getAccountConfigSnapshot(accountId);
+    const normalized = normalizeNoGuardDogCacheTtlSec(sec, current.friendNoGuardDogCacheTtlSec);
+    const next = normalizeAccountConfig({
+        ...current,
+        friendNoGuardDogCacheTtlSec: normalized,
+    }, sharedState.accountFallbackConfig);
+    setAccountConfigSnapshot(accountId, next, true);
+    return next.friendNoGuardDogCacheTtlSec;
+}
+
+/**
+ * 标记该 gid 当前未携带护主犬,写入当前时间。
+ * 返回是否真的写入了(true = 新增, false = 已有更新记录)。
+ * 同时清理超过 1 天的过期项,防止数据无限增长。
+ */
+function markNoGuardDog(accountId: unknown, gid: unknown, now: number = Date.now()): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getAccountConfigSnapshot(accountId);
+    const next = normalizeAccountConfig(current, sharedState.accountFallbackConfig);
+    const map = normalizeNoGuardDogAt(next.friendNoGuardDogAt, {});
+
+    // 清理 1 天以前的过期项
+    const expireBefore = now - 24 * 60 * 60 * 1000;
+    let removed = 0;
+    for (const [k, ts] of Object.entries(map)) {
+        if (Number(ts) < expireBefore) {
+            delete map[Number(k)];
+            removed++;
+        }
+    }
+    void removed;
+
+    if (map[gidNum] === now) return false;
+    map[gidNum] = now;
+    next.friendNoGuardDogAt = map;
+    setAccountConfigSnapshot(accountId, next);
+    return true;
+}
+
+/**
+ * 移除该 gid 的负缓存(在确认该 gid 携带护主犬、或主动清缓存时使用)。
+ */
+function unmarkNoGuardDog(accountId: unknown, gid: unknown): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const current = getAccountConfigSnapshot(accountId);
+    const next = normalizeAccountConfig(current, sharedState.accountFallbackConfig);
+    const map = normalizeNoGuardDogAt(next.friendNoGuardDogAt, {});
+    if (!(gidNum in map)) return false;
+    delete map[gidNum];
+    next.friendNoGuardDogAt = map;
+    setAccountConfigSnapshot(accountId, next);
+    return true;
+}
+
+/**
+ * 清空负缓存。指定 gid 时只清一项,否则全清。
+ * 返回清除的条数。
+ */
+function clearNoGuardDogCache(accountId: unknown, gid?: unknown): number {
+    const current = getAccountConfigSnapshot(accountId);
+    const next = normalizeAccountConfig(current, sharedState.accountFallbackConfig);
+    if (gid !== undefined && gid !== null) {
+        const gidNum = Number(gid);
+        if (!gidNum || gidNum <= 0) return 0;
+        const map = normalizeNoGuardDogAt(next.friendNoGuardDogAt, {});
+        if (!(gidNum in map)) return 0;
+        delete map[gidNum];
+        next.friendNoGuardDogAt = map;
+        setAccountConfigSnapshot(accountId, next);
+        return 1;
+    }
+    const old = normalizeNoGuardDogAt(next.friendNoGuardDogAt, {});
+    const count = Object.keys(old).length;
+    next.friendNoGuardDogAt = {};
+    setAccountConfigSnapshot(accountId, next);
+    return count;
+}
+
+/**
+ * 判断该 gid 的负缓存是否还在 TTL 内。
+ * 命中 = 缓存说"该好友未携带护主犬",可以直接跳过 enterReply。
+ */
+function isNoGuardDogCacheFresh(accountId: unknown, gid: unknown, now: number = Date.now()): boolean {
+    const gidNum = Number(gid);
+    if (!gidNum || gidNum <= 0) return false;
+    const cfg = getAccountConfigSnapshot(accountId);
+    const map = normalizeNoGuardDogAt(cfg.friendNoGuardDogAt, {});
+    const ts = map[gidNum];
+    if (!ts) return false;
+    const ttl = normalizeNoGuardDogCacheTtlSec(cfg.friendNoGuardDogCacheTtlSec);
+    return (now - ts) < ttl * 1000;
+}
+
+/**
+ * 获取缓存统计信息(用于 UI/API 展示)。
+ */
+function getNoGuardDogCacheStats(accountId?: unknown): { count: number; ttlSec: number; oldestAt: number | null; newestAt: number | null } {
+    const cfg = getAccountConfigSnapshot(accountId);
+    const map = normalizeNoGuardDogAt(cfg.friendNoGuardDogAt, {});
+    const values: number[] = Object.values(map).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+    return {
+        count: values.length,
+        ttlSec: normalizeNoGuardDogCacheTtlSec(cfg.friendNoGuardDogCacheTtlSec),
+        oldestAt: values.length > 0 ? Math.min(...values) : null,
+        newestAt: values.length > 0 ? Math.max(...values) : null,
+    };
 }
 
 function getStealDelaySeconds(accountId?: unknown): number {
@@ -553,6 +688,14 @@ module.exports = {
     setFriendGuardDogWhitelist,
     addFriendGuardDogWhitelistGid,
     removeFriendGuardDogWhitelistGid,
+    getNoGuardDogAtMap,
+    getNoGuardDogCacheTtlSec,
+    setNoGuardDogCacheTtlSec,
+    markNoGuardDog,
+    unmarkNoGuardDog,
+    clearNoGuardDogCache,
+    isNoGuardDogCacheFresh,
+    getNoGuardDogCacheStats,
     getStealDelaySeconds,
     getPlantOrderRandom,
     getPlantDelaySeconds,
