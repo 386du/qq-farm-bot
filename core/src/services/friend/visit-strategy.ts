@@ -17,7 +17,7 @@ const {
     markNoGuardDog,
     isNoGuardDogCacheFresh,
 } = require('../../models/store');
-const { getUserState } = require('../../utils/network');
+const { getUserState, getPendingCount } = require('../../utils/network');
 const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
 const { types } = require('../../utils/proto');
 const { getCurrentPhase, buildLandMap, getDisplayLandContext, isOccupiedSlaveLand } = require('../farm');
@@ -886,6 +886,16 @@ export async function scanAllFriendsForGuardDog(
             onProgress && onProgress({ index: i, total, gid: 0, name, status: 'error', message: '无效 gid' });
             return;
         }
+
+        // 队列感知:当 pending 接近上限时主动让位,避免撞 30 顶到主循环
+        // 阈值 18:留至少 12 个位给主循环(互动记录/好友申请/农场操作等)
+        try {
+            let waitedMs = 0;
+            while (typeof getPendingCount === 'function' && getPendingCount() >= 18 && waitedMs < 5000) {
+                await sleep(150 + Math.floor(Math.random() * 200));
+                waitedMs += 200;
+            }
+        } catch { /* ignore */ }
 
         let enterReply: any;
         try {

@@ -700,10 +700,16 @@ function reconnect(newCode: string | null): void {
 
 function getWs(): WebSocket | null { return ws; }
 
+/** 获取当前挂起的请求数(用于扫描/批量操作时主动让位,避免撞 30 上限) */
+function getPendingCount(): number {
+    return pendingCallbacks.size;
+}
+
 module.exports = {
     connect, reconnect, cleanup, getWs,
     sendMsgAsync,
     getUserState,
     getWsErrorState,
     networkEvents,
+    getPendingCount,
 };
