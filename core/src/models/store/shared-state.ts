@@ -479,11 +479,6 @@ const globalConfig: GlobalConfig = {
     },
     offlineReminder: { ...DEFAULT_OFFLINE_REMINDER },
     userOfflineReminders: {},
-    // 应用宝配置:全局单例(任意用户配,全员生效)
-    yybConfig: {
-        ...DEFAULT_YYB_CONFIG,
-        accounts: [],
-    },
     userYybConfigs: {},
     adminPasswordHash: '',
     announcement: {
@@ -548,31 +543,6 @@ function loadGlobalConfig(): void {
                     if (username && cfg) {
                         globalConfig.userYybConfigs[username] = cfg as YybConfig;
                     }
-                }
-            }
-
-            // 应用宝全局配置加载 + 兼容迁移
-            // 1) 优先读顶层 yybConfig(新格式)
-            // 2) 没有则从 userYybConfigs 里挑第一个有非空 accounts 的用户配置迁移过来
-            //    (避免 account.username != 当前用户 导致定时重连拿不到 token)
-            if (data.yybConfig && typeof data.yybConfig === 'object') {
-                globalConfig.yybConfig = data.yybConfig as YybConfig;
-            } else {
-                const legacy = globalConfig.userYybConfigs || {};
-                let migratedFrom = '';
-                for (const [uname, cfg] of Object.entries(legacy)) {
-                    const c = cfg as YybConfig;
-                    if (c && Array.isArray(c.accounts) && c.accounts.length > 0) {
-                        globalConfig.yybConfig = { ...c };
-                        migratedFrom = uname;
-                        break;
-                    }
-                }
-                if (migratedFrom) {
-                    console.warn(
-                        `[迁移] 已将用户 "${migratedFrom}" 的应用宝配置迁移为全局配置 ` +
-                        `(${globalConfig.yybConfig.accounts.length} 个 openid,以后所有账号共享)`,
-                    );
                 }
             }
 

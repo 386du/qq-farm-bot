@@ -175,9 +175,6 @@ export interface GlobalConfig {
   ui: UIConfig;
   offlineReminder: OfflineReminder;
   userOfflineReminders: Record<string, OfflineReminder>;
-  // 应用宝配置:全局单例(不分用户,任意用户配了全员生效)
-  // - 老的 per-user 字段 userYybConfigs 保留仅用于启动时一次性迁移
-  yybConfig: YybConfig;
   userYybConfigs: Record<string, YybConfig>;
   adminPasswordHash: string;
   announcement: Announcement;
