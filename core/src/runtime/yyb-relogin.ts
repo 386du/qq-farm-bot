@@ -53,18 +53,10 @@ function createYybReloginService(options: YybReloginOptions) {
     }
 
     async function refreshAccountCode(account: any): Promise<{ ok: boolean; code?: string; error?: string }> {
-        const username = String(account.username || '');
         const openid = String(account.openid || '').trim();
         const accountId = String(account.id || '');
-        const accountName = String(account.name || accountId);
         // 应用宝配置已改为全局单例:不再按 account.username 查,任何用户配了全员共享
         const cfg = store.getYybConfig ? store.getYybConfig() : null;
-        const cfgEnabled = !!(cfg && cfg.enabled);
-        const cfgAccounts = (cfg && Array.isArray(cfg.accounts)) ? cfg.accounts.length : 0;
-        log('系统',
-            `[应用宝] 刷新查询: account=${accountName} id=${accountId} owner=${username || '(无)'} openid=${openid} → 全局配置 enabled=${cfgEnabled} accounts=${cfgAccounts}`,
-            { accountId },
-        );
         if (!cfg || !cfg.enabled) {
             return { ok: false, error: '应用宝配置未启用' };
         }
@@ -129,7 +121,6 @@ function createYybReloginService(options: YybReloginOptions) {
             const accountId = String(account.id || '');
             if (!isAccountRunning(accountId)) continue;
 
-            const username = String(account.username || '');
             // 全局配置,不依赖 account.username
             const cfg = store.getYybConfig ? store.getYybConfig() : null;
             if (!cfg || !cfg.enabled) continue;
@@ -158,7 +149,6 @@ function createYybReloginService(options: YybReloginOptions) {
         const account = accounts.find((a: any) => String(a.id) === String(accountId));
         if (!account || !isYybAccount(account)) return;
 
-        const username = String(account.username || '');
         // 全局配置
         const cfg = store.getYybConfig ? store.getYybConfig() : null;
         if (!cfg || !cfg.enabled || !cfg.autoReconnect) return;
