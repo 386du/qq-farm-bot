@@ -522,11 +522,11 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    // ============ 应用宝一键登录配置 ============
-    app.get('/api/user/yyb-config', authRequired, (req: Request, res: Response) => {
+    // ============ 应用宝一键登录配置(全局单例) ============
+    // 应用宝配置不再按用户隔离,任意用户配了全员共享,避免 account.username != 当前用户时定时重连拿不到 token
+    app.get('/api/user/yyb-config', authRequired, (_req: Request, res: Response) => {
         try {
-            const username = (req as any).currentUser?.username;
-            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            const cfg = store.getYybConfig ? store.getYybConfig() : null;
             res.json({ ok: true, config: cfg || {} });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
@@ -535,11 +535,13 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
 
     app.post('/api/user/yyb-config', authRequired, (req: Request, res: Response) => {
         try {
-            const username = (req as any).currentUser?.username;
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            // 不传 username → 写入全局 yybConfig
             const cfg = store.setYybConfig
-                ? store.setYybConfig(body, username)
+                ? store.setYybConfig(body)
                 : {};
+            const username = (req as any).currentUser?.username || 'unknown';
+            adminLogger.info('应用宝配置已更新(全局)', { updatedBy: username, accounts: (cfg && (cfg as any).accounts?.length) || 0 });
             res.json({ ok: true, config: cfg || {} });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
@@ -548,14 +550,14 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
 
     app.post('/api/yyb/code', authRequired, async (req: Request, res: Response) => {
         try {
-            const username = (req as any).currentUser?.username;
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
             const openid = String(body.openid || '').trim();
             if (!openid) {
                 return res.status(400).json({ ok: false, error: '缺少 openid' });
             }
 
-            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            // 应用宝配置改为全局:不依赖当前登录用户
+            const cfg = store.getYybConfig ? store.getYybConfig() : null;
             if (!cfg || !cfg.enabled) {
                 return res.status(400).json({ ok: false, error: '应用宝配置未启用' });
             }

@@ -54,20 +54,33 @@ function createYybReloginService(options: YybReloginOptions) {
 
     async function refreshAccountCode(account: any): Promise<{ ok: boolean; code?: string; error?: string }> {
         const username = String(account.username || '');
-        const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+        const openid = String(account.openid || '').trim();
+        const accountId = String(account.id || '');
+        const accountName = String(account.name || accountId);
+        // 应用宝配置已改为全局单例:不再按 account.username 查,任何用户配了全员共享
+        const cfg = store.getYybConfig ? store.getYybConfig() : null;
+        const cfgEnabled = !!(cfg && cfg.enabled);
+        const cfgAccounts = (cfg && Array.isArray(cfg.accounts)) ? cfg.accounts.length : 0;
+        log('系统',
+            `[应用宝] 刷新查询: account=${accountName} id=${accountId} owner=${username || '(无)'} openid=${openid} → 全局配置 enabled=${cfgEnabled} accounts=${cfgAccounts}`,
+            { accountId },
+        );
         if (!cfg || !cfg.enabled) {
             return { ok: false, error: '应用宝配置未启用' };
         }
         if (!cfg.endpoint) {
             return { ok: false, error: '未配置接口地址' };
         }
-        const openid = String(account.openid || '').trim();
         if (!openid) {
             return { ok: false, error: '账号未关联 OpenID' };
         }
         const entry = findAccountEntry(cfg, openid);
         if (!entry) {
-            return { ok: false, error: `OpenID ${openid} 未配置 Token,或在应用宝配置中已被移除` };
+            const existing = (cfg.accounts || []).map((a: any) => String(a.openid || '').trim()).filter(Boolean);
+            const hint = existing.length > 0
+                ? `当前全局配置里的 openid: [${existing.join(', ')}]`
+                : '当前全局配置里一个 openid 都没有,先去管理后台"应用宝配置"里加';
+            return { ok: false, error: `OpenID ${openid} 未配置 Token,或在应用宝配置中已被移除。${hint}` };
         }
 
         const result = await fetchFarmCode({
@@ -117,7 +130,8 @@ function createYybReloginService(options: YybReloginOptions) {
             if (!isAccountRunning(accountId)) continue;
 
             const username = String(account.username || '');
-            const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+            // 全局配置,不依赖 account.username
+            const cfg = store.getYybConfig ? store.getYybConfig() : null;
             if (!cfg || !cfg.enabled) continue;
             const intervalMinutes = Math.max(0, Number(cfg.reconnectIntervalMinutes) || 0);
             if (intervalMinutes <= 0) continue;
@@ -145,7 +159,8 @@ function createYybReloginService(options: YybReloginOptions) {
         if (!account || !isYybAccount(account)) return;
 
         const username = String(account.username || '');
-        const cfg = store.getYybConfig ? store.getYybConfig(username) : null;
+        // 全局配置
+        const cfg = store.getYybConfig ? store.getYybConfig() : null;
         if (!cfg || !cfg.enabled || !cfg.autoReconnect) return;
 
         log('系统', `应用宝离线自动重连: ${account.name} (${reason})`, { accountId });

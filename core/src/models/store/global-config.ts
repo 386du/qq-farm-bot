@@ -90,6 +90,13 @@ function sanitizeGlobalConfigBeforeSave(): void {
     }
     globalConfig.userOfflineReminders = nextReminders;
 
+    // 全局应用宝配置:落盘前 normalize 一次,避免空 token 等脏数据
+    if (!globalConfig.yybConfig || typeof globalConfig.yybConfig !== 'object') {
+        globalConfig.yybConfig = { ...DEFAULT_YYB_CONFIG, accounts: [] };
+    } else {
+        globalConfig.yybConfig = normalizeYybConfig(globalConfig.yybConfig);
+    }
+
     const userYybConfigs = (globalConfig.userYybConfigs && typeof globalConfig.userYybConfigs === 'object')
         ? globalConfig.userYybConfigs
         : {};
@@ -180,24 +187,29 @@ function deleteUserOfflineReminder(username: string): void {
 }
 
 function getYybConfig(username?: string): YybConfig {
-    if (!username) {
-        return normalizeYybConfig(globalConfig.userYybConfigs?.[''] || DEFAULT_YYB_CONFIG);
+    // 1) 优先读全局单例 yybConfig(新格式,不分用户,任意用户配全员生效)
+    if (globalConfig.yybConfig && Array.isArray(globalConfig.yybConfig.accounts)) {
+        return normalizeYybConfig(globalConfig.yybConfig);
     }
-    const userCfg = globalConfig.userYybConfigs && globalConfig.userYybConfigs[username];
-    if (userCfg) {
-        return normalizeYybConfig(userCfg);
+    // 2) 兼容旧逻辑:显式传 username 时查该用户自己的(仅用于历史数据)
+    if (username) {
+        const userCfg = globalConfig.userYybConfigs && globalConfig.userYybConfigs[username];
+        if (userCfg) {
+            return normalizeYybConfig(userCfg);
+        }
     }
     return normalizeYybConfig(DEFAULT_YYB_CONFIG);
 }
 
 function setYybConfig(cfg: Partial<YybConfig> | undefined, username?: string): YybConfig {
+    // 1) 默认写到全局单例(不分用户)
     if (!username) {
-        const current = normalizeYybConfig(globalConfig.userYybConfigs?.[''] || DEFAULT_YYB_CONFIG);
-        globalConfig.userYybConfigs = globalConfig.userYybConfigs || {};
-        globalConfig.userYybConfigs[''] = normalizeYybConfig({ ...current, ...(cfg || {}) });
+        const current = normalizeYybConfig(globalConfig.yybConfig || DEFAULT_YYB_CONFIG);
+        globalConfig.yybConfig = normalizeYybConfig({ ...current, ...(cfg || {}) });
         saveGlobalConfig();
         return getYybConfig();
     }
+    // 2) 显式传 username 时保留 per-user 写入(仅用于历史数据,新代码不推荐)
     if (!globalConfig.userYybConfigs) {
         globalConfig.userYybConfigs = {};
     }
@@ -208,7 +220,8 @@ function setYybConfig(cfg: Partial<YybConfig> | undefined, username?: string): Y
 }
 
 function deleteUserYybConfig(username: string): void {
-    if (globalConfig.userYybConfigs && globalConfig.userYybConfigs[username]) {
+    // 注意:全局 yybConfig 不会被此函数删除(避免误清空所有账号共享的配置)
+    if (username && globalConfig.userYybConfigs && globalConfig.userYybConfigs[username]) {
         delete globalConfig.userYybConfigs[username];
         saveGlobalConfig();
     }
