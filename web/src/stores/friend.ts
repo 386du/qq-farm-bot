@@ -6,6 +6,10 @@ export interface BlacklistItem {
   gid: number
   name: string
   avatarUrl: string
+  /** 等级(部分来源可能没有,可选) */
+  level?: number
+  /** 金币(可选) */
+  gold?: number
 }
 
 export interface DeletedFriendRecord {

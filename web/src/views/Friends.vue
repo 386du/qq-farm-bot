@@ -2392,9 +2392,19 @@ function formatDeletedAt(timestamp: number) {
                 <span v-else class="text-gray-400">👤</span>
                 <div class="absolute h-3.5 w-3.5 border-2 border-white rounded-full bg-red-500 -bottom-0.5 -right-0.5 dark:border-gray-800" />
               </div>
-              <div>
-                <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
-                <span class="ml-2 text-sm text-gray-400">({{ item.gid }})</span>
+              <div class="min-w-0 flex flex-col">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
+                  <span
+                    v-if="item.level"
+                    class="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                    :title="`等级 ${item.level}`"
+                  >
+                    <span>⭐</span>
+                    <span class="font-semibold">Lv.{{ item.level }}</span>
+                  </span>
+                </div>
+                <span class="text-sm text-gray-400">({{ item.gid }})</span>
               </div>
             </div>
             <button

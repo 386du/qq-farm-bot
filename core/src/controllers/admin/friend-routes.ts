@@ -233,25 +233,29 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             // 忽略获取好友列表失败
         }
 
-        // 构建好友信息映射
-        const friendMap = new Map<number, { name: string; avatarUrl: string }>();
+        // 构建好友信息映射(包含 level / gold,跟好友列表对齐)
+        const friendMap = new Map<number, { name: string; avatarUrl: string; level: number; gold: number }>();
         for (const f of friendsList) {
             const gid = Number(f && f.gid);
             if (gid > 0) {
                 friendMap.set(gid, {
                     name: f.name || f.remark || '',
                     avatarUrl: f.avatarUrl || f.avatar_url || '',
+                    level: Number(f.level) || 0,
+                    gold: Number(f.gold) || 0,
                 });
             }
         }
 
         // 构建带好友信息的黑名单
         const list = gids.map((gid: any) => {
-            const info = friendMap.get(Number(gid)) || { name: '', avatarUrl: '' };
+            const info = friendMap.get(Number(gid)) || { name: '', avatarUrl: '', level: 0, gold: 0 };
             return {
                 gid: Number(gid),
                 name: info.name || '',
                 avatarUrl: info.avatarUrl || '',
+                level: info.level,
+                gold: info.gold,
             };
         });
 
@@ -293,25 +297,29 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             // 忽略获取好友列表失败
         }
 
-        // 构建好友信息映射
-        const friendMap = new Map<number, { name: string; avatarUrl: string }>();
+        // 构建好友信息映射(包含 level / gold,跟好友列表对齐)
+        const friendMap = new Map<number, { name: string; avatarUrl: string; level: number; gold: number }>();
         for (const f of friendsList) {
             const fGid = Number(f && f.gid);
             if (fGid > 0) {
                 friendMap.set(fGid, {
                     name: f.name || f.remark || '',
                     avatarUrl: f.avatarUrl || f.avatar_url || '',
+                    level: Number(f.level) || 0,
+                    gold: Number(f.gold) || 0,
                 });
             }
         }
 
         // 构建带好友信息的黑名单
         const saved = savedGids.map((g: any) => {
-            const info = friendMap.get(Number(g)) || { name: '', avatarUrl: '' };
+            const info = friendMap.get(Number(g)) || { name: '', avatarUrl: '', level: 0, gold: 0 };
             return {
                 gid: Number(g),
                 name: info.name || '',
                 avatarUrl: info.avatarUrl || '',
+                level: info.level,
+                gold: info.gold,
             };
         });
 
@@ -328,23 +336,27 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             // 忽略获取好友列表失败
         }
 
-        const friendMap = new Map<number, { name: string; avatarUrl: string }>();
+        const friendMap = new Map<number, { name: string; avatarUrl: string; level: number; gold: number }>();
         for (const f of friendsList) {
             const fGid = Number(f && f.gid);
             if (fGid > 0) {
                 friendMap.set(fGid, {
                     name: f.name || f.remark || '',
                     avatarUrl: f.avatarUrl || f.avatar_url || '',
+                    level: Number(f.level) || 0,
+                    gold: Number(f.gold) || 0,
                 });
             }
         }
 
         return gids.map((g: any) => {
-            const info = friendMap.get(Number(g)) || { name: '', avatarUrl: '' };
+            const info = friendMap.get(Number(g)) || { name: '', avatarUrl: '', level: 0, gold: 0 };
             return {
                 gid: Number(g),
                 name: info.name || '',
                 avatarUrl: info.avatarUrl || '',
+                level: info.level,
+                gold: info.gold,
             };
         });
     }
