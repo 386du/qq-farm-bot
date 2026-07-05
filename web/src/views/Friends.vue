@@ -2943,6 +2943,13 @@ function formatDeletedAt(timestamp: number) {
             🚫 加入黑名单
           </button>
           <button
+            class="cartoon-btn rounded-xl bg-green-100 px-3 py-2 text-sm text-green-700 transition dark:bg-green-900/30 hover:bg-green-200 dark:text-green-400 disabled:opacity-50"
+            :disabled="selectedCount === 0 || multiSelectBusy"
+            @click="handleMultiSelectBatchGuardWhite"
+          >
+            ✅ 加入白名单
+          </button>
+          <button
             class="cartoon-btn rounded-xl bg-red-100 px-3 py-2 text-sm text-red-700 transition dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 disabled:opacity-50"
             :disabled="selectedCount === 0 || multiSelectBusy"
             @click="handleMultiSelectBatchGuardBlack"
