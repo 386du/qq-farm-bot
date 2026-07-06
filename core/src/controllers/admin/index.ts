@@ -20,7 +20,6 @@ const { mountAccountRoutes } = require('./account-routes');
 const { mountFarmRoutes } = require('./farm-routes');
 const { mountFriendRoutes } = require('./friend-routes');
 const { mountAdminRoutes } = require('./admin-routes');
-const { mountActivityRoutes } = require('./activity-routes');
 const { mountInviteRoutes } = require('./invite-routes');
 const { mountGamificationRoutes } = require('./gamification-routes');
 const { mountChangelogRoutes } = require('./changelog-routes');
@@ -80,7 +79,6 @@ function startAdminServer(dataProvider: any): void {
     mountFriendRoutes(app, ctx);
     mountAdminRoutes(app, ctx);
     mountAccountRoutes(app, ctx);
-    mountActivityRoutes(app, ctx);
     mountInviteRoutes(app, ctx);
     mountGamificationRoutes(app, ctx);
     mountChangelogRoutes(app, ctx);

@@ -438,15 +438,6 @@ function handleNotify(msg: any): void {
             return;
         }
 
-        // 活动变更通知
-        if (type.includes('ActiviesChangeNotify')) {
-            try {
-                const notify = types.ActiviesChangeNotify.decode(eventBody);
-                networkEvents.emit('activitiesChanged', notify);
-            } catch {}
-            return;
-        }
-
         // 头像框红点通知
         if (type.includes('AvatarFrameRedDotNotify')) {
             try {

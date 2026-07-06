@@ -33,7 +33,6 @@ async function loadProto(): Promise<void> {
         getResourcePath('proto', 'sharepb.proto'),
         getResourcePath('proto', 'illustratedpb.proto'),
         getResourcePath('proto', 'interactpb.proto'),
-        getResourcePath('proto', 'activitypb.proto'),
         getResourcePath('proto', 'randomdroppb.proto'),
         getResourcePath('proto', 'guidepb.proto'),
         getResourcePath('proto', 'acepb.proto'),
@@ -215,13 +214,7 @@ async function loadProto(): Promise<void> {
     types.GetInviteInfoRequest = root.lookupType('gamepb.sharepb.GetInviteInfoRequest');
     types.GetInviteInfoReply = root.lookupType('gamepb.sharepb.GetInviteInfoReply');
 
-    // 活动
-    types.ActivityListRequest = root.lookupType('gamepb.activitypb.ListRequest');
-    types.ActivityListReply = root.lookupType('gamepb.activitypb.ListReply');
-    types.ActivityGetGroupRequest = root.lookupType('gamepb.activitypb.GetGroupRequest');
-    types.ActivityGetGroupReply = root.lookupType('gamepb.activitypb.GetGroupReply');
-    types.ActivityOperateRequest = root.lookupType('gamepb.activitypb.OperateRequest');
-    types.ActivityOperateReply = root.lookupType('gamepb.activitypb.OperateReply');
+    // 活动已移除
 
     // 随机掉落
     types.RandomDropGetActivityInfoRequest = root.lookupType('gamepb.randomdroppb.GetActivityInfoRequest');
@@ -324,7 +317,6 @@ async function loadProto(): Promise<void> {
     types.NeedNotify = root.lookupType('gamepb.mallpb.NeedNotify');
     types.VipInfoUpdatedNTF = root.lookupType('gamepb.qqvippb.VipInfoUpdatedNTF');
     types.ProductsHasChangedNotify = root.lookupType('gamepb.mallpb.ProductsHasChangedNotify');
-    types.ActiviesChangeNotify = root.lookupType('gamepb.activitypb.ActiviesChangeNotify');
     types.SeasonChangeNotify = root.lookupType('gamepb.seasonpb.SeasonChangeNotify');
     types.BattlePassChangeNotify = root.lookupType('gamepb.seasonpb.BattlePassChangeNotify');
     types.SkinChangeNotify = root.lookupType('gamepb.skinpb.SkinChangeNotify');

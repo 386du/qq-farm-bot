@@ -167,16 +167,6 @@ function createDataProvider(options: DataProviderOptions) {
 
         doFarmOp: (accountRef: string, opType: string) => callWorkerApi(resolveAccountRefId(accountRef), 'doFarmOp', opType),
 
-        // 活动
-        getActivityGroup: (accountRef: string, groupId: number) => callWorkerApi(resolveAccountRefId(accountRef), 'getActivityGroup', groupId),
-        getActivityList: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getActivityList'),
-        // 动态获取所有活动组的所有活动 (不依赖写死的 groupId)
-        getAllActivities: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getAllActivities'),
-        operateActivity: (accountRef: string, activityId: number, operateType: number, param: number) => callWorkerApi(resolveAccountRefId(accountRef), 'operateActivity', activityId, operateType, param),
-        drawAuto: (accountRef: string, activityId: number, count: number) => callWorkerApi(resolveAccountRefId(accountRef), 'drawAuto', activityId, count),
-        getSolarTerms: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getSolarTerms'),
-        getSeasonInfo: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getSeasonInfo'),
-        claimBattlePassRewards: (accountRef: string, levelIds: number[]) => callWorkerApi(resolveAccountRefId(accountRef), 'claimBattlePassRewards', levelIds),
         getShopProfiles: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getShopProfiles'),
         getShopInfo: (accountRef: string, shopId: number) => callWorkerApi(resolveAccountRefId(accountRef), 'getShopInfo', shopId),
         buyGoods: (accountRef: string, goodsId: number, num: number, price: number) => callWorkerApi(resolveAccountRefId(accountRef), 'buyGoods', goodsId, num, price),

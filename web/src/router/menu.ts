@@ -23,13 +23,6 @@ export const menuRoutes: MenuItem[] = [
     component: () => import('@/views/Personal.vue'),
   },
   {
-    path: 'activity',
-    name: 'activity',
-    label: '活动',
-    icon: 'i-carbon-calendar',
-    component: () => import('@/views/Activity.vue'),
-  },
-  {
     path: 'friends',
     name: 'friends',
     label: '好友',
