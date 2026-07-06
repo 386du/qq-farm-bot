@@ -1,0 +1,16 @@
+# 编译产物
+/farm-go-service
+
+# IDE
+.idea/
+.vscode/
+
+# 本地配置(包含 Gewechat Token)
+.env
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
