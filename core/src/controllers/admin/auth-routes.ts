@@ -14,6 +14,7 @@ const { getSchedulerRegistrySnapshot } = require('../../services/scheduler');
 const { createModuleLogger } = require('../../services/logger');
 const { MiniProgramLoginSession } = require('../../services/qrlogin');
 const { fetchFarmCode } = require('../../services/yyb-login');
+const { fetchGoQR, checkGoStatus, fetchGoCode } = require('../../services/go-login');
 const store = require('../../models/store');
 const userStore = require('../../models/user-store');
 const tokenStore = require('../../models/user-store/token-store');
@@ -589,6 +590,111 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
                 return res.json({ ok: true, code: result.code });
             }
             return res.status(400).json({ ok: false, error: result.error || '获取 Code 失败' });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // ============ Go 扫码登录配置 ============
+    app.get('/api/user/go-config', authRequired, (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const cfg = store.getGoConfig ? store.getGoConfig(username) : null;
+            res.json({ ok: true, config: cfg || {} });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    app.post('/api/user/go-config', authRequired, (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            const cfg = store.setGoConfig
+                ? store.setGoConfig(body, username)
+                : {};
+            res.json({ ok: true, config: cfg || {} });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // ============ Go 扫码：获取二维码 ============
+    app.post('/api/go/qrcode', authRequired, async (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const cfg = store.getGoConfig ? store.getGoConfig(username) : null;
+            if (!cfg || !cfg.enabled) {
+                return res.status(400).json({ ok: false, error: 'Go 服务未配置或未启用' });
+            }
+            if (!cfg.apiBase) {
+                return res.status(400).json({ ok: false, error: 'Go 服务地址未配置' });
+            }
+            const result = await fetchGoQR(cfg.apiBase);
+            if (!result.ok) {
+                return res.status(400).json({ ok: false, error: result.error || '获取二维码失败' });
+            }
+            res.json({
+                ok: true,
+                data: {
+                    uuid: result.uuid,
+                    qrBase64: result.qrBase64 || '',
+                    apiBase: cfg.apiBase,
+                    appId: cfg.appId,
+                },
+            });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // ============ Go 扫码：检查扫码状态 ============
+    app.post('/api/go/check', authRequired, async (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const cfg = store.getGoConfig ? store.getGoConfig(username) : null;
+            if (!cfg || !cfg.enabled || !cfg.apiBase) {
+                return res.status(400).json({ ok: false, error: 'Go 服务未配置或未启用' });
+            }
+            const uuid = String((req.body && req.body.uuid) || '').trim();
+            if (!uuid) {
+                return res.status(400).json({ ok: false, error: '缺少 uuid' });
+            }
+            const result = await checkGoStatus(cfg.apiBase, uuid);
+            if (!result.ok) {
+                return res.status(400).json({ ok: false, error: result.error || '检查扫码状态失败' });
+            }
+            res.json({
+                ok: true,
+                data: {
+                    status: result.qrStatus || 0,
+                    wxid: result.wxid || '',
+                    nickname: result.nickname || '',
+                },
+            });
+        } catch (e: any) {
+            res.status(500).json({ ok: false, error: e.message });
+        }
+    });
+
+    // ============ Go 扫码：拉取登录 Code ============
+    app.post('/api/go/code', authRequired, async (req: Request, res: Response) => {
+        try {
+            const username = (req as any).currentUser?.username;
+            const cfg = store.getGoConfig ? store.getGoConfig(username) : null;
+            if (!cfg || !cfg.enabled || !cfg.apiBase) {
+                return res.status(400).json({ ok: false, error: 'Go 服务未配置或未启用' });
+            }
+            const wxid = String((req.body && req.body.wxid) || '').trim();
+            if (!wxid) {
+                return res.status(400).json({ ok: false, error: '缺少 wxid' });
+            }
+            const appId = String(cfg.appId || '').trim() || 'wx5306c5978fdb76e4';
+            const result = await fetchGoCode(cfg.apiBase, appId, wxid);
+            if (!result.ok || !result.code) {
+                return res.status(400).json({ ok: false, error: result.error || '获取 Code 失败' });
+            }
+            res.json({ ok: true, code: result.code, wxid, appId });
         } catch (e: any) {
             res.status(500).json({ ok: false, error: e.message });
         }

@@ -169,6 +169,19 @@ export interface YybConfig {
   accounts: YybOpenIdEntry[];
 }
 
+export interface GoConfig {
+  enabled: boolean;
+  // Go 服务地址(管理员/用户在「Go 服务配置」中设置,与 wxlogin apiBase 分开)
+  // 例如: http://192.168.1.10:8000
+  apiBase: string;
+  // 微信小程序 AppID(默认 wx5306c5978fdb76e4)
+  appId: string;
+  // 代理模式(走 /api/proxy)时使用的 API Key
+  apiKey?: string;
+  // 代理模式时上游 API 的完整 URL(覆盖 apiBase)
+  proxyApiUrl?: string;
+}
+
 export interface GlobalConfig {
   accountConfigs: Record<string, AccountConfig>;
   defaultAccountConfig: AccountConfig;
@@ -176,6 +189,7 @@ export interface GlobalConfig {
   offlineReminder: OfflineReminder;
   userOfflineReminders: Record<string, OfflineReminder>;
   userYybConfigs: Record<string, YybConfig>;
+  userGoConfigs: Record<string, GoConfig>;
   adminPasswordHash: string;
   announcement: Announcement;
   announcementReadRecords: Record<string, number>;

@@ -11,6 +11,7 @@ const { createReloginReminderService } = require('./relogin-reminder');
 const { createRuntimeState } = require('./runtime-state');
 const { createWorkerManager } = require('./worker-manager');
 const { createYybReloginService } = require('./yyb-relogin');
+const { createGoReloginService } = require('./go-relogin');
 
 const OPERATION_KEYS = ['harvest', 'farming', 'fertilize', 'plant', 'steal', 'helpFarming', 'taskClaim', 'sell', 'upgrade', 'gold', 'exp'];
 
@@ -112,6 +113,17 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
     workerControls.restartWorker = restartWorker;
 
     yybReloginService = createYybReloginService({
+        store,
+        log,
+        addAccountLog,
+        getAccounts: store.getAccounts,
+        addOrUpdateAccount: store.addOrUpdateAccount,
+        isAccountRunning: (accountId: string) => !!workers[accountId],
+        restartWorker,
+        startWorker,
+    });
+
+    const goReloginService = createGoReloginService({
         store,
         log,
         addAccountLog,
@@ -254,6 +266,10 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
 
         if (yybReloginService) {
             yybReloginService.start();
+        }
+
+        if (goReloginService) {
+            goReloginService.start();
         }
 
         // 游戏化定时任务(日报推送 + 成就 rollup)

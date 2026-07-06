@@ -33,6 +33,9 @@ function normalizeAccountsData(raw: unknown): AccountsData {
         if (typeof (a as any).autoStart !== 'boolean') {
             (a as any).autoStart = undefined;
         }
+        // 归一化 Go 扫码账号的 codeRefreshIntervalMinutes(0 = 不刷新, 1~1440 = 1 分钟 ~ 24 小时)
+        const interval = Math.max(0, Math.min(1440, Number.parseInt(String((a as any).codeRefreshIntervalMinutes ?? 0), 10) || 0));
+        (a as any).codeRefreshIntervalMinutes = interval;
     }
     let nextId = 1;
     while (usedIds.has(nextId)) nextId++;
@@ -71,13 +74,23 @@ function addOrUpdateAccount(acc: Partial<Account> & { avatarUrl?: string }): Acc
     if (acc.id) {
         const idx = data.accounts.findIndex(a => a.id === acc.id);
         if (idx >= 0) {
-            data.accounts[idx] = { ...data.accounts[idx], ...acc, name: acc.name !== undefined ? acc.name : data.accounts[idx].name, updatedAt: Date.now() };
+            const current = data.accounts[idx];
+            const merged: any = { ...current, ...acc, name: acc.name !== undefined ? acc.name : current.name, updatedAt: Date.now() };
+            // 保持 loginType / openid / codeRefreshIntervalMinutes 这些 go_scan 必需字段
+            if (acc.loginType !== undefined) merged.loginType = acc.loginType;
+            else if (current.loginType) merged.loginType = current.loginType;
+            if (acc.openid !== undefined) merged.openid = acc.openid ? String(acc.openid) : '';
+            else if (current.openid) merged.openid = current.openid;
+            if (acc.codeRefreshIntervalMinutes !== undefined) {
+                merged.codeRefreshIntervalMinutes = Math.max(0, Math.min(1440, Number.parseInt(String(acc.codeRefreshIntervalMinutes), 10) || 0));
+            }
+            data.accounts[idx] = merged;
             touchedAccountId = String(data.accounts[idx].id || '');
         }
     } else {
         const id = data.nextId++;
         touchedAccountId = String(id);
-        data.accounts.push({
+        const newAcc: any = {
             id: touchedAccountId,
             name: acc.name || `账号${id}`,
             code: acc.code || '',
@@ -88,9 +101,11 @@ function addOrUpdateAccount(acc: Partial<Account> & { avatarUrl?: string }): Acc
             username: acc.username || '',
             loginType: acc.loginType || '',
             openid: acc.openid ? String(acc.openid) : '',
+            codeRefreshIntervalMinutes: Math.max(0, Math.min(1440, Number.parseInt(String(acc.codeRefreshIntervalMinutes ?? 0), 10) || 0)),
             createdAt: Date.now(),
             updatedAt: Date.now(),
-        });
+        };
+        data.accounts.push(newAcc);
     }
     saveAccounts(data);
     if (touchedAccountId) {

@@ -18,6 +18,8 @@ export interface Account {
   // - 用户也可以在账号列表里显式 toggle 这个开关
   // 持久化到 data/accounts.json（容器重建后保留）
   autoStart?: boolean;
+  // Go 扫码登录专用：定时刷新 Code 的间隔（分钟），0 = 不刷新
+  codeRefreshIntervalMinutes?: number;
 }
 
 export interface AccountsData {

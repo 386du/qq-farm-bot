@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import api from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import GoConfigModal from '@/components/GoConfigModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -16,6 +17,7 @@ import { menuRoutes } from '@/router/menu'
 import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/account'
 import { useAppStore } from '@/stores/app'
 import { useFarmStore } from '@/stores/farm'
+import { useGoLoginStore } from '@/stores/go-login'
 import { useSettingStore } from '@/stores/setting'
 import { useUserStore } from '@/stores/user'
 import { useYybLoginStore } from '@/stores/yyb-login'
@@ -27,9 +29,11 @@ const userStore = useUserStore()
 const settingStore = useSettingStore()
 const farmStore = useFarmStore()
 const yybStore = useYybLoginStore()
+const goStore = useGoLoginStore()
 
 const showYybConfig = ref(false)
 const showYybLogin = ref(false)
+const showGoConfig = ref(false)
 
 function openYybConfig() {
   showYybConfig.value = true
@@ -46,6 +50,15 @@ function openYybLogin() {
 
 function closeYybLogin() {
   showYybLogin.value = false
+}
+
+function openGoConfig() {
+  showGoConfig.value = true
+}
+
+function closeGoConfig() {
+  showGoConfig.value = false
+  goStore.loadConfig()
 }
 
 function closeAccountModal() {
@@ -1071,6 +1084,14 @@ async function handleTestOffline() {
               <BaseButton
                 variant="secondary"
                 size="sm"
+                @click="openGoConfig()"
+              >
+                <span class="mr-2">🧩</span>
+                Go 服务配置
+              </BaseButton>
+              <BaseButton
+                variant="secondary"
+                size="sm"
                 :disabled="yybStore.config.accounts.length === 0"
                 @click="openYybLogin()"
               >
@@ -1239,6 +1260,7 @@ async function handleTestOffline() {
             @saved="handleSaved"
             @yyb-login="showModal = false; showYybLogin = true"
             @yyb-config="showModal = false; showYybConfig = true"
+            @go-config="showModal = false; showGoConfig = true"
           />
 
           <ConfirmModal
@@ -1274,6 +1296,11 @@ async function handleTestOffline() {
             :show="showYybLogin"
             @close="closeYybLogin"
             @saved="accountStore.fetchAccounts()"
+          />
+
+          <GoConfigModal
+            :show="showGoConfig"
+            @close="closeGoConfig"
           />
         </div>
 

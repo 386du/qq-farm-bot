@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
+import GoConfigModal from '@/components/GoConfigModal.vue'
 import ProfileEditModal from '@/components/ProfileEditModal.vue'
 import RemarkModal from '@/components/RemarkModal.vue'
 import YybConfigModal from '@/components/YybConfigModal.vue'
@@ -31,6 +32,7 @@ const showAccountModal = ref(false)
 const showRemarkModal = ref(false)
 const showYybConfig = ref(false)
 const showYybLogin = ref(false)
+const showGoConfig = ref(false)
 const accountToEdit = ref<any>(null)
 const wsErrorNotifiedAt = ref<Record<string, number>>({})
 
@@ -928,6 +930,7 @@ async function copyToken() {
     @saved="handleAccountSaved"
     @yyb-login="showAccountModal = false; showYybLogin = true"
     @yyb-config="showAccountModal = false; showYybConfig = true"
+    @go-config="showAccountModal = false; showGoConfig = true"
   />
 
   <YybConfigModal
@@ -939,6 +942,11 @@ async function copyToken() {
     :show="showYybLogin"
     @close="showYybLogin = false"
     @saved="handleAccountSaved"
+  />
+
+  <GoConfigModal
+    :show="showGoConfig"
+    @close="showGoConfig = false"
   />
 
   <RemarkModal

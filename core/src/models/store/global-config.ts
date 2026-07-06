@@ -1,4 +1,4 @@
-import type { AccountConfig, Announcement, DeletedFriendRecord, FriendSnapshotItem, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
+import type { AccountConfig, Announcement, DeletedFriendRecord, FriendSnapshotItem, GoConfig, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
 export {};
 
 const fs = require('node:fs');
@@ -12,9 +12,11 @@ const {
     PUSHOO_CHANNELS,
     DEFAULT_OFFLINE_REMINDER,
     DEFAULT_YYB_CONFIG,
+    DEFAULT_GO_CONFIG,
     globalConfig,
     normalizeAccountConfig,
     normalizeYybConfig,
+    normalizeGoConfig,
     cloneAccountConfig,
     DEFAULT_ACCOUNT_CONFIG,
 } = sharedState;
@@ -100,6 +102,17 @@ function sanitizeGlobalConfigBeforeSave(): void {
         nextYybConfigs[u] = normalizeYybConfig(cfg);
     }
     globalConfig.userYybConfigs = nextYybConfigs;
+
+    const userGoConfigs = (globalConfig.userGoConfigs && typeof globalConfig.userGoConfigs === 'object')
+        ? globalConfig.userGoConfigs
+        : {};
+    const nextGoConfigs: Record<string, GoConfig> = {};
+    for (const [username, cfg] of Object.entries(userGoConfigs)) {
+        const u = String(username || '').trim();
+        if (!u) continue;
+        nextGoConfigs[u] = normalizeGoConfig(cfg);
+    }
+    globalConfig.userGoConfigs = nextGoConfigs;
 }
 
 function saveGlobalConfig(): void {
@@ -210,6 +223,41 @@ function setYybConfig(cfg: Partial<YybConfig> | undefined, username?: string): Y
 function deleteUserYybConfig(username: string): void {
     if (globalConfig.userYybConfigs && globalConfig.userYybConfigs[username]) {
         delete globalConfig.userYybConfigs[username];
+        saveGlobalConfig();
+    }
+}
+
+function getGoConfig(username?: string): GoConfig {
+    if (!username) {
+        return normalizeGoConfig(globalConfig.userGoConfigs?.[''] || DEFAULT_GO_CONFIG);
+    }
+    const userCfg = globalConfig.userGoConfigs && globalConfig.userGoConfigs[username];
+    if (userCfg) {
+        return normalizeGoConfig(userCfg);
+    }
+    return normalizeGoConfig(DEFAULT_GO_CONFIG);
+}
+
+function setGoConfig(cfg: Partial<GoConfig> | undefined, username?: string): GoConfig {
+    if (!username) {
+        const current = normalizeGoConfig(globalConfig.userGoConfigs?.[''] || DEFAULT_GO_CONFIG);
+        globalConfig.userGoConfigs = globalConfig.userGoConfigs || {};
+        globalConfig.userGoConfigs[''] = normalizeGoConfig({ ...current, ...(cfg || {}) });
+        saveGlobalConfig();
+        return getGoConfig();
+    }
+    if (!globalConfig.userGoConfigs) {
+        globalConfig.userGoConfigs = {};
+    }
+    const current = normalizeGoConfig(globalConfig.userGoConfigs[username] || DEFAULT_GO_CONFIG);
+    globalConfig.userGoConfigs[username] = normalizeGoConfig({ ...current, ...(cfg || {}) });
+    saveGlobalConfig();
+    return getGoConfig(username);
+}
+
+function deleteUserGoConfig(username: string): void {
+    if (globalConfig.userGoConfigs && globalConfig.userGoConfigs[username]) {
+        delete globalConfig.userGoConfigs[username];
         saveGlobalConfig();
     }
 }
@@ -543,6 +591,9 @@ module.exports = {
     getYybConfig,
     setYybConfig,
     deleteUserYybConfig,
+    getGoConfig,
+    setGoConfig,
+    deleteUserGoConfig,
     getAnnouncement,
     setAnnouncement,
     getAnnouncementReadRecord,

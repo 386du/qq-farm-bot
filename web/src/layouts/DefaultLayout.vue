@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import AccountModal from '@/components/AccountModal.vue'
 import BottomNav from '@/components/BottomNav.vue'
 import ChangelogModal from '@/components/ChangelogModal.vue'
+import GoConfigModal from '@/components/GoConfigModal.vue'
 import HolidayBanner from '@/components/HolidayBanner.vue'
 import Sidebar from '@/components/Sidebar.vue'
 import YybConfigModal from '@/components/YybConfigModal.vue'
@@ -23,6 +24,7 @@ const showAccountDropdown = ref(false)
 const showAccountModal = ref(false)
 const showYybConfig = ref(false)
 const showYybLogin = ref(false)
+const showGoConfig = ref(false)
 const accountToEdit = ref<any>(null)
 const accountTriggerRef = ref<HTMLElement | null>(null)
 
@@ -347,6 +349,7 @@ onUnmounted(() => {
       @saved="handleAccountSaved"
       @yyb-login="showAccountModal = false; showYybLogin = true"
       @yyb-config="showAccountModal = false; showYybConfig = true"
+      @go-config="showAccountModal = false; showGoConfig = true"
     />
 
     <YybConfigModal
@@ -358,6 +361,11 @@ onUnmounted(() => {
       :show="showYybLogin"
       @close="showYybLogin = false"
       @saved="handleAccountSaved"
+    />
+
+    <GoConfigModal
+      :show="showGoConfig"
+      @close="showGoConfig = false"
     />
 
     <!-- 版本更新弹窗（全局，首次有新版本时自动弹一次） -->

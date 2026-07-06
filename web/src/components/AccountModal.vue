@@ -4,6 +4,9 @@ import api from '@/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
+import GoLoginPanel from '@/components/GoLoginPanel.vue'
+import WxLoginPanel from '@/components/WxLoginPanel.vue'
+import { useGoLoginStore } from '@/stores/go-login'
 import { useYybLoginStore } from '@/stores/yyb-login'
 
 const props = defineProps<{
@@ -16,6 +19,7 @@ const emit = defineEmits<{
   (e: 'saved'): void
   (e: 'yyb-login'): void
   (e: 'yyb-config', anchor: null): void
+  (e: 'go-config'): void
 }>()
 
 const loading = ref(false)
@@ -23,10 +27,18 @@ const yybLoading = ref(false)
 const errorMessage = ref('')
 
 const yybStore = useYybLoginStore()
+const goStore = useGoLoginStore()
+
+type TabKey = 'manual' | 'qq' | 'go' | 'yyb'
+const activeTab = ref<TabKey>('manual')
 
 function openYybConfig() {
   emit('yyb-config', null)
   close()
+}
+
+function openGoConfig() {
+  emit('go-config')
 }
 
 // 表单数据
@@ -34,6 +46,38 @@ const form = reactive({
   name: '',
   code: '',
   platform: 'qq' as 'qq' | 'wx',
+  codeRefreshIntervalMinutes: 0,
+})
+
+// 加载 go 服务配置,用于判断是否显示「Go 扫码」Tab
+const goReady = computed(() => !!goStore.config.enabled && !!String(goStore.config.apiBase || '').trim())
+const showGoTab = ref(false)
+
+watch(() => props.show, async (newVal) => {
+  if (newVal) {
+    errorMessage.value = ''
+    activeTab.value = 'manual'
+    if (props.editData) {
+      form.name = props.editData.name || ''
+      form.code = props.editData.code || ''
+      form.platform = props.editData.platform || 'qq'
+      form.codeRefreshIntervalMinutes = Number(props.editData.codeRefreshIntervalMinutes) || 0
+    }
+    else {
+      form.name = ''
+      form.code = ''
+      form.platform = 'qq'
+      form.codeRefreshIntervalMinutes = 0
+    }
+    // 异步加载 Go 配置,决定是否显示 Go Tab
+    try {
+      await goStore.loadConfig()
+      showGoTab.value = goReady.value
+    }
+    catch {
+      showGoTab.value = false
+    }
+  }
 })
 
 // 添加账号
@@ -78,6 +122,7 @@ async function submitManual() {
     const onlyNameChanged = form.name !== props.editData.name
       && form.code === (props.editData.code || '')
       && form.platform === (props.editData.platform || 'qq')
+      && form.codeRefreshIntervalMinutes === (Number(props.editData.codeRefreshIntervalMinutes) || 0)
 
     if (onlyNameChanged) {
       payload = { id: props.editData.id, name: form.name }
@@ -88,7 +133,9 @@ async function submitManual() {
         name: form.name,
         code,
         platform: form.platform,
-        loginType: 'manual',
+        loginType: props.editData.loginType || 'manual',
+        openid: props.editData.openid || '',
+        codeRefreshIntervalMinutes: Math.max(0, Math.floor(form.codeRefreshIntervalMinutes) || 0),
       }
     }
   }
@@ -98,6 +145,7 @@ async function submitManual() {
       code,
       platform: form.platform,
       loginType: 'manual',
+      codeRefreshIntervalMinutes: Math.max(0, Math.floor(form.codeRefreshIntervalMinutes) || 0),
     }
   }
 
@@ -143,24 +191,10 @@ function close() {
 const panelStyle = computed(() => ({
   background: 'var(--theme-bg)',
   boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)',
-  maxHeight: 'min(85dvh, 700px)',
+  maxHeight: 'min(85dvh, 720px)',
 }))
 
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    errorMessage.value = ''
-    if (props.editData) {
-      form.name = props.editData.name || ''
-      form.code = props.editData.code || ''
-      form.platform = props.editData.platform || 'qq'
-    }
-    else {
-      form.name = ''
-      form.code = ''
-      form.platform = 'qq'
-    }
-  }
-})
+const showGoScanRefresh = computed(() => String(props.editData?.loginType || '') === 'go_scan')
 </script>
 
 <template>
@@ -181,12 +215,39 @@ watch(() => props.show, (newVal) => {
           </BaseButton>
         </div>
 
+        <div v-if="!editData" class="shrink-0 flex border-b" style="border-color: color-mix(in srgb, var(--theme-text) 10%, transparent)">
+          <button
+            v-for="t in [
+              { key: 'manual', label: '手动填码' },
+              { key: 'qq', label: 'QQ扫码' },
+              ...(showGoTab ? [{ key: 'go', label: 'Go扫码' }] : []),
+              { key: 'yyb', label: '应用宝对接' },
+            ]"
+            :key="t.key"
+            type="button"
+            class="flex-1 py-3 text-sm font-medium transition relative"
+            :style="{
+              color: activeTab === t.key ? 'var(--theme-primary, var(--theme-text))' : 'var(--theme-text)',
+              opacity: activeTab === t.key ? 1 : 0.6,
+            }"
+            @click="activeTab = t.key as TabKey"
+          >
+            {{ t.label }}
+            <span
+              v-if="activeTab === t.key"
+              class="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-12 rounded-full"
+              :style="{ background: 'var(--theme-primary, currentColor)' }"
+            />
+          </button>
+        </div>
+
         <div class="min-h-0 flex-1 overflow-y-auto p-4">
           <div v-if="errorMessage" class="mb-4 rounded-xl p-3 text-sm" style="background: rgba(239, 68, 68, 0.1); color: #ef4444">
             {{ errorMessage }}
           </div>
 
-          <div class="space-y-4">
+          <!-- 手动填码 Tab -->
+          <div v-if="activeTab === 'manual'" class="space-y-4">
             <BaseInput
               v-model="form.name"
               label="账号备注（可选）"
@@ -224,6 +285,15 @@ watch(() => props.show, (newVal) => {
                 <span class="text-sm" :style="{ color: 'var(--theme-text)' }">微信小程序</span>
               </label>
             </div>
+
+            <BaseInput
+              v-if="!editData || showGoScanRefresh"
+              v-model.number="form.codeRefreshIntervalMinutes"
+              :label="showGoScanRefresh ? 'Code刷新间隔（分钟）' : 'Code刷新间隔（分钟,仅 Go 扫码账号生效）'"
+              type="number"
+              placeholder="0 表示不自动刷新"
+              class="farm-input"
+            />
 
             <div v-if="!editData" class="border rounded-xl border-dashed p-3 dark:border-gray-600" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent)">
               <p class="mb-2 text-xs opacity-70" :style="{ color: 'var(--theme-text)' }">
@@ -272,6 +342,53 @@ watch(() => props.show, (newVal) => {
                 {{ editData ? '保存' : '添加' }}
               </BaseButton>
             </div>
+          </div>
+
+          <!-- QQ扫码 Tab -->
+          <div v-else-if="activeTab === 'qq'" class="space-y-4">
+            <WxLoginPanel
+              :embedded="true"
+              @saved="emit('saved'); close()"
+            />
+          </div>
+
+          <!-- Go扫码 Tab -->
+          <div v-else-if="activeTab === 'go' && showGoTab" class="space-y-4">
+            <GoLoginPanel
+              :embedded="true"
+              @saved="emit('saved'); close()"
+              @open-config="openGoConfig"
+            />
+          </div>
+
+          <!-- 应用宝对接 Tab -->
+          <div v-else-if="activeTab === 'yyb'" class="space-y-4">
+            <div
+              class="rounded-xl p-4 text-sm"
+              style="background: color-mix(in srgb, var(--theme-primary) 8%, transparent); color: var(--theme-text)"
+            >
+              <p class="mb-2 font-medium">应用宝一键登录</p>
+              <p class="text-xs opacity-80">通过应用宝外部 API 根据 OpenID 自动获取 Code 并添加/更新账号。</p>
+            </div>
+            <div class="flex flex-col gap-2">
+              <BaseButton
+                variant="primary"
+                class="cartoon-btn"
+                @click="emit('yyb-login'); close()"
+              >
+                打开应用宝一键登录
+              </BaseButton>
+              <BaseButton
+                variant="outline"
+                class="cartoon-btn"
+                @click="openYybConfig()"
+              >
+                应用宝配置
+              </BaseButton>
+            </div>
+            <p class="text-xs opacity-60" style="color: var(--theme-text)">
+              需先在「应用宝配置」中填写接口地址并为每个 OpenID 绑定 API Token
+            </p>
           </div>
         </div>
       </div>

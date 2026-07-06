@@ -1,4 +1,4 @@
-import type { AccountConfig, AutomationConfig, BagSeedFallbackStrategy, FertilizerLandType, GlobalConfig, IntervalConfig, OfflineReminder, PlantingStrategy, QuietHoursConfig, YybConfig } from '../../types/config';
+import type { AccountConfig, AutomationConfig, BagSeedFallbackStrategy, FertilizerLandType, GlobalConfig, GoConfig, IntervalConfig, OfflineReminder, PlantingStrategy, QuietHoursConfig, YybConfig } from '../../types/config';
 export {};
 
 const fs = require('node:fs');
@@ -43,6 +43,14 @@ const DEFAULT_YYB_CONFIG: YybConfig = {
     reconnectIntervalMinutes: 0,
     autoReconnect: true,
     accounts: [],
+};
+
+const DEFAULT_GO_CONFIG: GoConfig = {
+    enabled: false,
+    apiBase: '',
+    appId: 'wx5306c5978fdb76e4',
+    apiKey: '',
+    proxyApiUrl: '',
 };
 
 const DEFAULT_ACCOUNT_CONFIG: AccountConfig = {
@@ -191,6 +199,17 @@ function normalizeFertilizerLandTypes(input: unknown, fallback: FertilizerLandTy
         normalized.push(value as FertilizerLandType);
     }
     return normalized;
+}
+
+function normalizeGoConfig(input: unknown): GoConfig {
+    const src: Record<string, any> = (input && typeof input === 'object') ? input as Record<string, any> : {};
+    return {
+        enabled: !!src.enabled,
+        apiBase: String(src.apiBase !== undefined ? src.apiBase : DEFAULT_GO_CONFIG.apiBase).trim(),
+        appId: String(src.appId !== undefined ? src.appId : DEFAULT_GO_CONFIG.appId).trim() || DEFAULT_GO_CONFIG.appId,
+        apiKey: String(src.apiKey !== undefined ? src.apiKey : '').trim(),
+        proxyApiUrl: String(src.proxyApiUrl !== undefined ? src.proxyApiUrl : '').trim(),
+    };
 }
 
 function normalizeYybConfig(input: unknown): YybConfig {
@@ -480,6 +499,7 @@ const globalConfig: GlobalConfig = {
     offlineReminder: { ...DEFAULT_OFFLINE_REMINDER },
     userOfflineReminders: {},
     userYybConfigs: {},
+    userGoConfigs: {},
     adminPasswordHash: '',
     announcement: {
         content: '',
@@ -542,6 +562,15 @@ function loadGlobalConfig(): void {
                 for (const [username, cfg] of Object.entries(data.userYybConfigs)) {
                     if (username && cfg) {
                         globalConfig.userYybConfigs[username] = cfg as YybConfig;
+                    }
+                }
+            }
+
+            if (data.userGoConfigs && typeof data.userGoConfigs === 'object') {
+                globalConfig.userGoConfigs = {};
+                for (const [username, cfg] of Object.entries(data.userGoConfigs)) {
+                    if (username && cfg) {
+                        globalConfig.userGoConfigs[username] = cfg as GoConfig;
                     }
                 }
             }
@@ -642,6 +671,7 @@ module.exports = {
     DEFAULT_NO_GUARD_DOG_CACHE_TTL_SEC,
     DEFAULT_OFFLINE_REMINDER,
     DEFAULT_YYB_CONFIG,
+    DEFAULT_GO_CONFIG,
     DEFAULT_ACCOUNT_CONFIG,
     ALLOWED_AUTOMATION_KEYS,
     // Mutable shared state (by reference)
@@ -661,6 +691,7 @@ module.exports = {
     normalizeIntervals,
     normalizeAccountConfig,
     normalizeYybConfig,
+    normalizeGoConfig,
     cloneAccountConfig,
     resolveAccountId,
     loadGlobalConfig,
