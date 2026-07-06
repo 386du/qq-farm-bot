@@ -12,7 +12,7 @@ const { getAccId, handleApiError, getAccountList } = require('./middleware');
 function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
     /**
      * 拉取所有运行中账号的最新统计到磁盘（不等 1s 防抖）
-     * 用于排行榜强制刷新时确保数据最新
+     * 用于日报强制刷新时确保数据最新
      */
     async function flushAllStats(): Promise<{ flushed: number; errors: number }> {
         if (!ctx.provider || typeof ctx.provider.getAccounts !== 'function') {
@@ -54,85 +54,6 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
         }
         return map;
     }
-
-    /**
-     * 跨账号排行榜（始终实时重新生成，不读缓存）
-     * GET /api/leaderboard?date=today|yesterday|<YYYY-MM-DD>&refresh=1
-     *   - refresh=1: 先强制所有运行账号 flush 内存中的最新统计到磁盘
-     */
-    app.get('/api/leaderboard', async (req: Request, res: Response) => {
-        try {
-            const wantRefresh = String(req.query.refresh || '') === '1';
-            if (wantRefresh) {
-                await flushAllStats();
-            }
-            const dateParam = String(req.query.date || 'today');
-            const dateKey = dateParam === 'yesterday'
-                ? gamif.getYesterdayKey()
-                : dateParam === 'today'
-                    ? gamif.getDateKey()
-                    : dateParam;
-            const runningMap = buildRunningMap();
-            const data = gamif.loadLeaderboard(dateKey, runningMap);
-            if (!data) {
-                return res.json({
-                    ok: true,
-                    data: {
-                        date: dateKey,
-                        generatedAt: Date.now(),
-                        accounts: [],
-                        byGold: [],
-                        bySteal: [],
-                        byHarvest: [],
-                        byHelpFarming: [],
-                        byGuardDogDrop: [],
-                        totals: { accounts: 0, activeAccounts: 0, harvest: 0, steal: 0, fertilize: 0, plant: 0, helpFarming: 0, guardDogDrop: 0, taskClaim: 0, sell: 0, gold: 0, exp: 0 },
-                    },
-                });
-            }
-            // 附上账号元信息
-            const accList = getAccountList(ctx);
-            const enriched = (arr: any[]) => arr.map((entry: any) => {
-                const meta = accList.find((a: any) => String(a.id) === String(entry.accountId)) || {};
-                return {
-                    ...entry,
-                    accountName: meta.name || entry.accountName,
-                    avatar: meta.avatar || '',
-                    platform: meta.platform || entry.platform,
-                    running: !!meta.running,
-                };
-            });
-            res.json({
-                ok: true,
-                data: {
-                    date: data.date,
-                    generatedAt: data.generatedAt,
-                    accounts: enriched(data.accounts),
-                    byGold: enriched(data.byGold),
-                    bySteal: enriched(data.bySteal),
-                    byHarvest: enriched(data.byHarvest),
-                    byHelpFarming: enriched(data.byHelpFarming || []),
-                    byGuardDogDrop: enriched(data.byGuardDogDrop || []),
-                    totals: data.totals,
-                },
-            });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
-
-    /**
-     * 手动强制刷新（语义等价于 refresh=1，便于前端按钮调用）
-     * POST /api/leaderboard/refresh
-     */
-    app.post('/api/leaderboard/refresh', async (req: Request, res: Response) => {
-        try {
-            const flushed = await flushAllStats();
-            res.json({ ok: true, data: { ...flushed, refreshedAt: Date.now() } });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
 
     /**
      * 每日日报(只读, 仅展示用)

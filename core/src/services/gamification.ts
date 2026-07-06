@@ -1,9 +1,8 @@
 export {};
 /**
- * 游戏化模块 - 跨账号排行、每日日报
+ * 游戏化模块 - 每日日报
  *
  * 数据存储：
- *   data/gamification/leaderboard-{dateKey}.json   每日排行榜
  *   data/gamification/reports-{dateKey}.json       每日汇总报告
  *   data/gamification/notif-log.json               推送日志(避免重复推送)
  */
@@ -43,10 +42,6 @@ function nowMs(): number {
 const GAMIF_DIR = path.join(path.dirname(getDataFile('store.json')), 'gamification');
 const NOTIF_LOG_FILE = path.join(GAMIF_DIR, 'notif-log.json');
 
-function getLeaderboardFile(dateKey: string): string {
-    return path.join(GAMIF_DIR, `leaderboard-${dateKey}.json`);
-}
-
 function getReportFile(dateKey: string): string {
     return path.join(GAMIF_DIR, `report-${dateKey}.json`);
 }
@@ -58,7 +53,7 @@ function ensureGamifDir(): void {
     }
 }
 
-// ============== 跨账号排行 ==============
+// ============== 账号汇总（日报用） ==============
 
 interface AccountSummary {
     accountId: string;
@@ -79,35 +74,6 @@ interface AccountSummary {
     online: boolean;          // 账号是否在运行
     lastSavedAt: number;      // 该账号最近一次落盘时间
     score: number;            // 综合得分
-}
-
-interface LeaderboardEntry extends AccountSummary {
-    rank: number;
-}
-
-interface LeaderboardData {
-    date: string;
-    generatedAt: number;
-    accounts: LeaderboardEntry[];
-    byGold: LeaderboardEntry[];
-    bySteal: LeaderboardEntry[];
-    byHarvest: LeaderboardEntry[];
-    byHelpFarming: LeaderboardEntry[];
-    byGuardDogDrop: LeaderboardEntry[];
-    totals: {
-        accounts: number;
-        activeAccounts: number;
-        harvest: number;
-        steal: number;
-        fertilize: number;
-        plant: number;
-        helpFarming: number;
-        guardDogDrop: number;
-        taskClaim: number;
-        sell: number;
-        gold: number;
-        exp: number;
-    };
 }
 
 function num(v: any, fallback: number = 0): number {
@@ -171,95 +137,6 @@ function summarizeAccount(
         lastSavedAt,
         score,
     };
-}
-
-function sortBy<T>(arr: T[], key: (t: T) => number): T[] {
-    return [...arr].sort((a, b) => key(b) - key(a));
-}
-
-function withRank(sorted: AccountSummary[]): LeaderboardEntry[] {
-    return sorted.map((s, i) => ({ ...s, rank: i + 1 }));
-}
-
-/**
- * 收集所有账号的"在线"状态（由外部传入的 runningMap），生成排行榜
- */
-function buildLeaderboard(dateKey: string, runningMap: Record<string, boolean> = {}): LeaderboardData {
-    const accounts = store.getAccounts() || { accounts: [] };
-    const summaries: AccountSummary[] = (accounts.accounts || []).map((a: any) =>
-        summarizeAccount(a.id, a.name, a.platform, dateKey, !!runningMap[String(a.id)]),
-    );
-
-    const byScore = withRank(sortBy(summaries, s => s.score));
-    const byGold = withRank(sortBy(summaries, s => s.gold));
-    const bySteal = withRank(sortBy(summaries, s => s.stealCount));
-    const byHarvest = withRank(sortBy(summaries, s => s.harvestCount));
-    const byHelpFarming = withRank(sortBy(summaries, s => s.helpFarmingCount));
-    const byGuardDogDrop = withRank(sortBy(summaries, s => s.guardDogDropCount));
-
-    const totals = summaries.reduce(
-        (acc, s) => ({
-            accounts: acc.accounts + 1,
-            activeAccounts: acc.activeAccounts + (s.score > 0 ? 1 : 0),
-            harvest: acc.harvest + s.harvestCount,
-            steal: acc.steal + s.stealCount,
-            fertilize: acc.fertilize + s.fertilizeCount,
-            plant: acc.plant + s.plantCount,
-            helpFarming: acc.helpFarming + s.helpFarmingCount,
-            guardDogDrop: acc.guardDogDrop + s.guardDogDropCount,
-            taskClaim: acc.taskClaim + s.taskClaimCount,
-            sell: acc.sell + s.sellCount,
-            gold: acc.gold + s.gold,
-            exp: acc.exp + s.exp,
-        }),
-        {
-            accounts: 0, activeAccounts: 0,
-            harvest: 0, steal: 0, fertilize: 0, plant: 0,
-            helpFarming: 0, guardDogDrop: 0, taskClaim: 0, sell: 0,
-            gold: 0, exp: 0,
-        },
-    );
-
-    return {
-        date: dateKey,
-        generatedAt: nowMs(),
-        accounts: byScore,
-        byGold,
-        bySteal,
-        byHarvest,
-        byHelpFarming,
-        byGuardDogDrop,
-        totals,
-    };
-}
-
-/**
- * 生成排行榜（始终重新计算 + 落盘）
- * 之前的实现是「文件存在就复用」，导致数据长期不更新。
- * 现在每次都重算：保证数据真实、即时反映当前账号状态。
- */
-function generateLeaderboard(dateKey: string, runningMap: Record<string, boolean> = {}): LeaderboardData {
-    ensureGamifDir();
-    const data = buildLeaderboard(dateKey, runningMap);
-    try {
-        writeJsonFileAtomic(getLeaderboardFile(dateKey), data);
-    } catch (e: any) {
-        gamifLogger.warn('保存排行榜失败', { error: e.message });
-    }
-    return data;
-}
-
-/**
- * 读取排行榜（始终重新生成，不读缓存）
- * 若需要"在线状态"，可通过传入 runningMap 让分数包含 running 信息
- */
-function loadLeaderboard(dateKey: string, runningMap: Record<string, boolean> = {}): LeaderboardData | null {
-    try {
-        return generateLeaderboard(dateKey, runningMap);
-    } catch (e: any) {
-        gamifLogger.warn('生成排行榜失败', { error: e.message });
-        return null;
-    }
 }
 
 // ============== 每日日报 ==============
@@ -466,11 +343,6 @@ function markNotified(key: string): void {
 // ============== 导出 ==============
 
 module.exports = {
-    // 排行
-    generateLeaderboard,
-    loadLeaderboard,
-    summarizeAccount,
-
     // 日报(compute=不落盘, generate=落盘)
     computeReport,
     generateReport,
@@ -481,4 +353,5 @@ module.exports = {
     getYesterdayKey,
     hasNotified,
     markNotified,
+    summarizeAccount,
 };
