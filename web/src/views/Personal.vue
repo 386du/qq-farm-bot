@@ -2,9 +2,10 @@
 import { ref } from 'vue'
 import BagPanel from '@/components/BagPanel.vue'
 import FarmPanel from '@/components/FarmPanel.vue'
+import ProfileModulesPanel from '@/components/ProfileModulesPanel.vue'
 import TaskPanel from '@/components/TaskPanel.vue'
 
-const currentTab = ref<'farm' | 'bag' | 'task'>('farm')
+const currentTab = ref<'farm' | 'bag' | 'task' | 'modules'>('farm')
 </script>
 
 <template>
@@ -80,6 +81,29 @@ const currentTab = ref<'farm' | 'bag' | 'task'>('farm')
             style="background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%);"
           />
         </button>
+        <button
+          class="relative flex flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-300"
+          :class="currentTab === 'modules'
+            ? 'text-white shadow-md scale-105'
+            : 'hover:scale-105'"
+          :style="currentTab === 'modules'
+            ? {
+              backgroundColor: 'var(--theme-primary)',
+              boxShadow: `0 4px 12px color-mix(in srgb, var(--theme-primary), 40%, transparent)`,
+            }
+            : {
+              color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)',
+            }"
+          @click="currentTab = 'modules'"
+        >
+          <div class="i-carbon-chip text-lg" :class="[{ 'animate-sparkle': currentTab === 'modules' }]" />
+          <span>新版模块</span>
+          <div
+            v-if="currentTab === 'modules'"
+            class="pointer-events-none absolute inset-0"
+            style="background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%);"
+          />
+        </button>
       </div>
     </div>
 
@@ -93,7 +117,13 @@ const currentTab = ref<'farm' | 'bag' | 'task'>('farm')
         leave-from-class="transform opacity-100 translate-y-0"
         leave-to-class="transform opacity-0 -translate-y-4"
       >
-        <component :is="currentTab === 'farm' ? FarmPanel : (currentTab === 'bag' ? BagPanel : TaskPanel)" />
+        <component
+          :is="currentTab === 'farm'
+            ? FarmPanel
+            : (currentTab === 'bag'
+              ? BagPanel
+              : (currentTab === 'task' ? TaskPanel : ProfileModulesPanel))"
+        />
       </Transition>
     </div>
   </div>

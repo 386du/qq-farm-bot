@@ -916,6 +916,33 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = reply.toJSON();
                 break;
             }
+            // ===== 新版协议模块 =====
+            case 'getProfileModules': {
+                const { getProfileModules: _getProfileModules } = require('../services/profile-modules');
+                result = await _getProfileModules();
+                break;
+            }
+            case 'addDogFood': {
+                const profileMod: any = require('../services/profile-modules');
+                // 当前项目 proto 不含 AddFoodRequest，服务层不暴露该方法，直接抛错
+                throw new Error('addDogFood 暂未启用：当前 proto 缺少 AddFoodRequest 消息');
+            }
+            case 'getSolarTermsModule': {
+                const { getSolarTerms: _getSolarTermsModule } = require('../services/activity-modules');
+                result = await _getSolarTermsModule();
+                break;
+            }
+            case 'claimSolarTermsModule': {
+                const { claimSolarTerms: _claimSolarTerms } = require('../services/activity-modules');
+                const sid = Number(args[0]) || undefined;
+                result = await _claimSolarTerms(sid);
+                break;
+            }
+            case 'getActivityModules': {
+                const { getActivityModules: _getActivityModules } = require('../services/activity-modules');
+                result = await _getActivityModules();
+                break;
+            }
             default:
                 error = 'Unknown method';
         }

@@ -180,6 +180,13 @@ function createDataProvider(options: DataProviderOptions) {
         getShopProfiles: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getShopProfiles'),
         getShopInfo: (accountRef: string, shopId: number) => callWorkerApi(resolveAccountRefId(accountRef), 'getShopInfo', shopId),
         buyGoods: (accountRef: string, goodsId: number, num: number, price: number) => callWorkerApi(resolveAccountRefId(accountRef), 'buyGoods', goodsId, num, price),
+
+        // ===== 新版协议模块（个人页"新版模块" tab） =====
+        getProfileModules: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getProfileModules'),
+        addDogFood: (accountRef: string, foodId: number, count: number) => callWorkerApi(resolveAccountRefId(accountRef), 'addDogFood', foodId, count),
+        getSolarTermsModule: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getSolarTermsModule'),
+        claimSolarTermsModule: (accountRef: string, solarTermId?: number) => callWorkerApi(resolveAccountRefId(accountRef), 'claimSolarTermsModule', solarTermId),
+        getActivityModules: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getActivityModules'),
         doAnalytics: (accountRef: string, sortBy: string) => callWorkerApi(resolveAccountRefId(accountRef), 'getAnalytics', sortBy),
         buyFertilizer: (accountRef: string, type: string, count: number) => callWorkerApi(resolveAccountRefId(accountRef), 'buyFertilizer', type, count),
         checkAndBuyFertilizer: (accountRef: string, options: any) => callWorkerApi(resolveAccountRefId(accountRef), 'checkAndBuyFertilizer', options),
