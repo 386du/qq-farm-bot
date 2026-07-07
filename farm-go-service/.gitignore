@@ -1,5 +1,5 @@
-# 编译产物
-/farm-go-service
+# 编译产物(在 .zip 里分发,git 忽略)
+# /farm-go-service-*    # 不再忽略,二进制要提交,方便手机部署
 
 # IDE
 .idea/

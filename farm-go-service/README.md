@@ -27,42 +27,85 @@
 
 1. **Gewechat** 已部署并可访问(默认 `http://127.0.0.1:2531`)
 2. **下游 JSLogin 服务** 已部署(就是你「QQ扫码」Tab 一直在用的 wxlogin 服务,默认 `http://127.0.0.1:8059/api`)
-3. Go 1.22+ / Docker
+3. 一台 Linux 服务器(amd64 或 arm64,Ubuntu/CentOS 之类)
+4. **不需要装 Go** —— 二进制已经编好,直接跑
 
-## 快速开始
+## 快速开始(宝塔面板用户)
+
+### 1. 拉代码
+
+宝塔 → **终端**,粘:
 
 ```bash
-# 1. 复制配置
-cp .env.example .env
-# 编辑 .env,至少填好 JSLOGIN_API
-
-# 2. 启动
-docker compose up -d --build
-
-# 3. 检查
-curl http://127.0.0.1:8060/health
+cd /opt
+git clone https://github.com/386du/qq-farm-bot.git qq-farm-bot --depth 1
+ls qq-farm-bot/farm-go-service/
 ```
 
-返回示例:
-```json
-{
-  "status": "ok",
-  "appid": "wx5306c5978fdb76e4",
-  "gewe": "http://host.docker.internal:2531",
-  "jsLogin": "http://host.docker.internal:8059/api",
-  "regionId": "320000",
-  "device": "mac"
-}
+应该能看到 `farm-go-service-linux-amd64` 这个文件。
+
+### 2. 改配置
+
+宝塔 → **文件** → 进 `/opt/qq-farm-bot/farm-go-service/`:
+1. 找到 `.env.example` → 右键 **重命名** → 改成 `.env`
+2. 右键 `.env` → **编辑** → 至少确认 `JSLOGIN_API=http://127.0.0.1:8059/api` 是不是对 → **保存**
+
+> 如果你 `JSLOGIN_API` 不是这个,改成你现有的 wxlogin 服务地址。
+
+### 3. 拿 Gewechat Token
+
+宝塔 → **终端**:
+
+```bash
+curl -X POST http://127.0.0.1:2531/tools/getTokenId
 ```
 
-## 接入农场项目
+返回 JSON,把 `"data":"xxxx"` 里那串复制出来。
 
-在 qq-farm-bot 的「设置 → 账号管理 → 🧩 Go 服务配置」里:
+回宝塔 **文件** → 编辑 `/opt/qq-farm-bot/farm-go-service/.env` → 把 `GEWE_TOKEN=` 后面填上一步拿的 token → **保存**。
+
+### 4. 加执行权限 + 测试跑一下
+
+宝塔 → **终端**:
+
+```bash
+chmod +x /opt/qq-farm-bot/farm-go-service/farm-go-service-linux-amd64
+cd /opt/qq-farm-bot/farm-go-service
+./farm-go-service-linux-amd64
+```
+
+看到 `Farm Go Service 启动,监听 :8060` 就对了。
+
+新开浏览器(手机也行)访问 `http://你的服务器IP:8060/health`,看到 `{"status":"ok"...}` 就成了。
+
+测试完按 `Ctrl+C` 停掉。
+
+### 5. 后台守护 + 开机自启
+
+宝塔 → **软件商店** → 装 **进程守护管理器**(也叫 Supervisor 管理器)。
+
+装好之后:
+- 名称:`farm-go`
+- 启动命令:`/opt/qq-farm-bot/farm-go-service/farm-go-service-linux-amd64`
+- 工作目录:`/opt/qq-farm-bot/farm-go-service`
+- 启动用户:`root`
+- 开机自启:✅
+
+点 **确定** → 点 **启动**。
+
+### 6. 开防火墙
+
+宝塔 → **安全** → 顶部 **放行端口**,加 `8060`。
+
+### 7. 配农场项目
+
+打开 qq-farm-bot 后台:
+- **设置** → **账号管理** → **🧩 Go 服务配置**
 - **Go 服务地址**:`http://你的服务器IP:8060`
 - **APPID**:`wx5306c5978fdb76e4`
 - 启用 → 保存
 
-然后在「添加账号 → Go 扫码」Tab 扫码即可。
+然后 **添加账号 → Go 扫码** → 弹二维码 → 微信扫一下就成了。
 
 ## 配置项
 
@@ -97,6 +140,11 @@ curl -X POST http://127.0.0.1:2531/tools/getTokenId
 ### 3. 想用其他扫码服务(非 Gewechat)
 - 修改 `main.go` 里 `geweGetQR` / `geweCheckQR` 两个函数,换掉 HTTP 端点即可,对外接口不需要改
 
+### 4. 二进制架构不对(运行提示 Exec format error)
+- 你服务器是 ARM(国产 CPU)而不是 x86
+- 改用 `farm-go-service-linux-arm64` 这个二进制
+- 修改进程守护的启动命令把 `amd64` 改成 `arm64`
+
 ## 本地开发(无 Docker)
 
 ```bash
@@ -104,3 +152,4 @@ go run main.go
 ```
 
 监听 `0.0.0.0:8060`,从 `.env` 读取配置。
+
