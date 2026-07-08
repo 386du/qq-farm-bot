@@ -23,6 +23,20 @@ export const menuRoutes: MenuItem[] = [
     component: () => import('@/views/Personal.vue'),
   },
   {
+    path: 'mall',
+    name: 'mall',
+    label: '道具商城',
+    icon: 'i-carbon-shop',
+    component: () => import('@/views/Mall.vue'),
+  },
+  {
+    path: 'activity',
+    name: 'activity',
+    label: '荷风游记',
+    icon: 'i-carbon-flower',
+    component: () => import('@/views/Activity.vue'),
+  },
+  {
     path: 'friends',
     name: 'friends',
     label: '好友',
