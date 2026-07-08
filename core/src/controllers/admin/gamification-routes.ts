@@ -3,141 +3,17 @@ import type { AdminContext } from './context';
 export {};
 
 /**
- * 游戏化相关 API: 跨账号排行、每日日报、成就系统
+ * 节日主题接口
+ * GET /api/holiday/current
  */
 
-const gamif = require('../../services/gamification');
-const { handleApiError } = require('./middleware');
-
-function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
-    /**
-     * 拉取所有运行中账号的最新统计到磁盘（不等 1s 防抖）
-     * 用于日报强制刷新时确保数据最新
-     */
-    async function flushAllStats(): Promise<{ flushed: number; errors: number }> {
-        if (!ctx.provider || typeof ctx.provider.getAccounts !== 'function') {
-            return { flushed: 0, errors: 0 };
-        }
-        const data = ctx.provider.getAccounts();
-        const list: any[] = Array.isArray(data?.accounts) ? data.accounts : [];
-        const running = list.filter((a: any) => a.running && a.id);
-        let flushed = 0;
-        let errors = 0;
-        await Promise.all(running.map(async (acc: any) => {
-            try {
-                if (ctx.provider && typeof (ctx.provider as any).callWorkerApi === 'function') {
-                    await (ctx.provider as any).callWorkerApi(String(acc.id), 'flushStats');
-                    flushed++;
-                }
-            } catch {
-                errors++;
-            }
-        }));
-        return { flushed, errors };
-    }
-
-    /**
-     * 构造 runningMap: accountId -> boolean
-     */
-    function buildRunningMap(): Record<string, boolean> {
-        const map: Record<string, boolean> = {};
-        if (ctx.provider && typeof ctx.provider.getAccounts === 'function') {
-            try {
-                const data = ctx.provider.getAccounts();
-                const list: any[] = Array.isArray(data?.accounts) ? data.accounts : [];
-                for (const a of list) {
-                    if (a && a.id) map[String(a.id)] = !!a.running;
-                }
-            } catch {
-                // ignore
-            }
-        }
-        return map;
-    }
-
-    /**
-     * 每日日报(只读, 仅展示用)
-     * GET /api/report/daily?date=today|yesterday|<YYYY-MM-DD>&refresh=1
-     * 注意: 这是 GET(读路径), 不应落盘, 因此用 computeReport 而非 generateReport
-     */
-    app.get('/api/report/daily', async (req: Request, res: Response) => {
-        try {
-            const wantRefresh = String(req.query.refresh || '') === '1';
-            if (wantRefresh) {
-                await flushAllStats();
-            }
-            const dateParam = String(req.query.date || 'yesterday');
-            const dateKey = dateParam === 'yesterday'
-                ? gamif.getYesterdayKey()
-                : dateParam === 'today'
-                    ? gamif.getDateKey()
-                    : dateParam;
-            // 日报总是实时重算(不读缓存, 不写盘, 确保数据最新)
-            const runningMap = buildRunningMap();
-            const data = gamif.computeReport(dateKey, runningMap);
-            if (!data) {
-                return res.json({ ok: true, data: null });
-            }
-            // 附上账号元信息
-            const accList = (Array.isArray(ctx.provider?.getAccounts?.()?.accounts) ? ctx.provider.getAccounts().accounts : []).map((a: any) => ({ id: a.id, name: a.name, avatar: a.avatar, platform: a.platform, running: a.running }));
-            const enriched = (arr: any[]) => arr.map((entry: any) => {
-                const meta = accList.find((a: any) => String(a.id) === String(entry.accountId)) || {};
-                return {
-                    ...entry,
-                    avatar: meta.avatar || '',
-                    platform: meta.platform || entry.platform,
-                    running: !!meta.running,
-                };
-            });
-            res.json({
-                ok: true,
-                data: {
-                    ...data,
-                    accounts: enriched(data.accounts),
-                    mvpAccount: data.mvpAccount ? { ...data.mvpAccount, avatar: (accList.find((a: any) => String(a.id) === String(data.mvpAccount.accountId)) || {}).avatar || '' } : null,
-                    stealKingAccount: data.stealKingAccount ? { ...data.stealKingAccount, avatar: (accList.find((a: any) => String(a.id) === String(data.stealKingAccount.accountId)) || {}).avatar || '' } : null,
-                    harvestKingAccount: data.harvestKingAccount ? { ...data.harvestKingAccount, avatar: (accList.find((a: any) => String(a.id) === String(data.harvestKingAccount.accountId)) || {}).avatar || '' } : null,
-                    text: gamif.renderReportText(data),
-                },
-            });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
-
-    /**
-     * 手动重新生成日报(不推送, 仅落盘 + 返回)
-     * POST /api/admin/report/regenerate
-     */
-    app.post('/api/admin/report/regenerate', async (req: Request, res: Response) => {
-        try {
-            // 先 flush 所有 worker 内存中的最新统计
-            await flushAllStats();
-            const dateParam = String(req.query.date || req.body?.date || 'yesterday');
-            const dateKey = dateParam === 'yesterday'
-                ? gamif.getYesterdayKey()
-                : dateParam === 'today'
-                    ? gamif.getDateKey()
-                    : dateParam;
-            const runningMap = buildRunningMap();
-            const data = gamif.generateReport(dateKey, runningMap);
-            res.json({ ok: true, data });
-        } catch (e: any) {
-            handleApiError(res, e);
-        }
-    });
-
-    /**
-     * 节日主题接口
-     * GET /api/holiday/current
-     * 返回当前是否处于某个节日,以及推荐主题
-     */
+function mountGamificationRoutes(app: Application, _ctx: AdminContext): void {
     app.get('/api/holiday/current', (_req: Request, res: Response) => {
         try {
             const holiday = getCurrentHoliday();
             res.json({ ok: true, data: holiday });
         } catch (e: any) {
-            handleApiError(res, e);
+            res.status(500).json({ ok: false, error: e?.message || 'Internal Error' });
         }
     });
 }

@@ -763,12 +763,6 @@ async function handleApiCall(msg: any): Promise<void> {
                 result = getAutomation();
                 break;
             }
-            case 'flushStats': {
-                const { flushSave } = require('../services/stats');
-                flushSave();
-                result = { ok: true };
-                break;
-            }
             case 'doFarmOp':
                 result = await runFarmOperation(args[0]); // opType
                 break;

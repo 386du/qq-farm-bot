@@ -212,40 +212,6 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
         targets.forEach((acc: any) => startWorker(acc));
     }
 
-    /**
-     * 游戏化定时任务: 每天 0:05 后生成昨日日报(只落盘, 不推送)
-     * 简单的 setInterval 方案,避免引入额外依赖
-     */
-    function startGamificationScheduler(): void {
-        const gamif = require('../services/gamification');
-        let lastReportDate = '';
-
-        function tick() {
-            try {
-                const now = new Date();
-                const hh = now.getHours();
-                const mm = now.getMinutes();
-                const yesterdayKey = gamif.getYesterdayKey();
-
-                // 0:05 之后生成昨日日报(每天一次, 落盘供 Dashboard 顶栏展示)
-                if ((hh > 0 || mm >= 5) && lastReportDate !== yesterdayKey) {
-                    try {
-                        gamif.generateReport(yesterdayKey);
-                        lastReportDate = yesterdayKey;
-                    } catch (e: any) {
-                        log('错误', `生成昨日日报失败: ${e && e.message ? e.message : String(e)}`, { module: 'gamification' });
-                    }
-                }
-            } catch (e: any) {
-                log('错误', `游戏化定时任务异常: ${e && e.message ? e.message : String(e)}`, { module: 'gamification' });
-            }
-        }
-
-        // 启动时立即跑一次,然后每分钟检查
-        tick();
-        setInterval(tick, 60 * 1000);
-    }
-
     async function start(options: { startAdminServer?: boolean; autoStartAccounts?: boolean } = {}): Promise<void> {
         const shouldStartAdminServer = options.startAdminServer !== false;
         const shouldAutoStartAccounts = options.autoStartAccounts !== false;
@@ -271,9 +237,6 @@ function createRuntimeEngine(options: RuntimeEngineOptions = {}) {
         if (goReloginService) {
             goReloginService.start();
         }
-
-        // 游戏化定时任务(日报推送 + 成就 rollup)
-        startGamificationScheduler();
     }
 
     function stopAllAccounts(): void {
