@@ -13,7 +13,16 @@ const { checkFarm, startFarmCheckLoop, stopFarmCheckLoop, refreshFarmCheckLoop, 
 const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation, checkAndAcceptApplicationsOnce, getFriendApplicationsList, acceptFriendApplications, rejectFriendApplications, setFriendBlockApplications, blockFriendRpc } = require('../services/friend');
 const { getInteractRecords } = require('../services/interact');
 const { processInviteCodes } = require('../services/invite');
-const { autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState } = require('../services/mall');
+const { autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState, getMallCatalog: getMallCatalogImpl, purchaseCatalogGoods } = require('../services/mall');
+const {
+    getActivityOverview: getActivityOverviewImpl,
+    drawActivityLottery: drawActivityLotteryImpl,
+    drawActivitySimple: drawActivitySimpleImpl,
+    exchangeActivityGoods: exchangeActivityGoodsImpl,
+    claimActivityDailySignin: claimActivityDailySigninImpl,
+    claimBattlePassRewards: claimBattlePassRewardsImpl,
+    claimActivityTasks: claimActivityTasksImpl,
+} = require('../services/activity');
 const { performDailyMonthCardGift, getMonthCardDailyState } = require('../services/monthcard');
 const { performDailyVipGift, getVipDailyState } = require('../services/qqvip');
 const { createScheduler, getSchedulerRegistrySnapshot } = require('../services/scheduler');
@@ -837,6 +846,72 @@ async function handleApiCall(msg: any): Promise<void> {
                 const { body: replyBody } = await sendMsgAsync('gamepb.shoppb.ShopService', 'BuyGoods', body);
                 const reply = types.BuyGoodsReply.decode(replyBody);
                 result = reply.toJSON();
+                break;
+            }
+            case 'getMallCatalog': {
+                const options = (args && args[0]) || {};
+                const slotType = Math.max(1, Math.min(20, Number(options.slotType) || 1));
+                result = await getMallCatalogImpl(slotType);
+                break;
+            }
+            case 'purchaseMallGoods': {
+                const options = (args && args[0]) || {};
+                const goodsId = Math.max(0, Number(options.goodsId) || 0);
+                const count = Math.max(1, Math.min(99, Number(options.count) || 1));
+                const slotType = Math.max(1, Math.min(20, Number(options.slotType) || 1));
+                const source = options.source === 'shop' ? 'shop' : 'mall';
+                const shopId = Math.max(0, Number(options.shopId) || 0);
+                if (!goodsId) throw new Error('缺少 goodsId');
+                result = await purchaseCatalogGoods(goodsId, count, slotType, source, shopId);
+                break;
+            }
+            case 'getActivityOverview': {
+                const options = (args && args[0]) || {};
+                result = await getActivityOverviewImpl({ activityName: options.activityName || '' });
+                break;
+            }
+            case 'drawActivityLottery': {
+                const options = (args && args[0]) || {};
+                result = await drawActivityLotteryImpl({
+                    activityName: options.activityName || '',
+                    mode: options.mode || 'free',
+                    count: options.count,
+                    allowPaid: !!options.allowPaid,
+                });
+                break;
+            }
+            case 'drawActivitySimple': {
+                const options = (args && args[0]) || {};
+                result = await drawActivitySimpleImpl({
+                    activityName: options.activityName || '',
+                    count: options.count,
+                });
+                break;
+            }
+            case 'exchangeActivityGoods': {
+                const options = (args && args[0]) || {};
+                result = await exchangeActivityGoodsImpl({
+                    activityName: options.activityName || '',
+                    goodsId: options.goodsId,
+                    count: options.count,
+                });
+                break;
+            }
+            case 'claimActivityDailySignin': {
+                const options = (args && args[0]) || {};
+                result = await claimActivityDailySigninImpl({
+                    activityName: options.activityName || '',
+                    rewardId: options.rewardId,
+                });
+                break;
+            }
+            case 'claimBattlePass': {
+                result = await claimBattlePassRewardsImpl();
+                break;
+            }
+            case 'claimActivityTasks': {
+                const options = (args && args[0]) || {};
+                result = await claimActivityTasksImpl({ activityName: options.activityName || '' });
                 break;
             }
             default:

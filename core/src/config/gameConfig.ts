@@ -354,6 +354,15 @@ function getItemById(itemId: number): ItemInfo | undefined {
     return itemInfoMap.get(Number(itemId) || 0);
 }
 
+function getItemByName(name: string): ItemInfo | undefined {
+    const target = String(name || '').trim();
+    if (!target) return undefined;
+    for (const item of itemInfoMap.values()) {
+        if (item && String(item.name || '').trim() === target) return item;
+    }
+    return undefined;
+}
+
 /**
  * 解析 sells 字段，格式为 "货币ID:价格" 或 "货币ID1:价格1;货币ID2:价格2"
  * 返回 [{ currencyId, price }, ...]
@@ -624,6 +633,7 @@ module.exports = {
     getFruitName,
     getPlantByFruitId,
     getItemById,
+    getItemByName,
     getItemImageById,
     getSeedPrice,
     getFruitPrice,

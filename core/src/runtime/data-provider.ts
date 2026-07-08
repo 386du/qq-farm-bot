@@ -61,6 +61,67 @@ function createDataProvider(options: DataProviderOptions) {
     return {
         resolveAccountId: (accountRef: string) => resolveAccountRefId(accountRef),
 
+        callAccountMethod: (accountId: string, method: string, params?: any) => {
+            const id = String(accountId || '').trim();
+            if (!id) throw new Error('Missing accountId');
+            if (params === undefined) return callWorkerApi(id, method);
+            if (Array.isArray(params)) return callWorkerApi(id, method, ...params);
+            return callWorkerApi(id, method, params);
+        },
+
+        getMallCatalog: (accountRef: string, options: any = {}) => {
+            const slotType = Math.max(1, Math.min(20, Number(options.slotType) || 1));
+            return callWorkerApi(resolveAccountRefId(accountRef), 'getMallCatalog', { slotType });
+        },
+        purchaseMallGoods: (accountRef: string, options: any = {}) => {
+            const params = {
+                goodsId: Math.max(0, Number(options.goodsId) || 0),
+                count: Math.max(1, Math.min(99, Number(options.count) || 1)),
+                slotType: Math.max(1, Math.min(20, Number(options.slotType) || 1)),
+                source: options.source === 'shop' ? 'shop' : 'mall',
+                shopId: Math.max(0, Number(options.shopId) || 0),
+            };
+            return callWorkerApi(resolveAccountRefId(accountRef), 'purchaseMallGoods', params);
+        },
+        getActivityOverview: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'getActivityOverview', {
+                activityName: String(options.activityName || '').trim(),
+            });
+        },
+        drawActivityLottery: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'drawActivityLottery', {
+                activityName: String(options.activityName || '').trim(),
+                mode: String(options.mode || 'free'),
+                count: Math.max(1, Math.min(10, Number(options.count) || 1)),
+                allowPaid: !!options.allowPaid,
+            });
+        },
+        drawActivitySimple: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'drawActivitySimple', {
+                activityName: String(options.activityName || '').trim(),
+                count: Math.max(1, Math.min(10, Number(options.count) || 1)),
+            });
+        },
+        exchangeActivityGoods: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'exchangeActivityGoods', {
+                activityName: String(options.activityName || '').trim(),
+                goodsId: Math.max(0, Number(options.goodsId) || 0),
+                count: Math.max(1, Math.min(99, Number(options.count) || 1)),
+            });
+        },
+        claimActivityDailySignin: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'claimActivityDailySignin', {
+                activityName: String(options.activityName || '').trim(),
+                rewardId: Math.max(0, Number(options.rewardId) || 0),
+            });
+        },
+        claimBattlePass: (accountRef: string) => callWorkerApi(resolveAccountRefId(accountRef), 'claimBattlePass', {}),
+        claimActivityTasks: (accountRef: string, options: any = {}) => {
+            return callWorkerApi(resolveAccountRefId(accountRef), 'claimActivityTasks', {
+                activityName: String(options.activityName || '').trim(),
+            });
+        },
+
         getStatus: (accountRef: string) => {
             const accountId = resolveAccountRefId(accountRef);
             if (!accountId) return buildDefaultStatus('');

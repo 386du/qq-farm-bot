@@ -23,6 +23,8 @@ const { mountAdminRoutes } = require('./admin-routes');
 const { mountInviteRoutes } = require('./invite-routes');
 const { mountGamificationRoutes } = require('./gamification-routes');
 const { mountChangelogRoutes } = require('./changelog-routes');
+const { mountMallRoutes } = require('./mall-routes');
+const { mountActivityRoutes } = require('./activity-routes');
 const {
     setupSocketIO,
     emitRealtimeStatus: _emitStatus,
@@ -82,6 +84,8 @@ function startAdminServer(dataProvider: any): void {
     mountInviteRoutes(app, ctx);
     mountGamificationRoutes(app, ctx);
     mountChangelogRoutes(app, ctx);
+    mountMallRoutes(app, ctx);
+    mountActivityRoutes(app, ctx);
 
     // SPA fallback
     app.get('*', (req: any, res: any) => {

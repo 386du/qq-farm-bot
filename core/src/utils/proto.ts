@@ -48,6 +48,7 @@ async function loadProto(): Promise<void> {
         getResourcePath('proto', 'mutantpb.proto'),
         getResourcePath('proto', 'seasonpb.proto'),
         getResourcePath('proto', 'solartermspb.proto'),
+        getResourcePath('proto', 'activitypb.proto'),
     ], { keepCase: true });
 
     // 网关
@@ -291,6 +292,30 @@ async function loadProto(): Promise<void> {
     types.GetSolarTermsReply = root.lookupType('gamepb.solartermspb.GetSolarTermsReply');
     types.GetSolarTermsRedDotRequest = root.lookupType('gamepb.solartermspb.GetSolarTermsRedDotRequest');
     types.GetSolarTermsRedDotReply = root.lookupType('gamepb.solartermspb.GetSolarTermsRedDotReply');
+
+    // 活动
+    types.ActivityListRequest = root.lookupType('gamepb.activitypb.ListRequest');
+    types.ActivityListReply = root.lookupType('gamepb.activitypb.ListReply');
+    types.ActivityGetGroupRequest = root.lookupType('gamepb.activitypb.GetGroupRequest');
+    types.ActivityGetGroupReply = root.lookupType('gamepb.activitypb.GetGroupReply');
+    types.ActivitySetSplashedRequest = root.lookupType('gamepb.activitypb.SetSplashedRequest');
+    types.ActivitySetSplashedReply = root.lookupType('gamepb.activitypb.SetSplashedReply');
+    types.ActivityOperateRequest = root.lookupType('gamepb.activitypb.OperateRequest');
+    types.ActivityOperateReply = root.lookupType('gamepb.activitypb.OperateReply');
+    types.ActivityGroup = root.lookupType('gamepb.activitypb.ActivityGroup');
+    types.ActivityHead = root.lookupType('gamepb.activitypb.ActivityHead');
+    types.ActivityData = root.lookupType('gamepb.activitypb.ActivityData');
+    types.ActivitySummary = root.lookupType('gamepb.activitypb.ActivitySummary');
+    types.ActivityBodyShop = root.lookupType('gamepb.activitypb.ActivityBodyShop');
+    types.ActivityBodyLottery = root.lookupType('gamepb.activitypb.ActivityBodyLottery');
+    types.ActivityBodyDraw = root.lookupType('gamepb.activitypb.ActivityBodyDraw');
+    types.ActivityBodyDailySignin = root.lookupType('gamepb.activitypb.ActivityBodyDailySignin');
+    types.ShopGoodsInfo = root.lookupType('gamepb.activitypb.ShopGoodsInfo');
+    types.ShopItemInfo = root.lookupType('gamepb.activitypb.ShopItemInfo');
+    types.LotteryPreviewGoods = root.lookupType('gamepb.activitypb.LotteryPreviewGoods');
+    types.DailySigninRewardInfo = root.lookupType('gamepb.activitypb.DailySigninRewardInfo');
+    types.ActiviesChangeNotify = root.lookupType('gamepb.activitypb.ActiviesChangeNotify');
+    types.CloseGroup = root.lookupType('gamepb.activitypb.CloseGroup');
 
     // 皮肤（补充）
     types.EquipSkinRequest = root.lookupType('gamepb.skinpb.EquipRequest');
