@@ -157,7 +157,7 @@ watch(() => statusStore.status?.connection?.connected, async (v) => {
     <div class="farm-card-enhanced mb-3 overflow-hidden p-3">
       <div class="flex items-center gap-3">
         <div class="h-9 w-9 flex items-center justify-center rounded-xl" style="background: var(--theme-primary);">
-          <div class="i-carbon-shop text-xl text-white" />
+          <div class="i-carbon-shopping-bag text-xl text-white" />
         </div>
         <div class="flex-1">
           <div class="text-base font-bold" :style="{ color: 'var(--theme-text)' }">
@@ -174,7 +174,7 @@ watch(() => statusStore.status?.connection?.connected, async (v) => {
           @click="reload"
         >
           <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-          <div v-else class="i-carbon-refresh mr-1 inline-block align-text-bottom" />
+          <div v-else class="i-carbon-renew mr-1 inline-block align-text-bottom" />
           刷新
         </button>
       </div>

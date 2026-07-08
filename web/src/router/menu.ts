@@ -26,14 +26,14 @@ export const menuRoutes: MenuItem[] = [
     path: 'mall',
     name: 'mall',
     label: '道具商城',
-    icon: 'i-carbon-shop',
+    icon: 'i-carbon-shopping-bag',
     component: () => import('@/views/Mall.vue'),
   },
   {
     path: 'activity',
     name: 'activity',
     label: '荷风游记',
-    icon: 'i-carbon-flower',
+    icon: 'i-fas-spa',
     component: () => import('@/views/Activity.vue'),
   },
   {

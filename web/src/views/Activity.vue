@@ -160,7 +160,7 @@ const tabs = computed(() => {
     list.push({ key: 'lottery', label: '奇遇礼莲', icon: 'i-carbon-currency', badge: liveLottery.value.totalRemaining })
   }
   if (liveShop.value.length > 0) {
-    list.push({ key: 'shop', label: '商店兑换', icon: 'i-carbon-shop', badge: liveShop.value.length })
+    list.push({ key: 'shop', label: '商店兑换', icon: 'i-carbon-purchase', badge: liveShop.value.length })
   }
   if (liveSignin.value || liveBattlePass.value) {
     list.push({
@@ -203,7 +203,7 @@ watch(() => statusStore.status?.connection?.connected, async (v) => {
     <div class="farm-card-enhanced mb-3 overflow-hidden p-3">
       <div class="flex items-center gap-3">
         <div class="h-9 w-9 flex items-center justify-center rounded-xl" style="background: var(--theme-primary);">
-          <div class="i-carbon-flower text-xl text-white" />
+          <div class="i-fas-spa text-xl text-white" />
         </div>
         <div class="flex-1">
           <div class="text-base font-bold" :style="{ color: 'var(--theme-text)' }">
@@ -249,7 +249,7 @@ watch(() => statusStore.status?.connection?.connected, async (v) => {
             @click="reload"
           >
             <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-            <div v-else class="i-carbon-refresh mr-1 inline-block align-text-bottom" />
+            <div v-else class="i-carbon-renew mr-1 inline-block align-text-bottom" />
             刷新
           </button>
         </div>
@@ -651,7 +651,7 @@ watch(() => statusStore.status?.connection?.connected, async (v) => {
         <div v-if="liveBattlePass" class="farm-card-enhanced overflow-hidden rounded-2xl p-3">
           <div class="mb-2 flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <div class="i-carbon-medal text-lg" :style="{ color: 'var(--theme-primary)' }" />
+              <div class="i-carbon-trophy text-lg" :style="{ color: 'var(--theme-primary)' }" />
               <span class="text-sm font-bold" :style="{ color: 'var(--theme-text)' }">
                 战令 · {{ liveBattlePass.name || '赛季战令' }}
               </span>
