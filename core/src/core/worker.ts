@@ -16,10 +16,10 @@ const { processInviteCodes } = require('../services/invite');
 const { autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState, getMallCatalog: getMallCatalogImpl, purchaseCatalogGoods } = require('../services/mall');
 const {
     getActivityOverview: getActivityOverviewImpl,
-    drawActivityLottery: drawActivityLotteryImpl,
-    drawActivitySimple: drawActivitySimpleImpl,
-    exchangeActivityGoods: exchangeActivityGoodsImpl,
-    claimActivityDailySignin: claimActivityDailySigninImpl,
+    drawLottery: drawActivityLotteryImpl,
+    drawActivity: drawActivitySimpleImpl,
+    exchangeShopGoods: exchangeActivityGoodsImpl,
+    claimDailySignin: claimActivityDailySigninImpl,
     claimBattlePassRewards: claimBattlePassRewardsImpl,
     claimActivityTasks: claimActivityTasksImpl,
 } = require('../services/activity');
