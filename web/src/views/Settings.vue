@@ -428,21 +428,35 @@ const bagSeedsLoading = ref(false)
 const bagSeedsError = ref<string | null>(null)
 const draggingBagSeedId = ref<number | null>(null)
 
-const sortedBagSeeds = computed(() => {
+// 列表的展示顺序 = 背包种子的优先顺序。
+// `bagSeedPriority` 完整地按这个顺序保存所有当前背包中的种子，
+// 未在列表里的种子会被追加到末尾（按等级倒序、seedId 升序）。
+// 任何重排（▲/▼ 按钮、拖拽）都会同步更新 `bagSeedPriority`。
+const sortedBagSeeds = computed<BagSeedItem[]>(() => {
   const priority = localStrategySettings.value.bagSeedPriority || []
-  const indexMap = new Map<number, number>()
-  priority.forEach((seedId, index) => indexMap.set(seedId, index))
+  const inPriority = new Set(priority)
 
-  return [...bagSeeds.value].sort((a, b) => {
-    const aIndex = indexMap.has(a.seedId) ? indexMap.get(a.seedId)! : Number.MAX_SAFE_INTEGER
-    const bIndex = indexMap.has(b.seedId) ? indexMap.get(b.seedId)! : Number.MAX_SAFE_INTEGER
-    if (aIndex !== bIndex)
-      return aIndex - bIndex
-    if (a.requiredLevel !== b.requiredLevel)
-      return b.requiredLevel - a.requiredLevel
-    return a.seedId - b.seedId
-  })
+  const prioritized: BagSeedItem[] = []
+  for (const seedId of priority) {
+    const seed = bagSeeds.value.find(s => s.seedId === seedId)
+    if (seed)
+      prioritized.push(seed)
+  }
+
+  const rest = bagSeeds.value
+    .filter(s => !inPriority.has(s.seedId))
+    .sort((a, b) => {
+      if (a.requiredLevel !== b.requiredLevel)
+        return b.requiredLevel - a.requiredLevel
+      return a.seedId - b.seedId
+    })
+
+  return [...prioritized, ...rest]
 })
+
+function persistBagSeedOrder(ordered: BagSeedItem[]) {
+  localStrategySettings.value.bagSeedPriority = ordered.map(s => s.seedId)
+}
 
 async function fetchBagSeeds() {
   if (!currentAccountId.value)
@@ -465,21 +479,24 @@ async function fetchBagSeeds() {
   }
 }
 
-function resetBagSeedPriority() {
-  localStrategySettings.value.bagSeedPriority = []
+function moveBagSeedByIndex(displayIndex: number, direction: -1 | 1) {
+  const current = [...sortedBagSeeds.value]
+  const targetIndex = displayIndex + direction
+  if (targetIndex < 0 || targetIndex >= current.length)
+    return
+  const tmp = current[displayIndex]!
+  current[displayIndex] = current[targetIndex]!
+  current[targetIndex] = tmp
+  persistBagSeedOrder(current)
 }
 
-function moveBagSeed(seedId: number, direction: -1 | 1) {
-  const nextOrder = [...(localStrategySettings.value.bagSeedPriority || [])]
-  const index = nextOrder.indexOf(seedId)
-  const targetIndex = index + direction
-  if (index < 0 || targetIndex < 0 || targetIndex >= nextOrder.length)
-    return
-
-  const temp = nextOrder[index]!
-  nextOrder[index] = nextOrder[targetIndex]!
-  nextOrder[targetIndex] = temp
-  localStrategySettings.value.bagSeedPriority = nextOrder
+function resetBagSeedPriority() {
+  const natural = [...bagSeeds.value].sort((a, b) => {
+    if (a.requiredLevel !== b.requiredLevel)
+      return b.requiredLevel - a.requiredLevel
+    return a.seedId - b.seedId
+  })
+  persistBagSeedOrder(natural)
 }
 
 function startBagSeedDrag(seedId: number, event: DragEvent) {
@@ -498,36 +515,23 @@ function dragOverBagSeed(_seedId: number, event: DragEvent) {
     event.dataTransfer.dropEffect = 'move'
 }
 
-function dropBagSeed(seedId: number, event: DragEvent) {
+function dropBagSeed(targetSeedId: number, event: DragEvent) {
   event.preventDefault()
   const sourceSeedId = draggingBagSeedId.value ?? Number(event.dataTransfer?.getData('text/plain') || '')
-  if (!sourceSeedId || sourceSeedId === seedId) {
-    draggingBagSeedId.value = null
-    return
-  }
-
-  const nextOrder = [...(localStrategySettings.value.bagSeedPriority || [])]
-  const sourceIndex = nextOrder.indexOf(sourceSeedId)
-  const targetIndex = nextOrder.indexOf(seedId)
-
-  if (sourceIndex < 0 && targetIndex < 0) {
-    nextOrder.push(sourceSeedId)
-  }
-  else if (sourceIndex < 0) {
-    nextOrder.splice(targetIndex, 0, sourceSeedId)
-  }
-  else if (targetIndex < 0) {
-    // 目标不在列表中，不做处理
-  }
-  else {
-    const temp = nextOrder[sourceIndex]
-    nextOrder.splice(sourceIndex, 1)
-    const newTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
-    nextOrder.splice(newTargetIndex, 0, temp!)
-  }
-
-  localStrategySettings.value.bagSeedPriority = nextOrder
   draggingBagSeedId.value = null
+  if (!sourceSeedId || sourceSeedId === targetSeedId)
+    return
+
+  const current = [...sortedBagSeeds.value]
+  const sourceIndex = current.findIndex(s => s.seedId === sourceSeedId)
+  const targetIndex = current.findIndex(s => s.seedId === targetSeedId)
+  if (sourceIndex < 0 || targetIndex < 0)
+    return
+
+  const [moved] = current.splice(sourceIndex, 1)
+  const newTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  current.splice(newTargetIndex, 0, moved!)
+  persistBagSeedOrder(current)
 }
 
 watchEffect(() => {
@@ -1417,14 +1421,14 @@ async function handleTestOffline() {
                       <button
                         class="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
                         :disabled="index === 0"
-                        @click="moveBagSeed(seed.seedId, -1)"
+                        @click="moveBagSeedByIndex(index, -1)"
                       >
                         <span class="text-sm">▲</span>
                       </button>
                       <button
                         class="rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
                         :disabled="index === sortedBagSeeds.length - 1"
-                        @click="moveBagSeed(seed.seedId, 1)"
+                        @click="moveBagSeedByIndex(index, 1)"
                       >
                         <span class="text-sm">▼</span>
                       </button>
