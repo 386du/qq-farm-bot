@@ -6,7 +6,6 @@ export {};
 
 const { sendMsgAsync } = require('../utils/network');
 const { types } = require('../utils/proto');
-const { log } = require('../utils/utils');
 
 let antiDataTimer: ReturnType<typeof setInterval> | null = null;
 const ANTI_DATA_INTERVAL = 5000; // 5秒

@@ -22,7 +22,8 @@ const accountNames = ref<Record<string, string>>({})
 function resetNames() {
   const next: Record<string, string> = {}
   for (const a of yybStore.config.accounts) {
-    if (!a || !a.openid) continue
+    if (!a || !a.openid)
+      continue
     next[a.openid] = accountNames.value[a.openid] || a.name || ''
   }
   accountNames.value = next
@@ -42,7 +43,8 @@ const panelStyle = computed(() => ({
 
 function displayName(openid: string): string {
   const cfgName = yybStore.config.accounts.find((a: any) => a.openid === openid)?.name
-  if (cfgName) return cfgName
+  if (cfgName)
+    return cfgName
   return `应用宝_${openid.slice(-6)}`
 }
 
@@ -133,7 +135,7 @@ function close() {
                   <div class="text-sm font-medium" style="color: var(--theme-text)">
                     {{ displayName(acc.openid) }}
                   </div>
-                  <div class="text-xs opacity-60 truncate font-mono" style="color: var(--theme-text)">
+                  <div class="truncate text-xs font-mono opacity-60" style="color: var(--theme-text)">
                     {{ acc.openid }}
                   </div>
                 </div>

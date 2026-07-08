@@ -60,8 +60,10 @@ export const useChangelogStore = defineStore('changelog', () => {
 
       // 首次访问,弹一次
       if (!lastSeenUpdatedAt.value && !lastSeenVersion.value) {
-        if (updatedAt) lastSeenUpdatedAt.value = updatedAt
-        if (version) lastSeenVersion.value = version
+        if (updatedAt)
+          lastSeenUpdatedAt.value = updatedAt
+        if (version)
+          lastSeenVersion.value = version
         showModal.value = true
         return
       }

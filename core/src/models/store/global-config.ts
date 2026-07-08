@@ -1,7 +1,6 @@
 import type { AccountConfig, Announcement, DeletedFriendRecord, FriendSnapshotItem, GoConfig, OfflineReminder, SystemConfig, UIConfig, YybConfig } from '../../types/config';
 export {};
 
-const fs = require('node:fs');
 const { readTextFile, writeJsonFileAtomic } = require('../../services/json-db');
 const { DEFAULT_CLIENT_VERSION } = require('../../config/config');
 

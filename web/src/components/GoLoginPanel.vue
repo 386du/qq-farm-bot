@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/custom-event-name-casing -- 与父组件约定使用 kebab-case 事件名,跨文件稳定 */
 import { useIntervalFn } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -25,7 +26,8 @@ const refreshInterval = ref<number>(3)
 const started = ref(false)
 
 const { pause: stopCheck, resume: startCheck } = useIntervalFn(async () => {
-  if (goStore.status !== 'qr_ready' && goStore.status !== 'confirming') return
+  if (goStore.status !== 'qr_ready' && goStore.status !== 'confirming')
+    return
   const result = await goStore.checkLogin()
   if (result.success && result.wxid) {
     stopCheck()
@@ -60,14 +62,18 @@ async function handleAutoAddAccount(wxid: string, nickname?: string) {
 async function loadQRCode() {
   goStore.resetState()
   const ok = await goStore.getQRCode()
-  if (ok) startCheck()
+  if (ok)
+    startCheck()
   else stopCheck()
 }
 
 const qrImageSrc = computed(() => {
-  if (!goStore.qrCode) return ''
-  if (goStore.qrCode.startsWith('data:')) return goStore.qrCode
-  if (goStore.qrCode.startsWith('http')) return goStore.qrCode
+  if (!goStore.qrCode)
+    return ''
+  if (goStore.qrCode.startsWith('data:'))
+    return goStore.qrCode
+  if (goStore.qrCode.startsWith('http'))
+    return goStore.qrCode
   return `data:image/png;base64,${goStore.qrCode}`
 })
 
@@ -129,7 +135,9 @@ watch(() => props.embedded, async (val) => {
     </div>
 
     <div v-if="configNotReady" class="rounded-xl p-3 text-sm" style="background: rgba(239, 68, 68, 0.1); color: #ef4444">
-      <div class="mb-2">Go 服务未配置或未启用</div>
+      <div class="mb-2">
+        Go 服务未配置或未启用
+      </div>
       <BaseButton variant="outline" size="sm" @click="emit('open-config')">
         打开 Go 服务配置
       </BaseButton>

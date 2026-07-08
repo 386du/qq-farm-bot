@@ -6,19 +6,19 @@ const { parentPort, workerData } = require('node:worker_threads');
 
 const { CONFIG } = require('../config/config');
 const { getLevelExpProgress, loadConfigs } = require('../config/gameConfig');
-const { getAutomation, getPreferredSeed, getConfigSnapshot, applyConfigSnapshot, getFertilizerBuyType, getFertilizerBuyCount } = require('../models/store');
+const { getAutomation, getPreferredSeed, getConfigSnapshot, applyConfigSnapshot } = require('../models/store');
 const { checkAndClaimEmails } = require('../services/email');
 const { getEmailDailyState } = require('../services/email');
 const { checkFarm, startFarmCheckLoop, stopFarmCheckLoop, refreshFarmCheckLoop, getLandsDetail, getAvailableSeeds, runFarmOperation, runFertilizerByConfig } = require('../services/farm');
 const { checkFriends, startFriendCheckLoop, stopFriendCheckLoop, refreshFriendCheckLoop, runBadOnceOnStartup, isHelpExpLimitReached, getFriendsList, getFriendLandsDetail, doFriendOperation, checkAndAcceptApplicationsOnce, getFriendApplicationsList, acceptFriendApplications, rejectFriendApplications, setFriendBlockApplications, blockFriendRpc } = require('../services/friend');
 const { getInteractRecords } = require('../services/interact');
 const { processInviteCodes } = require('../services/invite');
-const { autoBuyOrganicFertilizer, autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState } = require('../services/mall');
+const { autoBuyFertilizer, checkAndBuyFertilizerBoth, buyFreeGifts, getFreeGiftDailyState } = require('../services/mall');
 const { performDailyMonthCardGift, getMonthCardDailyState } = require('../services/monthcard');
 const { performDailyVipGift, getVipDailyState } = require('../services/qqvip');
 const { createScheduler, getSchedulerRegistrySnapshot } = require('../services/scheduler');
 const { performDailyShare, getShareDailyState } = require('../services/share');
-const { setInitialValues, resetSessionGains, recordOperation, initStatsWithPersistence, saveStats } = require('../services/stats');
+const { resetSessionGains, recordOperation, initStatsWithPersistence, saveStats } = require('../services/stats');
 const { initStatusBar, setStatusPlatform, statusData } = require('../services/status');
 const { setRecordGoldExpHook } = require('../services/status');
 const { cleanupTaskSystem, checkAndClaimTasks, getTaskClaimDailyState, getTaskDailyStateLikeApp, getGrowthTaskStateLikeApp } = require('../services/task');
@@ -116,6 +116,13 @@ let appliedConfigRevision: number = 0;
 let unifiedSchedulerRunning: boolean = false;
 let farmTaskRunning: boolean = false;
 let nextFarmRunAt: number = 0;
+let helpTaskRunning: boolean = false;
+let nextHelpRunAt: number = 0;
+let stealTaskRunning: boolean = false;
+let nextStealRunAt: number = 0;
+let friendAppCheckTaskRunning: boolean = false;
+let nextFriendAppCheckAt: number = 0;
+const FRIEND_APP_CHECK_INTERVAL_MS: number = 30 * 60 * 1000;
 let lastStatusHash: string = '';
 let lastStatusSentAt: number = 0;
 let onSellGain: ((deltaGold: any) => void) | null = null;
@@ -248,8 +255,6 @@ async function runFarmTick(auto: any): Promise<void> {
 }
 
 // ============ 帮助巡查（独立调度） ============
-let helpTaskRunning: boolean = false;
-let nextHelpRunAt: number = 0;
 
 async function runHelpTick(auto: any): Promise<void> {
     if (helpTaskRunning) {
@@ -287,13 +292,8 @@ async function runHelpTick(auto: any): Promise<void> {
 }
 
 // ============ 偷菜巡查（独立调度） ============
-let stealTaskRunning: boolean = false;
-let nextStealRunAt: number = 0;
 
 // ============ 好友申请检查（独立调度） ============
-let friendAppCheckTaskRunning: boolean = false;
-let nextFriendAppCheckAt: number = 0;
-const FRIEND_APP_CHECK_INTERVAL_MS: number = 30 * 60 * 1000;
 
 async function runFriendAppCheckTick(): Promise<void> {
     if (friendAppCheckTaskRunning) return;

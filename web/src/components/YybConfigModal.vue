@@ -98,7 +98,8 @@ async function handleSave() {
     // 同 openid 去重
     const seen = new Set<string>()
     const deduped = cleaned.filter((a) => {
-      if (seen.has(a.openid)) return false
+      if (seen.has(a.openid))
+        return false
       seen.add(a.openid)
       return true
     })
@@ -205,7 +206,7 @@ function close() {
                 </BaseButton>
               </div>
 
-              <div v-if="form.accounts.length === 0" class="rounded-xl border border-dashed border-gray-300 bg-gray-50/50 p-4 text-center text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-800/30 dark:text-gray-400">
+              <div v-if="form.accounts.length === 0" class="border border-gray-300 rounded-xl border-dashed bg-gray-50/50 p-4 text-center text-xs text-gray-500 dark:border-gray-600 dark:bg-gray-800/30 dark:text-gray-400">
                 尚未添加 OpenID,点击右上"+ 添加"开始
               </div>
 
@@ -213,7 +214,7 @@ function close() {
                 <div
                   v-for="(acc, index) in form.accounts"
                   :key="index"
-                  class="rounded-xl border border-gray-200 bg-white p-3 space-y-2 dark:border-gray-600 dark:bg-gray-800"
+                  class="border border-gray-200 rounded-xl bg-white p-3 space-y-2 dark:border-gray-600 dark:bg-gray-800"
                 >
                   <div class="flex items-center justify-between">
                     <span class="text-xs opacity-70" style="color: var(--theme-text)">
@@ -253,7 +254,7 @@ function close() {
                       v-model="acc.apiToken"
                       :type="isTokenVisible(index) ? 'text' : 'password'"
                       placeholder="该 OpenID 对应的 API Token"
-                      class="farm-input w-full rounded-xl border-3 border-black/10 bg-white px-3 py-2 text-sm outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      class="w-full border-3 farm-input border-black/10 rounded-xl bg-white px-3 py-2 text-sm outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     >
                   </div>
 

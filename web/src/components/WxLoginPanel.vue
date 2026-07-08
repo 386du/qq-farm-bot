@@ -47,7 +47,7 @@ async function handleAutoAddAccount(wxid: string, nickname?: string) {
         emit('saved')
       }
       else {
-        console.log('登录成功！Code:', result.code)
+        console.warn('登录成功！Code:', result.code)
       }
     }
   }
@@ -59,14 +59,18 @@ async function handleAutoAddAccount(wxid: string, nickname?: string) {
 async function loadQRCode() {
   wxLoginStore.resetState()
   const ok = await wxLoginStore.getQRCode()
-  if (ok) startCheck()
+  if (ok)
+    startCheck()
   else stopCheck()
 }
 
 const qrImageSrc = computed(() => {
-  if (!wxLoginStore.qrCode) return ''
-  if (wxLoginStore.qrCode.startsWith('data:')) return wxLoginStore.qrCode
-  if (wxLoginStore.qrCode.startsWith('http')) return wxLoginStore.qrCode
+  if (!wxLoginStore.qrCode)
+    return ''
+  if (wxLoginStore.qrCode.startsWith('data:'))
+    return wxLoginStore.qrCode
+  if (wxLoginStore.qrCode.startsWith('http'))
+    return wxLoginStore.qrCode
   return `data:image/png;base64,${wxLoginStore.qrCode}`
 })
 

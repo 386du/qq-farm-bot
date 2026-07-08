@@ -24,7 +24,6 @@ let isFirstFarmCheck: boolean = true;
 let farmLoopRunning: boolean = false;
 let externalSchedulerMode: boolean = false;
 let fertilizerBuyCheckTimer: ReturnType<typeof setInterval> | null = null;
-const lastFertilizerBuyCheckAt: number = 0;
 const farmScheduler = createScheduler('farm');
 let lastPushTime: number = 0;
 

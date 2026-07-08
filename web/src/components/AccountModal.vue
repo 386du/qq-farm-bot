@@ -1,10 +1,11 @@
 <script setup lang="ts">
+/* eslint-disable vue/custom-event-name-casing -- 与父组件约定使用 kebab-case 事件名,跨文件稳定 */
 import { computed, reactive, ref, watch } from 'vue'
 import api from '@/api'
+import GoLoginPanel from '@/components/GoLoginPanel.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
-import GoLoginPanel from '@/components/GoLoginPanel.vue'
 import WxLoginPanel from '@/components/WxLoginPanel.vue'
 import { useGoLoginStore } from '@/stores/go-login'
 import { useYybLoginStore } from '@/stores/yyb-login'
@@ -215,7 +216,7 @@ const showGoScanRefresh = computed(() => String(props.editData?.loginType || '')
           </BaseButton>
         </div>
 
-        <div v-if="!editData" class="shrink-0 flex border-b" style="border-color: color-mix(in srgb, var(--theme-text) 10%, transparent)">
+        <div v-if="!editData" class="flex shrink-0 border-b" style="border-color: color-mix(in srgb, var(--theme-text) 10%, transparent)">
           <button
             v-for="t in [
               { key: 'manual', label: '手动填码' },
@@ -225,7 +226,7 @@ const showGoScanRefresh = computed(() => String(props.editData?.loginType || '')
             ]"
             :key="t.key"
             type="button"
-            class="flex-1 py-3 text-sm font-medium transition relative"
+            class="relative flex-1 py-3 text-sm font-medium transition"
             :style="{
               color: activeTab === t.key ? 'var(--theme-primary, var(--theme-text))' : 'var(--theme-text)',
               opacity: activeTab === t.key ? 1 : 0.6,
@@ -235,7 +236,7 @@ const showGoScanRefresh = computed(() => String(props.editData?.loginType || '')
             {{ t.label }}
             <span
               v-if="activeTab === t.key"
-              class="absolute left-1/2 -translate-x-1/2 bottom-0 h-0.5 w-12 rounded-full"
+              class="absolute bottom-0 left-1/2 h-0.5 w-12 rounded-full -translate-x-1/2"
               :style="{ background: 'var(--theme-primary, currentColor)' }"
             />
           </button>
@@ -367,8 +368,12 @@ const showGoScanRefresh = computed(() => String(props.editData?.loginType || '')
               class="rounded-xl p-4 text-sm"
               style="background: color-mix(in srgb, var(--theme-primary) 8%, transparent); color: var(--theme-text)"
             >
-              <p class="mb-2 font-medium">应用宝一键登录</p>
-              <p class="text-xs opacity-80">通过应用宝外部 API 根据 OpenID 自动获取 Code 并添加/更新账号。</p>
+              <p class="mb-2 font-medium">
+                应用宝一键登录
+              </p>
+              <p class="text-xs opacity-80">
+                通过应用宝外部 API 根据 OpenID 自动获取 Code 并添加/更新账号。
+              </p>
             </div>
             <div class="flex flex-col gap-2">
               <BaseButton

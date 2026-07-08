@@ -262,7 +262,7 @@ function createDataProvider(options: DataProviderOptions) {
                 if (store && typeof store.setAccountAutoStart === 'function') {
                     store.setAccountAutoStart(String(acc.id), true);
                 }
-            } catch (e: any) {
+            } catch {
                 // 标记失败不阻塞启动（极端情况：磁盘满 / store.json 写失败）
             }
             startWorker(acc);
@@ -278,7 +278,7 @@ function createDataProvider(options: DataProviderOptions) {
                 if (store && typeof store.setAccountAutoStart === 'function') {
                     store.setAccountAutoStart(String(acc.id), false);
                 }
-            } catch (e: any) {
+            } catch {
                 // 标记失败不阻塞停止
             }
             if (accountId) stopWorker(accountId);
@@ -314,8 +314,8 @@ function createDataProvider(options: DataProviderOptions) {
 
             try {
                 worker = await callWorkerApi(accountId, 'getSchedulers');
-            } catch (e: any) {
-                workerError = (e && e.message) ? e.message : String(e || 'unknown');
+            } catch (err: any) {
+                workerError = (err && err.message) ? err.message : String(err || 'unknown');
             }
             return { accountId, runtime, worker, workerError };
         },

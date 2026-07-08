@@ -5,7 +5,7 @@ export {};
 
 const { PlantPhase, PHASE_NAMES } = require('../../config/config');
 const { getPlantName, getPlantExp } = require('../../config/gameConfig');
-const { toNum, toTimeSec, getServerTimeSec, log, logWarn } = require('../../utils/utils');
+const { toNum, toTimeSec, getServerTimeSec, logWarn } = require('../../utils/utils');
 
 function getCurrentPhase(phases: any[], debug?: boolean, landLabel?: string): any | null {
     if (!phases || phases.length === 0) return null;

@@ -380,7 +380,7 @@ export async function checkFriends(options: CheckFriendsOptions = {}): Promise<b
 
                     try {
                         await visitFriend(friend, totalActions, state.gid, state.accountId);
-                    } catch (e: any) {
+                    } catch {
                         // 单个好友失败不影响整体
                     }
                     await randomDelay(2000, 3500);

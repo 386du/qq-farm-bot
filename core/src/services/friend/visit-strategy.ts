@@ -2,7 +2,7 @@
  * 拜访好友策略 - 访问逻辑、好友分析、错误处理、安静时段
  */
 
-const { CONFIG, PlantPhase, PHASE_NAMES } = require('../../config/config');
+const { PlantPhase, PHASE_NAMES } = require('../../config/config');
 const { getPlantName, getPlantById, getSeedImageBySeedId, getPlantGrowTime, getLandMutants, isRarePlant } = require('../../config/gameConfig');
 const {
     isAutomationOn,
@@ -18,7 +18,7 @@ const {
     isNoGuardDogCacheFresh,
 } = require('../../models/store');
 const { getUserState, getPendingCount } = require('../../utils/network');
-const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
+const { toNum, toTimeSec, getServerTimeSec, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
 const { types } = require('../../utils/proto');
 const { getCurrentPhase, buildLandMap, getDisplayLandContext, isOccupiedSlaveLand } = require('../farm');
 const { recordOperation } = require('../stats');
@@ -891,6 +891,7 @@ export async function scanAllFriendsForGuardDog(
         // 阈值 18:留至少 12 个位给主循环(互动记录/好友申请/农场操作等)
         try {
             let waitedMs = 0;
+            // eslint-disable-next-line no-unmodified-loop-condition -- getPendingCount() 每次重新求值
             while (typeof getPendingCount === 'function' && getPendingCount() >= 18 && waitedMs < 5000) {
                 await sleep(150 + Math.floor(Math.random() * 200));
                 waitedMs += 200;

@@ -82,12 +82,12 @@ function getLandStatusClass(land: any) {
  */
 const isLandMutant = computed(() => !!land.value?.isMutant)
 const mutantBorderColor = computed(() => {
-    const m = (land.value?.mutants || [])[0]
-    return m?.color || '#a855f7'
+  const m = (land.value?.mutants || [])[0]
+  return m?.color || '#a855f7'
 })
 const mutantBorderGlow = computed(() => {
-    const m = (land.value?.mutants || [])[0]
-    return m?.bgColor || '#f5d0fe'
+  const m = (land.value?.mutants || [])[0]
+  return m?.bgColor || '#f5d0fe'
 })
 const isLandNudged = computed(() => !!land.value?.isNudged)
 
@@ -167,7 +167,7 @@ function landTypeBadgeClass(level: number) {
       <div
         v-for="m in (land.mutants || [])"
         :key="m.configId"
-        class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
+        class="animate-mutant-pulse flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md"
         :style="{
           background: m.applicable
             ? `linear-gradient(90deg, ${m.color || '#a855f7'} 0%, ${m.bgColor || '#f5d0fe'} 100%)`
@@ -188,7 +188,7 @@ function landTypeBadgeClass(level: number) {
       <!-- 兜底: 服务端有 mutantConfigIds 但 mutants 解析失败时 -->
       <div
         v-if="!(land.mutants && land.mutants.length)"
-        class="flex items-center gap-0.5 rounded-full bg-gradient-to-r from-fuchsia-500 via-purple-500 to-pink-500 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md animate-mutant-pulse"
+        class="animate-mutant-pulse flex items-center gap-0.5 rounded-full from-fuchsia-500 via-purple-500 to-pink-500 bg-gradient-to-r px-1.5 py-0.5 text-[10px] text-white font-bold shadow-md"
         :title="`已变异 (配置ID: ${(land.mutantConfigIds || []).join(', ')})`"
       >
         <span class="text-[10px]">✨</span>
@@ -199,12 +199,12 @@ function landTypeBadgeClass(level: number) {
     <!-- 催熟标识 (is_nudged) - 橙色徽章 -->
     <div
       v-if="land.isNudged"
-      class="absolute right-2 z-10 flex items-center gap-0.5 rounded-full bg-gradient-to-r from-orange-400 to-red-400 px-1.5 py-0.5 text-[10px] text-white font-bold shadow-sm"
+      class="absolute right-2 z-10 flex items-center gap-0.5 rounded-full from-orange-400 to-red-400 bg-gradient-to-r px-1.5 py-0.5 text-[10px] text-white font-bold shadow-sm"
       :class="[
         // 变异徽章占用的空间估算
-        land.isMutant && land.mutants && land.mutants.length > 1 ? 'top-16' :
-        land.isMutant ? 'top-7' :
-        land.plantSize > 1 ? 'top-7' : 'top-2'
+        land.isMutant && land.mutants && land.mutants.length > 1 ? 'top-16'
+        : land.isMutant ? 'top-7'
+          : land.plantSize > 1 ? 'top-7' : 'top-2',
       ]"
       title="已被催熟"
     >

@@ -7,7 +7,6 @@ export {};
  * change-password, auth gate, utility routes, user/me, QR.
  */
 
-const fetch = require('node-fetch');
 const { version } = require('../../../package.json');
 const { getRuntimeConfig } = require('../../config/config');
 const { getSchedulerRegistrySnapshot } = require('../../services/scheduler');
@@ -24,10 +23,8 @@ const auth = require('../../models/user-store/auth');
 
 const {
     getClientIp,
-    issueToken,
     createAuthRequired,
     createCheckUserAccess,
-    adminRequired,
     requirePermission,
     getAccId,
     checkAccountAccess,

@@ -28,7 +28,7 @@ function normalizeWebhookUrl(rawUrl: string): string {
     let u: URL;
     try {
         u = new URL(url);
-    } catch (e: any) {
+    } catch {
         throw new Error(`endpoint 不是合法 URL: ${url}`);
     }
     if (u.protocol !== 'http:' && u.protocol !== 'https:') {

@@ -5,7 +5,7 @@
 const { CONFIG } = require('../../config/config');
 const { sendMsgAsync, getUserState } = require('../../utils/network');
 const { types } = require('../../utils/proto');
-const { toLong, toNum, log, logWarn, sleep, randomDelay } = require('../../utils/utils');
+const { toLong, toNum, log, logWarn, sleep } = require('../../utils/utils');
 const {
     syncKnownFriendGidsFromRecentVisitors,
     fetchQqFriendsByKnownGids,
@@ -127,14 +127,14 @@ function encodeInt64Field(fieldNumber: number, value: number): Buffer {
     const tag = (fieldNumber << 3) | 0; // wire_type=0 = varint
     const tagBuf: number[] = [];
     let t = tag;
-    while (t > 0x7f) { tagBuf.push((t & 0x7f) | 0x80); t >>>= 7; }
-    tagBuf.push(t & 0x7f);
+    while (t > 0x7F) { tagBuf.push((t & 0x7F) | 0x80); t >>>= 7; }
+    tagBuf.push(t & 0x7F);
     // varint for int64 (大值情况手动拆 8 字节小端)
     const val = BigInt(value);
     const valBytes: number[] = [];
     let v = val >= 0n ? val : (1n << 64n) + val; // 二补码
-    while (v > 0x7fn) { valBytes.push(Number(v & 0x7fn) | 0x80); v >>= 7n; }
-    valBytes.push(Number(v & 0x7fn));
+    while (v > 0x7Fn) { valBytes.push(Number(v & 0x7Fn) | 0x80); v >>= 7n; }
+    valBytes.push(Number(v & 0x7Fn));
     return Buffer.from([...tagBuf, ...valBytes]);
 }
 
@@ -304,7 +304,7 @@ export async function checkCanOperateRemote(friendGid: number, operationId: numb
             canOperate: !!reply.can_operate,
             canStealNum: toNum(reply.can_steal_num),
         };
-    } catch (e: any) {
+    } catch {
         // 预检查失败时降级为不拦截，避免因协议抖动导致完全不操作
         // 服务端可能不支持某些操作的预检查（如紫金土地除草 opId=10003 返回 1000020），静默降级
         return { canOperate: true, canStealNum: 0 };

@@ -13,7 +13,6 @@ const {
     getAccId,
     checkAccountAccess,
     handleApiError,
-    getAccountList,
     buildKnownFriendGidSettings,
 } = require('./middleware');
 
@@ -38,7 +37,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             if (Array.isArray(data) && store.detectAndRecordDeletedFriends) {
                 try {
                     newDeletedCount = store.detectAndRecordDeletedFriends(id, data) || 0;
-                } catch (e) {
+                } catch {
                     // 静默失败，不影响好友列表返回
                 }
             }
@@ -229,7 +228,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider && typeof ctx.provider.getFriends === 'function') {
                 friendsList = await ctx.provider.getFriends(id) || [];
             }
-        } catch (e) {
+        } catch {
             // 忽略获取好友列表失败
         }
 
@@ -293,7 +292,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider && typeof ctx.provider.getFriends === 'function') {
                 friendsList = await ctx.provider.getFriends(id) || [];
             }
-        } catch (e) {
+        } catch {
             // 忽略获取好友列表失败
         }
 
@@ -332,7 +331,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider && typeof ctx.provider.getFriends === 'function') {
                 friendsList = await ctx.provider.getFriends(id) || [];
             }
-        } catch (e) {
+        } catch {
             // 忽略获取好友列表失败
         }
 
@@ -422,7 +421,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             if (ctx.provider && typeof ctx.provider.getFriends === 'function') {
                 friendsList = await ctx.provider.getFriends(accountId) || [];
             }
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
         const friendMap = new Map<number, { name: string; avatarUrl: string; level: number }>();
         for (const f of friendsList) {
             const gid = Number(f && f.gid);
@@ -1028,7 +1027,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
             return res.status(403).json({ ok: false, error: '无权访问此账号' });
         }
         const body = (req.body && typeof req.body === 'object') ? req.body : {};
-        const ttl = body.ttlSec !== undefined ? Number(body.ttlSec) : NaN;
+        const ttl = body.ttlSec !== undefined ? Number(body.ttlSec) : Number.NaN;
         if (!Number.isFinite(ttl)) {
             return res.status(400).json({ ok: false, error: 'ttlSec 必须是数字' });
         }

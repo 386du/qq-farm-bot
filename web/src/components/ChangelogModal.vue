@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import api from '@/api'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
-import ConfirmModal from '@/components/ConfirmModal.vue'
 import { useChangelogStore } from '@/stores/changelog'
 import { useToastStore } from '@/stores/toast'
 import { useUserStore } from '@/stores/user'
@@ -344,7 +344,7 @@ async function resetToDefault() {
     <div v-if="show" class="fixed inset-0 z-50">
       <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="close" />
       <div
-        class="absolute left-1/2 top-1/2 z-10 flex w-[min(900px,calc(100%-1rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl"
+        class="absolute left-1/2 top-1/2 z-10 w-[min(900px,calc(100%-1rem))] flex flex-col overflow-hidden rounded-2xl -translate-x-1/2 -translate-y-1/2"
         :style="{
           background: 'var(--theme-bg)',
           boxShadow: '0 8px 32px rgba(0,0,0,0.24), 0 0 0 1px rgba(0,0,0,0.08)',
@@ -378,7 +378,7 @@ async function resetToDefault() {
               ● 未保存
             </span>
           </h3>
-          <div class="flex items-center gap-2 self-end sm:self-auto">
+          <div class="flex items-center self-end gap-2 sm:self-auto">
             <!-- 模式切换 -->
             <div v-if="isAdmin" class="flex overflow-hidden rounded-lg" style="border: 1px solid color-mix(in srgb, var(--theme-text) 15%, transparent)">
               <button
@@ -458,7 +458,7 @@ async function resetToDefault() {
                     <span>{{ group.icon || '📌' }}</span>
                     <span>{{ group.type }}</span>
                   </div>
-                  <ul class="space-y-1 pl-2">
+                  <ul class="pl-2 space-y-1">
                     <li
                       v-for="(item, iIdx) in group.items"
                       :key="iIdx"
@@ -500,26 +500,26 @@ async function resetToDefault() {
               style="border: 1px solid color-mix(in srgb, var(--theme-text) 12%, transparent)"
             >
               <!-- 版本信息 -->
-              <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-12">
+              <div class="grid grid-cols-1 mb-3 gap-2 sm:grid-cols-12">
                 <BaseInput
                   v-model="section.version"
                   label="版本号"
                   placeholder="v20260701"
-                  class="farm-input min-w-0 sm:col-span-3"
+                  class="min-w-0 farm-input sm:col-span-3"
                   @update:model-value="markDirty"
                 />
                 <BaseInput
                   v-model="section.date"
                   label="日期"
                   placeholder="2026-07-01"
-                  class="farm-input min-w-0 sm:col-span-3"
+                  class="min-w-0 farm-input sm:col-span-3"
                   @update:model-value="markDirty"
                 />
                 <BaseInput
                   v-model="section.title"
                   label="标题"
                   placeholder="护主犬好友 + 同气连枝礼包"
-                  class="farm-input min-w-0 sm:col-span-4"
+                  class="min-w-0 farm-input sm:col-span-4"
                   @update:model-value="markDirty"
                 />
                 <div class="flex items-center gap-1 sm:col-span-2 sm:items-end">
@@ -535,29 +535,29 @@ async function resetToDefault() {
                 </div>
               </div>
               <!-- 分组 -->
-              <div class="space-y-3 pl-2" style="border-left: 2px solid color-mix(in srgb, var(--theme-primary) 25%, transparent)">
+              <div class="pl-2 space-y-3" style="border-left: 2px solid color-mix(in srgb, var(--theme-primary) 25%, transparent)">
                 <div
                   v-for="(group, gIdx) in section.groups"
                   :key="gIdx"
                   class="rounded-xl p-2"
                   style="background: color-mix(in srgb, var(--theme-bg) 60%, transparent); border: 1px dashed color-mix(in srgb, var(--theme-text) 12%, transparent)"
                 >
-                  <div class="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-12">
+                  <div class="grid grid-cols-1 mb-2 gap-2 sm:grid-cols-12">
                     <BaseInput
                       v-model="group.icon"
                       label="图标"
                       placeholder="✨"
-                      class="farm-input min-w-0 sm:col-span-2"
+                      class="min-w-0 farm-input sm:col-span-2"
                       @update:model-value="markDirty"
                     />
                     <BaseInput
                       v-model="group.type"
                       label="分类"
                       placeholder="新功能"
-                      class="farm-input min-w-0 sm:col-span-6"
+                      class="min-w-0 farm-input sm:col-span-6"
                       @update:model-value="markDirty"
                     />
-                    <div class="flex items-center sm:items-end sm:justify-end sm:col-span-4">
+                    <div class="flex items-center sm:col-span-4 sm:items-end sm:justify-end">
                       <BaseButton variant="danger" size="sm" @click="removeGroup(sIdx, gIdx)">
                         🗑️ 删除分类
                       </BaseButton>
@@ -607,8 +607,8 @@ async function resetToDefault() {
             <BaseTextarea
               v-model="jsonText"
               :rows="20"
-              class="font-mono text-xs"
-              placeholder='{"version":"v...","sections":[...]}'
+              class="text-xs font-mono"
+              placeholder="{&quot;version&quot;:&quot;v...&quot;,&quot;sections&quot;:[...]}"
             />
             <div class="mt-2 flex justify-end gap-2">
               <BaseButton variant="outline" size="sm" @click="switchMode('view')">

@@ -13,7 +13,6 @@ export {};
 const { fetchGoCode } = require('../services/go-login');
 
 const TICK_INTERVAL_MS = 30 * 1000; // 每 30 秒检查一次
-const TASK_NAME = 'go_code_refresh';
 
 interface GoReloginOptions {
     store: any;
@@ -35,7 +34,6 @@ function createGoReloginService(options: GoReloginOptions) {
         addOrUpdateAccount,
         isAccountRunning,
         restartWorker,
-        startWorker,
     } = options;
 
     const lastRefreshAt = new Map<string, number>();

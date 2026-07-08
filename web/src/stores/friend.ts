@@ -126,8 +126,10 @@ export const useFriendStore = defineStore('friend', () => {
       if (!raw)
         return null
       const obj = JSON.parse(raw)
-      if (!obj || !Array.isArray(obj.list)) return null
-      if (Date.now() - (Number(obj.ts) || 0) > FRIENDS_CACHE_TTL_MS) return null
+      if (!obj || !Array.isArray(obj.list))
+        return null
+      if (Date.now() - (Number(obj.ts) || 0) > FRIENDS_CACHE_TTL_MS)
+        return null
       return obj.list
     }
     catch {

@@ -12,7 +12,7 @@ const path = require('node:path');
 const { getDataFile, ensureDataDir } = require('../config/runtime-paths');
 const { writeJsonFileAtomic, readJsonFile } = require('./json-db');
 const { createModuleLogger } = require('./logger');
-const { getTodayKey, loadPersistedStats } = require('./stats');
+const { loadPersistedStats } = require('./stats');
 const store = require('../models/store');
 
 const gamifLogger = createModuleLogger('gamification');

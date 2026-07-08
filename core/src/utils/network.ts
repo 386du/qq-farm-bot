@@ -79,7 +79,7 @@ async function fetchGoldBeanFromBag(): Promise<void> {
                 break;
             }
         }
-    } catch (e) {
+    } catch {
         // 忽略获取失败
     }
 }
@@ -97,7 +97,7 @@ async function fetchUserSettings(): Promise<void> {
         if (reply.settings) {
             log('系统', `用户设置已同步`);
         }
-    } catch (e) {
+    } catch {
         // 忽略获取失败
     }
 }

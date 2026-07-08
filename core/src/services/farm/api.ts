@@ -6,7 +6,7 @@ export {};
 const protobuf = require('protobufjs');
 const { sendMsgAsync, getUserState } = require('../../utils/network');
 const { types } = require('../../utils/proto');
-const { toLong, toNum, getServerTimeSec, sleep, randomDelay, log, logWarn } = require('../../utils/utils');
+const { toLong, sleep, randomDelay } = require('../../utils/utils');
 
 // 操作限制更新回调 (由 friend.js 设置)
 let onOperationLimitsUpdate: ((limits: any) => void) | null = null;

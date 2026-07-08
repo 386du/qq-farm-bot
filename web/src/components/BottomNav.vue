@@ -38,7 +38,7 @@ const borderClass = computed(() => navStyle.value.showTopBorder ? 'border-t bord
 
 /** 容器内联样式：圆角 + 背景透明度（亮 / 暗） + 弹跳强度 + 磨砂 */
 const containerStyle = computed(() => ({
-  borderRadius: `${navStyle.value.borderRadius}px`,
+  'borderRadius': `${navStyle.value.borderRadius}px`,
   '--bn-light-alpha': `${navStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${navStyle.value.backgroundOpacityDark}%`,
   '--bn-bounce': (navStyle.value.bounceIntensity / 100).toString(),
@@ -56,7 +56,7 @@ const shouldBounce = computed(() => navStyle.value.bounceIntensity > 0)
     aria-label="主导航"
   >
     <div
-      class="bn-container pointer-events-auto flex w-full max-w-md items-center justify-around border-t border-white/20 px-2 pt-2 pb-3 backdrop-blur-md transition-colors duration-300 dark:border-gray-700/50"
+      class="bn-container pointer-events-auto max-w-md w-full flex items-center justify-around border-t border-white/20 px-2 pb-3 pt-2 backdrop-blur-md transition-colors duration-300 dark:border-gray-700/50"
       :class="borderClass"
       :style="containerStyle"
     >
@@ -64,12 +64,12 @@ const shouldBounce = computed(() => navStyle.value.bounceIntensity > 0)
         v-for="item in visibleItems"
         :key="item.path || 'home'"
         :to="item.path ? `/${item.path}` : '/'"
-        class="relative flex flex-col items-center justify-center rounded-xl px-2 py-1 text-gray-600 transition-all duration-200 hover:text-[color:var(--theme-primary)] dark:text-gray-300"
+        class="relative flex flex-col items-center justify-center rounded-xl px-2 py-1 text-gray-600 transition-all duration-200 dark:text-gray-300 hover:text-[color:var(--theme-primary)]"
         :class="isActive(item.path) ? 'text-[color:var(--theme-primary)] bottom-nav-item-active' : ''"
       >
         <div
           :key="`${item.path}-${isActive(item.path) ? 'a' : 'i'}`"
-          :class="[item.icon, 'mb-1 leading-none bottom-nav-icon', iconSizeClass, isActive(item.path) && shouldBounce ? 'bottom-nav-icon-bounce' : '']"
+          class="bottom-nav-icon mb-1 leading-none" :class="[item.icon, iconSizeClass, isActive(item.path) && shouldBounce ? 'bottom-nav-icon-bounce' : '']"
         />
         <span v-if="navStyle.showLabel" class="text-xs font-medium">{{ item.label }}</span>
         <div

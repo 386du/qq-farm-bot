@@ -44,7 +44,7 @@ function loadCardClaimRecords(): void {
             cardClaimRecords = [];
             saveCardClaimRecords();
         }
-    } catch (e) {
+    } catch {
         cardClaimEnabled = true;
         cardClaimRecords = [];
     }
@@ -57,7 +57,7 @@ function saveCardClaimRecords(): void {
             enabled: cardClaimEnabled,
             records: cardClaimRecords
         }, null, 2), 'utf8');
-    } catch (e) {
+    } catch {
         // console.error('保存卡密领取记录失败:', e.message);
     }
 }

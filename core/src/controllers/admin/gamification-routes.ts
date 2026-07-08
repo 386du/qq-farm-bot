@@ -7,7 +7,7 @@ export {};
  */
 
 const gamif = require('../../services/gamification');
-const { getAccId, handleApiError, getAccountList } = require('./middleware');
+const { handleApiError } = require('./middleware');
 
 function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
     /**
@@ -79,7 +79,7 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
                 return res.json({ ok: true, data: null });
             }
             // 附上账号元信息
-            const accList = getAccountList(ctx);
+            const accList = (Array.isArray(ctx.provider?.getAccounts?.()?.accounts) ? ctx.provider.getAccounts().accounts : []).map((a: any) => ({ id: a.id, name: a.name, avatar: a.avatar, platform: a.platform, running: a.running }));
             const enriched = (arr: any[]) => arr.map((entry: any) => {
                 const meta = accList.find((a: any) => String(a.id) === String(entry.accountId)) || {};
                 return {
@@ -154,10 +154,6 @@ interface HolidayInfo {
 
 function pad2(n: number): string {
     return String(n).padStart(2, '0');
-}
-
-function dateKeyOf(d: Date): string {
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
 function md(date: Date): string {

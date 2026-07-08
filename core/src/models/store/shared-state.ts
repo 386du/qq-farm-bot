@@ -1,11 +1,9 @@
 import type { AccountConfig, AutomationConfig, BagSeedFallbackStrategy, FertilizerLandType, GlobalConfig, GoConfig, IntervalConfig, OfflineReminder, PlantingStrategy, QuietHoursConfig, YybConfig } from '../../types/config';
 export {};
 
-const fs = require('node:fs');
-const path = require('node:path');
 const { DEFAULT_CLIENT_VERSION } = require('../../config/config');
 const { getDataFile, ensureDataDir } = require('../../config/runtime-paths');
-const { readTextFile, readJsonFile, writeJsonFileAtomic } = require('../../services/json-db');
+const { readJsonFile } = require('../../services/json-db');
 
 const STORE_FILE: string = getDataFile('store.json');
 const ACCOUNTS_FILE: string = getDataFile('accounts.json');
@@ -348,6 +346,7 @@ function cloneAccountConfig(base: Partial<AccountConfig> = DEFAULT_ACCOUNT_CONFI
     };
 }
 
+// eslint-disable-next-line ts/no-use-before-define -- 默认参数按需求值,运行时 accountFallbackConfig 必定已初始化
 function normalizeAccountConfig(input: unknown, fallback: AccountConfig = accountFallbackConfig): AccountConfig {
     const src: Record<string, any> = (input && typeof input === 'object') ? input as Record<string, any> : {};
     const cfg = cloneAccountConfig(fallback || DEFAULT_ACCOUNT_CONFIG);

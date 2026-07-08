@@ -127,8 +127,10 @@ function close() {
             class="farm-input"
           />
 
-          <details class="rounded-xl border p-3 text-xs" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent); color: var(--theme-text)">
-            <summary class="cursor-pointer opacity-80">高级(代理模式,可选)</summary>
+          <details class="border rounded-xl p-3 text-xs" style="border-color: color-mix(in srgb, var(--theme-text) 15%, transparent); color: var(--theme-text)">
+            <summary class="cursor-pointer opacity-80">
+              高级(代理模式,可选)
+            </summary>
             <div class="mt-3 space-y-3">
               <BaseInput
                 v-model="form.apiKey"

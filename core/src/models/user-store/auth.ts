@@ -63,7 +63,7 @@ function loadLoginLogs(): void {
             const data = JSON.parse(fs.readFileSync(LOGIN_LOGS_FILE, 'utf8'));
             loginLogs = Array.isArray(data.logs) ? data.logs : [];
         }
-    } catch (e) {
+    } catch {
         loginLogs = [];
     }
 }
@@ -127,7 +127,7 @@ function loadLoginAttempts(): void {
             const data = JSON.parse(fs.readFileSync(LOGIN_ATTEMPTS_FILE, 'utf8'));
             loginAttempts = data || {};
         }
-    } catch (e) {
+    } catch {
         loginAttempts = {};
     }
 }

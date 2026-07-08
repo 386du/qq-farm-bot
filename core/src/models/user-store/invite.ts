@@ -188,7 +188,6 @@ function recordInvite(inviterCode: string, inviteeUsername: string): { ok: boole
         return { ok: false, error: '邀请功能未开启' };
     }
 
-    const users = getUsers();
     const inviter = findUserByInviteCode(inviterCode);
     if (!inviter) {
         return { ok: false, error: '邀请码不存在' };

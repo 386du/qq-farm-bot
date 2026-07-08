@@ -685,7 +685,8 @@ async function fetchUsers() {
       users.value = list.slice().sort((a: UserInfo, b: UserInfo) => {
         const pa = getPriority(a)
         const pb = getPriority(b)
-        if (pa !== pb) return pa - pb
+        if (pa !== pb)
+          return pa - pb
         return a.username.localeCompare(b.username)
       })
     }
@@ -2758,7 +2759,7 @@ watch(activeTab, (tab) => {
             </BaseButton>
           </div>
 
-          <div class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 text-xs leading-relaxed dark:border-emerald-800/40 dark:bg-emerald-900/10" style="color: color-mix(in srgb, var(--theme-text) 70%, transparent)">
+          <div class="border border-emerald-200 rounded-xl bg-emerald-50/40 p-3 text-xs leading-relaxed dark:border-emerald-800/40 dark:bg-emerald-900/10" style="color: color-mix(in srgb, var(--theme-text) 70%, transparent)">
             <div class="mb-1 font-semibold" style="color: var(--theme-text)">
               自动启动说明
             </div>
@@ -3443,7 +3444,7 @@ watch(activeTab, (tab) => {
                 <div class="admin-section-divider" />
               </h4>
 
-              <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-700 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+              <div class="mb-4 border border-blue-200 rounded-lg bg-blue-50/70 p-3 text-xs text-blue-700 leading-relaxed dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
                 <div class="mb-1 font-semibold">
                   客户端版本
                 </div>
@@ -3465,7 +3466,7 @@ watch(activeTab, (tab) => {
 
               <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                  当前已生效版本：<span class="font-mono font-semibold" style="color: var(--theme-text)">{{ localSystemConfig.clientVersion || '未设置' }}</span>
+                  当前已生效版本：<span class="font-semibold font-mono" style="color: var(--theme-text)">{{ localSystemConfig.clientVersion || '未设置' }}</span>
                 </div>
                 <div class="flex gap-2">
                   <BaseButton
@@ -3498,7 +3499,7 @@ watch(activeTab, (tab) => {
                 <div class="admin-section-divider" />
               </h4>
 
-              <div class="mb-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs leading-relaxed text-blue-700 dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
+              <div class="mb-4 border border-blue-200 rounded-lg bg-blue-50/70 p-3 text-xs text-blue-700 leading-relaxed dark:border-blue-800/60 dark:bg-blue-900/20 dark:text-blue-300">
                 <div class="mb-1 font-semibold">
                   容器/服务重启时自动恢复账号
                 </div>
@@ -3509,7 +3510,7 @@ watch(activeTab, (tab) => {
                 </p>
               </div>
 
-              <div class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+              <div class="flex items-center justify-between gap-4 border border-gray-200 rounded-lg bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
                 <div class="flex-1">
                   <div class="text-sm font-medium" style="color: var(--theme-text)">
                     全局自动恢复

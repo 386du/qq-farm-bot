@@ -5,9 +5,9 @@ export {};
 
 const protobuf = require('protobufjs');
 const { getPlantNameBySeedId, getPlantName, formatGrowTime, getPlantGrowTime, getAllSeeds, getPlantById, getPlantBySeedId, getSeedImageBySeedId, getLandMutants, isRarePlant } = require('../../config/gameConfig');
-const { isAutomationOn, getPreferredSeed, getAutomation, getPlantingStrategy, getBagSeedPriority, getBagSeedFallbackStrategy } = require('../../models/store');
+const { getPreferredSeed, getAutomation, getPlantingStrategy, getBagSeedPriority, getBagSeedFallbackStrategy } = require('../../models/store');
 const { getUserState, getWsErrorState, sendMsgAsync } = require('../../utils/network');
-const { toNum, toLong, toTimeSec, getServerTimeSec, log, logWarn, sleep } = require('../../utils/utils');
+const { toNum, toTimeSec, getServerTimeSec, log, logWarn, sleep } = require('../../utils/utils');
 const { types } = require('../../utils/proto');
 const { PHASE_NAMES, PlantPhase } = require('../../config/config');
 const { getPlantRankings } = require('../analytics');
@@ -16,7 +16,6 @@ const { getBagSeeds } = require('../warehouse');
 const { getAllLands, buyGoods, removePlant } = require('./api');
 const {
     getCurrentPhase,
-    analyzeLands,
     buildLandMap,
     getDisplayLandContext,
     summarizeLandDetails,
@@ -26,8 +25,12 @@ const {
     formatFertilizerLandTypes,
     filterLandIdsByTypes,
     getLandTypeByLevel,
-    resolveRemovableHarvestedLands,
 } = require('./land-analysis');
+
+// 普通肥料 ID
+const NORMAL_FERTILIZER_ID: number = 1011;
+// 金/黑/红/普通土地类型
+const ALL_FERTILIZER_LAND_TYPES: string[] = ['gold', 'black', 'red', 'normal'];
 
 // ============ 种植 ============
 
@@ -905,13 +908,6 @@ async function runFertilizerByConfig(plantedLands: any[] = [], options: { skipNo
 
     return { normal: fertilizedNormal, organic: fertilizedOrganic };
 }
-
-// 普通肥料 ID
-const NORMAL_FERTILIZER_ID: number = 1011;
-// 有机肥料 ID
-const ORGANIC_FERTILIZER_ID: number = 1012;
-// 金/黑/红/普通土地类型
-const ALL_FERTILIZER_LAND_TYPES: string[] = ['gold', 'black', 'red', 'normal'];
 
 module.exports = {
     getPlantSizeBySeedId,

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable ts/no-use-before-define -- function hoisting + reactive refs are accessed at runtime, not in declaration order */
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch, watchEffect } from 'vue'
@@ -119,7 +120,7 @@ const iconSizeOptions = [
 
 const navPreviewBorderClass = computed(() => localBottomNavStyle.value.showTopBorder ? 'border-t border-white/40' : '')
 const navPreviewStyle = computed(() => ({
-  borderRadius: `${localBottomNavStyle.value.borderRadius}px`,
+  'borderRadius': `${localBottomNavStyle.value.borderRadius}px`,
   '--bn-light-alpha': `${localBottomNavStyle.value.backgroundOpacity}%`,
   '--bn-dark-alpha': `${localBottomNavStyle.value.backgroundOpacityDark}%`,
   '--bn-bounce': (localBottomNavStyle.value.bounceIntensity / 100).toString(),
@@ -1924,16 +1925,16 @@ async function handleTestOffline() {
                     实时预览
                   </div>
                   <button
-                    class="text-xs px-2 py-1 border rounded-md transition-colors hover:border-[var(--theme-primary)] hover:text-[color:var(--theme-primary)]"
+                    class="border rounded-md px-2 py-1 text-xs transition-colors hover:border-[var(--theme-primary)] hover:text-[color:var(--theme-primary)]"
                     style="border-color: color-mix(in srgb, var(--theme-primary) 30%, transparent); color: var(--theme-primary);"
                     @click="replayPreview"
                   >
-                    <div class="i-carbon-play inline-block mr-0.5" />
+                    <div class="i-carbon-play mr-0.5 inline-block" />
                     重新播放
                   </button>
                 </div>
                 <div
-                  class="relative h-28 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+                  class="relative h-28 overflow-hidden border border-gray-200 rounded-xl dark:border-gray-700"
                   style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #6ee7b7 100%);"
                 >
                   <!-- 模拟手机状态条 + 模拟内容 -->
@@ -1948,10 +1949,10 @@ async function handleTestOffline() {
                   <!-- 悬浮底栏预览 -->
                   <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-3 pb-3">
                     <div
-                      class="bn-container pointer-events-auto flex w-full max-w-[220px] items-center justify-around border-t border-white/30 px-2 pt-2 pb-3 backdrop-blur-md dark:border-gray-700/50"
+                      :key="previewReplayKey"
+                      class="bn-container pointer-events-auto max-w-[220px] w-full flex items-center justify-around border-t border-white/30 px-2 pb-3 pt-2 backdrop-blur-md dark:border-gray-700/50"
                       :class="navPreviewBorderClass"
                       :style="navPreviewStyle"
-                      :key="previewReplayKey"
                     >
                       <div
                         v-for="item in previewNavItems"
@@ -1960,7 +1961,7 @@ async function handleTestOffline() {
                         :class="item.active ? 'bottom-nav-item-active text-[color:var(--theme-primary)]' : 'text-gray-600 dark:text-gray-300'"
                       >
                         <div
-                          :class="[item.icon, 'mb-0.5 leading-none', navPreviewIconSize, item.active && navPreviewShouldBounce ? 'bottom-nav-icon-bounce' : '']"
+                          class="mb-0.5 leading-none" :class="[item.icon, navPreviewIconSize, item.active && navPreviewShouldBounce ? 'bottom-nav-icon-bounce' : '']"
                           :style="item.active ? { color: 'var(--theme-primary)', filter: `drop-shadow(0 2px 4px color-mix(in srgb, var(--theme-primary) 40%, transparent))` } : {}"
                         />
                         <span v-if="localBottomNavStyle.showLabel" class="text-[10px] font-medium">
@@ -2002,7 +2003,7 @@ async function handleTestOffline() {
               </div>
 
               <!-- 背景透明度 (亮色 / 暗色) -->
-              <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div class="grid grid-cols-1 mb-4 gap-3 sm:grid-cols-2">
                 <div>
                   <div class="mb-1.5 flex items-center justify-between">
                     <label class="text-sm text-gray-700 font-medium dark:text-gray-300">

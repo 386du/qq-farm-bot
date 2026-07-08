@@ -1,7 +1,6 @@
 import type { Account, AccountsData } from '../../types/account';
 export {};
 
-const fs = require('node:fs');
 const { ensureDataDir } = require('../../config/runtime-paths');
 const { readJsonFile, writeJsonFileAtomic } = require('../../services/json-db');
 
@@ -68,7 +67,7 @@ function getAutoStartAccountIds(): string[] {
 }
 
 function addOrUpdateAccount(acc: Partial<Account> & { avatarUrl?: string }): AccountsData {
-    const { ensureAccountConfig, removeAccountConfig } = require('./account-config');
+    const { ensureAccountConfig } = require('./account-config');
     const data = normalizeAccountsData(loadAccounts());
     let touchedAccountId = '';
     if (acc.id) {

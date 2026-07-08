@@ -256,7 +256,7 @@ function writeChangelog(data: any, updatedBy: string): { ok: boolean; error?: st
     }
 }
 
-function mountChangelogRoutes(app: Application, ctx: AdminContext): void {
+function mountChangelogRoutes(app: Application, _ctx: AdminContext): void {
     // 公开读取
     app.get('/api/changelog', (_req: Request, res: Response) => {
         try {

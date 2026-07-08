@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable ts/no-use-before-define -- function hoisting + reactive refs are accessed at runtime, not in declaration order */
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -224,7 +225,8 @@ function handleBatchWhitelist() {
 // ============ 多选模式批量操作 ============
 
 async function handleMultiSelectBatchBlacklist() {
-  if (!currentAccountId.value || selectedCount.value === 0) return
+  if (!currentAccountId.value || selectedCount.value === 0)
+    return
   // 过滤掉已在黑名单中的
   const gids: number[] = []
   for (const gid of selectedFriendGids.value) {
@@ -258,7 +260,8 @@ async function handleMultiSelectBatchBlacklist() {
 }
 
 async function handleMultiSelectBatchGuardBlack() {
-  if (!currentAccountId.value || selectedCount.value === 0) return
+  if (!currentAccountId.value || selectedCount.value === 0)
+    return
   const gids: number[] = []
   for (const gid of selectedFriendGids.value) {
     if (!guardDogBlacklistGidSet.value.has(Number(gid))) {
@@ -285,7 +288,8 @@ async function handleMultiSelectBatchGuardBlack() {
 }
 
 async function handleMultiSelectBatchGuardWhite() {
-  if (!currentAccountId.value || selectedCount.value === 0) return
+  if (!currentAccountId.value || selectedCount.value === 0)
+    return
   const gids: number[] = []
   for (const gid of selectedFriendGids.value) {
     if (!guardDogWhitelistGidSet.value.has(Number(gid))) {
@@ -312,7 +316,8 @@ async function handleMultiSelectBatchGuardWhite() {
 }
 
 async function handleMultiSelectBatchRemoveFromKnownList() {
-  if (!currentAccountId.value || selectedCount.value === 0) return
+  if (!currentAccountId.value || selectedCount.value === 0)
+    return
   if (!isQqAccount.value) {
     toast.warning('此功能仅 QQ 账号可用')
     return
@@ -366,7 +371,8 @@ const selectedCount = computed(() => selectedFriendGids.value.size)
 // 当前页可见好友的 gid（用于"全选当前页"等操作）
 const visibleFriendGids = computed(() => paginatedFriends.value.map(f => String(f.gid)))
 const allVisibleSelected = computed(() => {
-  if (visibleFriendGids.value.length === 0) return false
+  if (visibleFriendGids.value.length === 0)
+    return false
   return visibleFriendGids.value.every(gid => selectedFriendGids.value.has(gid))
 })
 
@@ -454,19 +460,25 @@ const lastActiveMap = computed(() => {
   for (const r of interactRecords.value || []) {
     const gid = Number(r?.visitorGid || r?.friendGid || r?.gid || 0)
     const ts = Number(r?.serverTimeMs || 0)
-    if (!gid || !ts) continue
+    if (!gid || !ts)
+      continue
     const prev = map.get(gid) || 0
-    if (ts > prev) map.set(gid, ts)
+    if (ts > prev)
+      map.set(gid, ts)
   }
   return map
 })
 
 // 排序的排序值取数（统一处理 null/undefined）
 function getSortValue(friend: any, key: FriendSortKey): number | string {
-  if (key === 'level') return Number(friend?.level || 0)
-  if (key === 'gold') return Number(friend?.gold || 0)
-  if (key === 'name') return String(friend?.name || '').toLowerCase()
-  if (key === 'lastActive') return lastActiveMap.value.get(Number(friend?.gid)) || 0
+  if (key === 'level')
+    return Number(friend?.level || 0)
+  if (key === 'gold')
+    return Number(friend?.gold || 0)
+  if (key === 'name')
+    return String(friend?.name || '').toLowerCase()
+  if (key === 'lastActive')
+    return lastActiveMap.value.get(Number(friend?.gid)) || 0
   return 0
 }
 
@@ -523,8 +535,10 @@ const filteredSortedFriends = computed(() => {
   return [...result].sort((a: any, b: any) => {
     const va = getSortValue(a, key)
     const vb = getSortValue(b, key)
-    if (va < vb) return -1 * order
-    if (va > vb) return 1 * order
+    if (va < vb)
+      return -1 * order
+    if (va > vb)
+      return 1 * order
     return 0
   })
 })
@@ -546,14 +560,14 @@ const hasActiveFilter = computed(() => {
 })
 
 // 排序配置（label + value）
-const sortOptions: Array<{ key: FriendSortKey; label: string; defaultOrder: 'desc' | 'asc' }> = [
+const sortOptions: Array<{ key: FriendSortKey, label: string, defaultOrder: 'desc' | 'asc' }> = [
   { key: 'level', label: '等级', defaultOrder: 'desc' },
   { key: 'gold', label: '金币', defaultOrder: 'desc' },
   { key: 'name', label: '名字', defaultOrder: 'asc' },
   { key: 'lastActive', label: '最近活跃', defaultOrder: 'desc' },
 ]
 
-const filterChips: Array<{ key: FriendFilterKey; label: string; activeClass: string }> = [
+const filterChips: Array<{ key: FriendFilterKey, label: string, activeClass: string }> = [
   { key: 'hasGuardDog', label: '🐶 护主犬', activeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
   { key: 'hasStealable', label: '🥬 可偷菜', activeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300 dark:border-blue-700' },
   { key: 'inBlacklist', label: '已屏蔽', activeClass: 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600' },
@@ -561,7 +575,7 @@ const filterChips: Array<{ key: FriendFilterKey; label: string; activeClass: str
   { key: 'inGuardDogWhitelist', label: '✅ 护白', activeClass: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-700' },
 ]
 
-const levelPresets: Array<{ label: string; min: number | null; max: number | null }> = [
+const levelPresets: Array<{ label: string, min: number | null, max: number | null }> = [
   { label: '不限', min: null, max: null },
   { label: '1-50', min: 1, max: 50 },
   { label: '51-100', min: 51, max: 100 },
@@ -994,7 +1008,7 @@ async function handleClearGuardDogFriends() {
 
 function parseGidList(raw: string): number[] {
   return raw
-    .split(/[\s,，;；\n\r]+/)
+    .split(/[\s,，;；]+/)
     .map(s => Number(s.trim()))
     .filter(n => Number.isFinite(n) && n > 0)
 }
@@ -1128,38 +1142,46 @@ const scanningGuardDog = computed(() =>
 )
 const scanGuardDogResult = computed(() => {
   const r = friendStore.scanGuardDogResult
-  if (!r) return null
-  if (r.accountId !== currentAccountId.value) return null
+  if (!r)
+    return null
+  if (r.accountId !== currentAccountId.value)
+    return null
   return r
 })
 const scanProgressIndex = computed(() => {
   const p = friendStore.scanGuardDogProgress
-  if (!p || p.accountId !== currentAccountId.value) return 0
+  if (!p || p.accountId !== currentAccountId.value)
+    return 0
   return Number(p.index) || 0
 })
 const scanProgressTotal = computed(() => {
   const p = friendStore.scanGuardDogProgress
-  if (!p || p.accountId !== currentAccountId.value) return 0
+  if (!p || p.accountId !== currentAccountId.value)
+    return 0
   return Number(p.total) || 0
 })
 const scanProgressText = computed(() => {
-  if (!scanningGuardDog.value) return ''
+  if (!scanningGuardDog.value)
+    return ''
   const cur = scanProgressIndex.value
   const total = scanProgressTotal.value
-  if (total <= 0) return '...'
+  if (total <= 0)
+    return '...'
   return `${cur}/${total}`
 })
 
 // 扫描是否被中断（worker 重启/应用宝自动重连等场景）
 const scanWasInterrupted = computed(() => {
   const p = friendStore.scanGuardDogProgress
-  if (!p || p.accountId !== currentAccountId.value) return false
+  if (!p || p.accountId !== currentAccountId.value)
+    return false
   return p.status === 'interrupted'
 })
 
 // 进入护主犬 Tab 时拉一次进度（用于页面刷新后恢复轮询）
 async function ensureScanStatusPolling() {
-  if (!currentAccountId.value) return
+  if (!currentAccountId.value)
+    return
   await friendStore.fetchScanStatus(currentAccountId.value)
   // 如果扫描实际还在进行（progress.status === 'running'）但 scanningGuardDogAccountId 因刷新丢了，续上
   const p = friendStore.scanGuardDogProgress
@@ -1172,7 +1194,8 @@ async function ensureScanStatusPolling() {
 }
 
 async function handleScanGuardDogFriends() {
-  if (!currentAccountId.value || scanningGuardDog.value) return
+  if (!currentAccountId.value || scanningGuardDog.value)
+    return
   if (!currentAccount.value?.running || !status.value?.connection?.connected) {
     toast.error('账号未运行，无法扫描')
     return
@@ -1542,7 +1565,7 @@ async function handleClearDeletedRecords() {
   })
 }
 
-async function handleRemoveDeletedRecord(item: { gid: number; deletedAt: number }) {
+async function handleRemoveDeletedRecord(item: { gid: number, deletedAt: number }) {
   if (!currentAccountId.value)
     return
   const result = await friendStore.removeDeletedRecord(currentAccountId.value, Number(item.gid), Number(item.deletedAt))
@@ -1555,7 +1578,7 @@ async function handleRemoveDeletedRecord(item: { gid: number; deletedAt: number 
 }
 
 // 被删记录 → 一键拉黑（游戏 BlockFriend RPC）
-async function handleBlockDeletedFriend(item: { gid: number; name?: string; deletedAt: number }) {
+async function handleBlockDeletedFriend(item: { gid: number, name?: string, deletedAt: number }) {
   if (!currentAccountId.value)
     return
   const displayName = item.name || `GID:${item.gid}`
@@ -1829,7 +1852,7 @@ function formatDeletedAt(timestamp: number) {
 
         <div v-if="friends.length === 0" class="farm-card-enhanced animate-stagger-4 animate-fade-in-up p-8 text-center text-gray-500">
           <template v-if="loading">
-            <div class="animate-spin mx-auto mb-3 text-4xl text-gray-300">
+            <div class="mx-auto mb-3 animate-spin text-4xl text-gray-300">
               ⏳
             </div>
             <div class="text-lg font-display">
@@ -1850,7 +1873,7 @@ function formatDeletedAt(timestamp: number) {
               可能 worker 还在初始化或游戏接口暂时不可用
             </div>
             <button
-              class="cartoon-btn mt-4 rounded-xl bg-blue-100 px-4 py-2 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-900/50"
+              class="mt-4 cartoon-btn rounded-xl bg-blue-100 px-4 py-2 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 dark:hover:bg-blue-900/50"
               @click="loadData"
             >
               🔄 重试
@@ -1912,7 +1935,7 @@ function formatDeletedAt(timestamp: number) {
             </button>
             <template v-else>
               <span class="text-sm text-gray-600 dark:text-gray-300">
-                已选 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span>/{{ filteredSortedFriends.length.toLocaleString('zh-CN') }} 人
+                已选 <span class="text-indigo-600 font-bold dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span>/{{ filteredSortedFriends.length.toLocaleString('zh-CN') }} 人
               </span>
               <button
                 class="cartoon-btn rounded-xl bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300"
@@ -1949,11 +1972,11 @@ function formatDeletedAt(timestamp: number) {
           <!-- 排序 + 筛选 -->
           <div class="farm-card-enhanced animate-stagger-4 p-3">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">排序</span>
+              <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">排序</span>
               <button
                 v-for="opt in sortOptions"
                 :key="opt.key"
-                class="cartoon-btn flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition"
+                class="flex cartoon-btn items-center gap-1 border rounded-lg px-2 py-1 text-xs transition"
                 :class="friendSortKey === opt.key
                   ? 'border-blue-400 bg-blue-50 text-blue-700 font-bold dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300'
                   : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
@@ -1965,20 +1988,20 @@ function formatDeletedAt(timestamp: number) {
                 </span>
               </button>
               <span class="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
-              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">筛选</span>
+              <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">筛选</span>
               <button
                 v-for="chip in filterChips"
                 :key="chip.key"
-                class="cartoon-btn rounded-lg border px-2 py-1 text-xs transition"
+                class="cartoon-btn border rounded-lg px-2 py-1 text-xs transition"
                 :class="friendFilters[chip.key]
-                  ? chip.activeClass + ' font-bold'
+                  ? `${chip.activeClass} font-bold`
                   : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'"
                 @click="toggleFilterChip(chip.key)"
               >
                 {{ chip.label }}
               </button>
               <button
-                class="cartoon-btn rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500 transition dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                class="cartoon-btn border border-gray-200 rounded-lg bg-white px-2 py-1 text-xs text-gray-500 transition dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
                 :class="showFilterPanel ? '!bg-amber-50 !text-amber-700 dark:!bg-amber-900/30 dark:!text-amber-300' : ''"
                 @click="showFilterPanel = !showFilterPanel"
               >
@@ -1986,20 +2009,20 @@ function formatDeletedAt(timestamp: number) {
               </button>
               <button
                 v-if="hasActiveFilter"
-                class="cartoon-btn rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-xs text-orange-700 transition hover:bg-orange-100 dark:border-orange-700 dark:bg-orange-900/20 dark:text-orange-300"
+                class="cartoon-btn border border-orange-200 rounded-lg bg-orange-50 px-2 py-1 text-xs text-orange-700 transition dark:border-orange-700 dark:bg-orange-900/20 hover:bg-orange-100 dark:text-orange-300"
                 @click="resetFriendFilters"
               >
                 🔄 重置
               </button>
             </div>
             <div v-if="showFilterPanel" class="mt-2 flex flex-wrap items-center gap-2 border-t pt-2 dark:border-gray-700">
-              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">等级范围</span>
+              <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">等级范围</span>
               <input
                 v-model.number="friendLevelMin"
                 type="number"
                 min="0"
                 placeholder="最小"
-                class="farm-input w-20 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                class="w-20 border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
               <span class="text-xs text-gray-400">~</span>
               <input
@@ -2007,12 +2030,12 @@ function formatDeletedAt(timestamp: number) {
                 type="number"
                 min="0"
                 placeholder="最大"
-                class="farm-input w-20 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                class="w-20 border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
               >
               <button
                 v-for="r in levelPresets"
                 :key="r.label"
-                class="cartoon-btn rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                class="cartoon-btn border border-gray-200 rounded-lg bg-white px-2 py-1 text-xs text-gray-600 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300"
                 @click="friendLevelMin = r.min; friendLevelMax = r.max"
               >
                 {{ r.label }}
@@ -2044,11 +2067,11 @@ function formatDeletedAt(timestamp: number) {
                 class="absolute bottom-0 left-0 top-0 w-1 rounded-l-2xl"
                 :style="{ backgroundColor: 'var(--theme-primary)' }"
               />
-              <div class="flex items-center gap-3 min-w-0 flex-1">
+              <div class="min-w-0 flex flex-1 items-center gap-3">
                 <!-- 多选模式下的复选框 -->
                 <div
                   v-if="isMultiSelectMode"
-                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-all"
+                  class="h-5 w-5 flex shrink-0 items-center justify-center border-2 rounded transition-all"
                   :class="selectedFriendGids.has(String(friend.gid))
                     ? 'border-indigo-500 bg-indigo-500 text-white dark:border-indigo-400 dark:bg-indigo-500'
                     : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-700'"
@@ -2397,7 +2420,7 @@ function formatDeletedAt(timestamp: number) {
                   <span class="font-bold">{{ item.name || `GID:${item.gid}` }}</span>
                   <span
                     v-if="item.level"
-                    class="flex shrink-0 items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                    class="flex shrink-0 items-center gap-0.5 border border-amber-300 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                     :title="`等级 ${item.level}`"
                   >
                     <span>⭐</span>
@@ -2529,7 +2552,7 @@ function formatDeletedAt(timestamp: number) {
               >
                 {{ tab.key === 'friends' ? guardDogFriends.length
                   : tab.key === 'blacklist' ? guardDogBlacklist.length
-                  : guardDogWhitelist.length }}
+                    : guardDogWhitelist.length }}
               </span>
             </button>
           </div>
@@ -2539,14 +2562,14 @@ function formatDeletedAt(timestamp: number) {
         <template v-if="guardDogSubTab === 'friends'">
           <div class="farm-card-enhanced animate-stagger-3 animate-fade-in-up p-3">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-base shrink-0">🐶</span>
-              <span class="text-xs text-gray-500 dark:text-gray-400 shrink-0">自动登记护主犬好友</span>
+              <span class="shrink-0 text-base">🐶</span>
+              <span class="shrink-0 text-xs text-gray-500 dark:text-gray-400">自动登记护主犬好友</span>
               <input
                 v-model="guardDogBatchInput"
                 type="text"
                 placeholder="批量加 GID 进来..."
-                class="flex-1 min-w-[140px] border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-amber-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
+                class="min-w-[140px] flex-1 border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-amber-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+              >
               <button
                 class="cartoon-btn rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 disabled:opacity-50"
                 :disabled="guardDogBatchSaving || !guardDogBatchInput.trim()"
@@ -2601,7 +2624,7 @@ function formatDeletedAt(timestamp: number) {
               class="farm-card-enhanced flex animate-fade-in-up items-center justify-between gap-2 px-3 py-2 transition-all duration-300 hover:scale-[1.01]"
               :style="{ animationDelay: `${0.03 * (idx + 1)}s` }"
             >
-              <div class="flex items-center gap-2 min-w-0 flex-1">
+              <div class="min-w-0 flex flex-1 items-center gap-2">
                 <div class="relative h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-amber-200/50 dark:bg-gray-600 dark:ring-amber-700/30">
                   <img
                     v-if="item.avatarUrl"
@@ -2611,13 +2634,13 @@ function formatDeletedAt(timestamp: number) {
                     @error="($event.target as HTMLImageElement).style.display = 'none'"
                   >
                   <span v-else class="text-xs text-gray-400">👤</span>
-                  <div class="absolute h-4 w-4 border-2 border-white rounded-full bg-amber-500 -bottom-0.5 -right-0.5 flex items-center justify-center text-[8px] dark:border-gray-800">
+                  <div class="absolute h-4 w-4 flex items-center justify-center border-2 border-white rounded-full bg-amber-500 text-[8px] -bottom-0.5 -right-0.5 dark:border-gray-800">
                     🐶
                   </div>
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5 text-sm">
-                    <span class="font-bold truncate">{{ item.name || `GID:${item.gid}` }}</span>
+                    <span class="truncate font-bold">{{ item.name || `GID:${item.gid}` }}</span>
                     <span class="shrink-0 text-xs text-gray-400">({{ item.gid }})</span>
                     <span v-if="(item as any).level" class="shrink-0 text-xs text-gray-500">Lv.{{ (item as any).level }}</span>
                   </div>
@@ -2645,8 +2668,8 @@ function formatDeletedAt(timestamp: number) {
                   ✅
                 </button>
                 <button
-                  class="cartoon-btn shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                  :title="`从护主犬清单中移除`"
+                  class="shrink-0 cartoon-btn rounded-lg bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                  title="从护主犬清单中移除"
                   @click="handleRemoveGuardDogFriend(item.gid)"
                 >
                   🗑️
@@ -2660,14 +2683,14 @@ function formatDeletedAt(timestamp: number) {
         <template v-else-if="guardDogSubTab === 'blacklist'">
           <div class="farm-card-enhanced animate-fade-in-up p-3">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-base shrink-0">🚫</span>
-              <span class="text-xs text-red-600 dark:text-red-400 shrink-0">强制跳过帮忙（优先级最高）</span>
+              <span class="shrink-0 text-base">🚫</span>
+              <span class="shrink-0 text-xs text-red-600 dark:text-red-400">强制跳过帮忙（优先级最高）</span>
               <input
                 v-model="guardDogBatchInput"
                 type="text"
                 placeholder="批量加 GID 进黑名单..."
-                class="flex-1 min-w-[140px] border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-red-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-              />
+                class="min-w-[140px] flex-1 border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-red-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
               <button
                 class="cartoon-btn rounded-lg bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400 disabled:opacity-50"
                 :disabled="guardDogBatchSaving || !guardDogBatchInput.trim()"
@@ -2696,7 +2719,7 @@ function formatDeletedAt(timestamp: number) {
               class="farm-card-enhanced flex animate-fade-in-up items-center justify-between px-3 py-2 transition-all duration-300 hover:scale-[1.01]"
               :style="{ animationDelay: `${0.03 * (idx + 1)}s` }"
             >
-              <div class="flex items-center gap-2 min-w-0">
+              <div class="min-w-0 flex items-center gap-2">
                 <div class="relative h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-red-200/50 dark:bg-gray-600 dark:ring-red-700/30">
                   <img
                     v-if="item.avatarUrl"
@@ -2710,13 +2733,13 @@ function formatDeletedAt(timestamp: number) {
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5 text-sm">
-                    <span class="font-bold truncate">{{ item.name || `GID:${item.gid}` }}</span>
+                    <span class="truncate font-bold">{{ item.name || `GID:${item.gid}` }}</span>
                     <span class="shrink-0 text-xs text-gray-400">({{ item.gid }})</span>
                   </div>
                 </div>
               </div>
               <button
-                class="cartoon-btn shrink-0 rounded-lg bg-green-100 px-2 py-1 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                class="shrink-0 cartoon-btn rounded-lg bg-green-100 px-2 py-1 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400"
                 @click="handleRemoveGuardDogBlacklistItem(item.gid)"
               >
                 ⬆️
@@ -2729,14 +2752,14 @@ function formatDeletedAt(timestamp: number) {
         <template v-else>
           <div class="farm-card-enhanced animate-fade-in-up p-3">
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-base shrink-0">✅</span>
-              <span class="text-xs text-green-600 dark:text-green-400 shrink-0">只帮白名单内 gid（覆盖护主犬检测）</span>
+              <span class="shrink-0 text-base">✅</span>
+              <span class="shrink-0 text-xs text-green-600 dark:text-green-400">只帮白名单内 gid（覆盖护主犬检测）</span>
               <input
                 v-model="guardDogBatchInput"
                 type="text"
                 placeholder="批量加 GID 进白名单..."
-                class="flex-1 min-w-[140px] border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
+                class="min-w-[140px] flex-1 border farm-input border-gray-300 rounded-lg bg-white px-2 py-1 text-xs dark:border-gray-600 focus:border-green-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-green-500"
+              >
               <button
                 class="cartoon-btn rounded-lg bg-green-100 px-2 py-1 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400 disabled:opacity-50"
                 :disabled="guardDogBatchSaving || !guardDogBatchInput.trim()"
@@ -2765,7 +2788,7 @@ function formatDeletedAt(timestamp: number) {
               class="farm-card-enhanced flex animate-fade-in-up items-center justify-between px-3 py-2 transition-all duration-300 hover:scale-[1.01]"
               :style="{ animationDelay: `${0.03 * (idx + 1)}s` }"
             >
-              <div class="flex items-center gap-2 min-w-0">
+              <div class="min-w-0 flex items-center gap-2">
                 <div class="relative h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-2 ring-green-200/50 dark:bg-gray-600 dark:ring-green-700/30">
                   <img
                     v-if="item.avatarUrl"
@@ -2779,13 +2802,13 @@ function formatDeletedAt(timestamp: number) {
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5 text-sm">
-                    <span class="font-bold truncate">{{ item.name || `GID:${item.gid}` }}</span>
+                    <span class="truncate font-bold">{{ item.name || `GID:${item.gid}` }}</span>
                     <span class="shrink-0 text-xs text-gray-400">({{ item.gid }})</span>
                   </div>
                 </div>
               </div>
               <button
-                class="cartoon-btn shrink-0 rounded-lg bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                class="shrink-0 cartoon-btn rounded-lg bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-400"
                 @click="handleRemoveGuardDogWhitelistItem(item.gid)"
               >
                 ⬇️
@@ -2909,9 +2932,9 @@ function formatDeletedAt(timestamp: number) {
         class="fixed bottom-0 left-0 right-0 z-40 border-t-2 border-indigo-200 bg-white/95 shadow-2xl backdrop-blur dark:border-indigo-800 dark:bg-gray-800/95"
         style="padding-bottom: env(safe-area-inset-bottom, 0);"
       >
-        <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-3">
+        <div class="mx-auto max-w-5xl flex flex-wrap items-center gap-2 px-4 py-3">
           <span class="text-sm text-gray-600 dark:text-gray-300">
-            已选 <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span> 人
+            已选 <span class="text-indigo-600 font-bold dark:text-indigo-400">{{ selectedCount.toLocaleString('zh-CN') }}</span> 人
           </span>
           <button
             class="cartoon-btn rounded-xl bg-gray-100 px-3 py-2 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50"
