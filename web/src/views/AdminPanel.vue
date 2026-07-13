@@ -2,6 +2,7 @@
 import type { Card, UserCard } from '@/stores/user'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import api from '@/api'
+import ChangelogModal from '@/components/ChangelogModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -50,6 +51,43 @@ const modalConfig = ref({
   type: 'primary' as 'primary' | 'danger',
   isAlert: true,
 })
+
+// ========== 版本更新管理 ==========
+const showChangelogModal = ref(false)
+const changelogSummary = ref<{ version: string, updatedAt: string, updatedBy: string, sectionCount: number } | null>(null)
+const changelogLoading = ref(false)
+
+async function fetchChangelogSummary() {
+  changelogLoading.value = true
+  try {
+    const res = await api.get('/api/changelog', { skipErrorToast: true } as any)
+    if (res.data?.ok && res.data?.data) {
+      const d = res.data.data
+      changelogSummary.value = {
+        version: d.version || 'v?',
+        updatedAt: d.updatedAt || '',
+        updatedBy: d.updatedBy || 'system',
+        sectionCount: Array.isArray(d.sections) ? d.sections.length : 0,
+      }
+    }
+  }
+  catch (e) {
+    console.error('获取版本更新摘要失败', e)
+  }
+  finally {
+    changelogLoading.value = false
+  }
+}
+
+function openChangelogModal() {
+  showChangelogModal.value = true
+}
+
+function closeChangelogModal() {
+  showChangelogModal.value = false
+  // 关闭后刷新摘要
+  fetchChangelogSummary()
+}
 
 function showAlert(message: string, type: 'primary' | 'danger' = 'primary') {
   modalConfig.value = {
@@ -1998,6 +2036,7 @@ onMounted(() => {
   fetchIpBlacklist()
   fetchInviteConfig()
   fetchInviteRecords()
+  fetchChangelogSummary()
 })
 
 onUnmounted(() => {
@@ -3489,6 +3528,87 @@ watch(activeTab, (tab) => {
               </div>
             </div>
 
+            <!-- 版本更新管理：写入 / 编辑 面板更新日志 -->
+            <div class="farm-card-enhanced p-5">
+              <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+                <div class="admin-section-icon">
+                  <div class="i-carbon-document" />
+                </div>
+                <span>版本更新管理</span>
+                <div class="admin-section-divider" />
+              </h4>
+
+              <div class="mb-4 border border-amber-200 rounded-lg bg-amber-50/70 p-3 text-xs text-amber-700 leading-relaxed dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300">
+                <div class="mb-1 font-semibold">
+                  面板更新日志
+                </div>
+                <p>
+                  编写用户进入面板时看到的更新日志。填写完成后保存，用户在 <code class="px-1 rounded bg-amber-100/60 dark:bg-amber-900/40">/api/changelog</code> 中即可看到本次修改。
+                  支持「查看 / 编辑 / JSON」三种模式，可新增、删除、重排版本或分类。
+                </p>
+              </div>
+
+              <div v-if="changelogLoading && !changelogSummary" class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                <div class="i-svg-spinners-90-ring-with-bg mx-auto text-xl" />
+                <div class="mt-1">
+                  加载中...
+                </div>
+              </div>
+
+              <div v-else-if="changelogSummary" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    当前版本
+                  </div>
+                  <div class="mt-1 font-mono text-base font-bold" :style="{ color: 'var(--theme-primary)' }">
+                    {{ changelogSummary.version }}
+                  </div>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    已记录版本数
+                  </div>
+                  <div class="mt-1 font-mono text-base font-bold" style="color: var(--theme-text)">
+                    {{ changelogSummary.sectionCount }}
+                  </div>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    最后更新人
+                  </div>
+                  <div class="mt-1 truncate text-base font-bold" style="color: var(--theme-text)" :title="changelogSummary.updatedBy">
+                    {{ changelogSummary.updatedBy }}
+                  </div>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/40">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    更新时间
+                  </div>
+                  <div class="mt-1 text-sm font-bold" style="color: var(--theme-text)">
+                    {{ changelogSummary.updatedAt ? new Date(changelogSummary.updatedAt).toLocaleString('zh-CN') : '-' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap justify-end gap-2">
+                <BaseButton
+                  variant="secondary"
+                  size="sm"
+                  :loading="changelogLoading"
+                  @click="fetchChangelogSummary"
+                >
+                  🔄 刷新摘要
+                </BaseButton>
+                <BaseButton
+                  variant="primary"
+                  size="sm"
+                  @click="openChangelogModal"
+                >
+                  📋 打开编辑面板
+                </BaseButton>
+              </div>
+            </div>
+
             <!-- 启动行为:全局自动恢复总开关 -->
             <div class="farm-card-enhanced p-5">
               <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
@@ -4231,6 +4351,12 @@ watch(activeTab, (tab) => {
       confirm-text="知道了"
       @confirm="modalVisible = false"
       @cancel="modalVisible = false"
+    />
+
+    <!-- 版本更新管理弹窗（写入/编辑/JSON 模式） -->
+    <ChangelogModal
+      :show="showChangelogModal"
+      @close="closeChangelogModal"
     />
   </div>
 </template>

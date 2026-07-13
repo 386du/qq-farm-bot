@@ -1,15 +1,28 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/api'
+import ChangelogModal from '@/components/ChangelogModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import { useChangelogStore } from '@/stores/changelog'
 import { useUserStore } from '@/stores/user'
 
 declare const __APP_VERSION__: string
 
 const userStore = useUserStore()
+const changelogStore = useChangelogStore()
 const appVersion = __APP_VERSION__
 const gameVersion = ref('')
+const coreVersion = ref('')
+const showChangelog = ref(false)
+
+function openChangelog() {
+  showChangelog.value = true
+}
+
+function closeChangelog() {
+  showChangelog.value = false
+}
 
 const isLogin = ref(true)
 const username = ref('')
@@ -472,6 +485,7 @@ async function handleRenew() {
 onMounted(() => {
   checkCardClaimStatus()
   fetchGameVersion()
+  fetchCoreVersion()
 
   // 从 URL 读取邀请码
   const urlParams = new URLSearchParams(window.location.search)
@@ -500,6 +514,18 @@ async function fetchGameVersion() {
   }
   catch (e) {
     console.error('获取游戏版本失败:', e)
+  }
+}
+
+async function fetchCoreVersion() {
+  try {
+    const res = await api.get('/api/ping')
+    if (res.data?.ok && res.data?.data?.version) {
+      coreVersion.value = res.data.data.version
+    }
+  }
+  catch (e) {
+    console.error('获取核心版本失败:', e)
   }
 }
 </script>
@@ -700,13 +726,25 @@ async function fetchGameVersion() {
       <div class="card-footer font-body">
         <span>🌻 愿你的农场丰收满满 🌻</span>
         <div class="footer-info">
-          <span class="version">v{{ appVersion }}</span>
+          <span class="version">Web v{{ appVersion }}</span>
+          <span v-if="coreVersion" class="version-sep">·</span>
+          <span v-if="coreVersion" class="version">Core v{{ coreVersion }}</span>
         </div>
         <div v-if="gameVersion" class="game-version">
           当前游戏版本：{{ gameVersion }}
         </div>
+        <button
+          type="button"
+          class="changelog-btn font-body"
+          @click="openChangelog"
+        >
+          📋 查看版本更新
+        </button>
       </div>
     </div>
+
+    <!-- 版本更新弹窗 -->
+    <ChangelogModal :show="showChangelog" @close="closeChangelog" />
 
     <!-- 卡密领取结果弹窗 -->
     <Teleport to="body">
@@ -1576,6 +1614,38 @@ async function fetchGameVersion() {
   text-align: center;
 }
 
+.version-sep {
+  color: color-mix(in srgb, var(--theme-primary) 30%, white);
+  margin: 0 2px;
+}
+
+.changelog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--theme-primary) 80%, white);
+  background: color-mix(in srgb, var(--theme-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 25%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.changelog-btn:hover {
+  background: color-mix(in srgb, var(--theme-primary) 15%, transparent);
+  color: var(--theme-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--theme-primary) 20%, transparent);
+}
+
+.changelog-btn:active {
+  transform: translateY(0);
+}
+
 .claim-card-btn {
   width: 100%;
   padding: 10px 16px;
@@ -1644,6 +1714,12 @@ async function fetchGameVersion() {
   .card-footer {
     border-top-color: rgba(74, 140, 63, 0.3);
     color: #6dbf5b;
+  }
+
+  .changelog-btn {
+    background: color-mix(in srgb, var(--theme-primary) 12%, transparent);
+    border-color: color-mix(in srgb, var(--theme-primary) 35%, transparent);
+    color: color-mix(in srgb, var(--theme-primary) 70%, white);
   }
 }
 
