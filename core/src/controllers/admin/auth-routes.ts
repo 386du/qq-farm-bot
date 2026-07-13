@@ -349,7 +349,24 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
     });
 
     app.use('/api', (req: Request, res: Response, next: any) => {
-        if (req.path === '/login' || req.path === '/qr/create' || req.path === '/qr/check' || req.path === '/card-claim/status' || req.path === '/card-claim/claim' || req.path === '/game-version' || req.path === '/user/renew-public' || req.path === '/changelog' || req.path === '/display-config') return next();
+        // 公开接口白名单
+        if (
+            req.path === '/login'
+            || req.path === '/qr/create'
+            || req.path === '/qr/check'
+            || req.path === '/card-claim/status'
+            || req.path === '/card-claim/claim'
+            || req.path === '/game-version'
+            || req.path === '/user/renew-public'
+            || req.path === '/changelog'
+        ) {
+            return next();
+        }
+        // /display-config 仅 GET 公开（侧边栏/登录页读取版本号），PUT 必须鉴权
+        if (req.path === '/display-config' && (req.method === 'GET' || req.method === 'OPTIONS')) {
+            return next();
+        }
+        // 其余所有非公开接口（含写操作）必须鉴权
         return authRequired(req, res, next);
     });
 
