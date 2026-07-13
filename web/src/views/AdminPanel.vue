@@ -3681,77 +3681,60 @@ watch(activeTab, (tab) => {
                   📋 打开编辑面板
                 </BaseButton>
               </div>
-            </div>
 
-            <!-- 侧边栏 Web 版本号：管理员可在登录页 / 侧边栏显示自定义版本号 -->
-            <div class="farm-card-enhanced p-5">
-              <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
-                <div class="admin-section-icon">
-                  <div class="i-carbon-version" />
-                </div>
-                <span>侧边栏版本号</span>
-                <div class="admin-section-divider" />
-              </h4>
-
-              <div class="mb-4 border border-emerald-200 rounded-lg bg-emerald-50/70 p-3 text-xs text-emerald-700 leading-relaxed dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-                <div class="mb-1 font-semibold">
-                  自定义 Web 版本号
-                </div>
-                <p>
-                  填写后，<strong>侧边栏底部</strong>和<strong>登录页底部</strong>显示的 Web 版本号将使用此值。
-                  留空则回退到构建版本号（<code class="px-1 rounded bg-emerald-100/60 dark:bg-emerald-900/40 font-mono">{{ version || 'unknown' }}</code>）。
-                  修改保存后立即生效，无需重启服务。
-                </p>
-              </div>
-
-              <div v-if="displayConfigLoading" class="py-3 text-center text-sm text-gray-500 dark:text-gray-400">
-                <div class="i-svg-spinners-90-ring-with-bg mx-auto text-xl" />
-              </div>
-
-              <template v-else>
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <BaseInput
-                    v-model="webVersionDraft"
-                    label="Web 版本号（侧边栏显示）"
-                    type="text"
-                    :placeholder="`留空使用默认版本 ${version || ''}`"
-                    class="md:col-span-2"
-                    :disabled="displayConfigSaving"
-                  />
+              <!-- 侧边栏 / 登录页展示的 Web 版本号（同卡片内子区块） -->
+              <div class="mt-5 border-t border-dashed border-gray-200 pt-4 dark:border-gray-700">
+                <div class="mb-3 flex items-center gap-2">
+                  <div class="i-carbon-version text-base text-emerald-500" />
+                  <span class="text-sm font-semibold" style="color: var(--theme-text)">侧边栏展示版本号</span>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">留空则使用构建版本号 <code class="font-mono">{{ version || 'unknown' }}</code></span>
                 </div>
 
-                <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                <div v-if="displayConfigLoading" class="py-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <div class="i-svg-spinners-90-ring-with-bg mx-auto text-xl" />
+                </div>
+
+                <template v-else>
+                  <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <BaseInput
+                      v-model="webVersionDraft"
+                      :placeholder="`留空使用默认版本 ${version || ''}`"
+                      :disabled="displayConfigSaving"
+                      class="flex-1"
+                    />
+                    <div class="flex gap-2 sm:shrink-0">
+                      <BaseButton
+                        variant="secondary"
+                        size="sm"
+                        :loading="displayConfigSaving"
+                        :disabled="!webVersionDraft"
+                        @click="handleResetWebVersion"
+                      >
+                        清空
+                      </BaseButton>
+                      <BaseButton
+                        variant="primary"
+                        size="sm"
+                        :loading="displayConfigSaving"
+                        @click="handleSaveWebVersion"
+                      >
+                        保存版本号
+                      </BaseButton>
+                    </div>
+                  </div>
+
+                  <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     当前侧边栏显示：
                     <span class="font-mono font-semibold" style="color: var(--theme-text)">
                       Web v{{ displayConfig.webVersion || version || '未设置' }}
                     </span>
-                    <span v-if="displayConfig.updatedAt" class="ml-2">
+                    <span v-if="displayConfig.updatedAt && displayConfig.updatedAt !== new Date(0).toISOString()" class="ml-2">
                       · 更新于 {{ new Date(displayConfig.updatedAt).toLocaleString('zh-CN') }}
                       <span v-if="displayConfig.updatedBy"> · by {{ displayConfig.updatedBy }}</span>
                     </span>
                   </div>
-                  <div class="flex gap-2">
-                    <BaseButton
-                      variant="secondary"
-                      size="sm"
-                      :loading="displayConfigSaving"
-                      :disabled="!webVersionDraft"
-                      @click="handleResetWebVersion"
-                    >
-                      清空
-                    </BaseButton>
-                    <BaseButton
-                      variant="primary"
-                      size="sm"
-                      :loading="displayConfigSaving"
-                      @click="handleSaveWebVersion"
-                    >
-                      保存版本号
-                    </BaseButton>
-                  </div>
-                </div>
-              </template>
+                </template>
+              </div>
             </div>
 
             <!-- 启动行为:全局自动恢复总开关 -->
