@@ -4,13 +4,11 @@ import api from '@/api'
 import ChangelogModal from '@/components/ChangelogModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
-import { useChangelogStore } from '@/stores/changelog'
 import { useUserStore } from '@/stores/user'
 
 declare const __APP_VERSION__: string
 
 const userStore = useUserStore()
-const changelogStore = useChangelogStore()
 const appVersion = __APP_VERSION__
 const gameVersion = ref('')
 const coreVersion = ref('')
