@@ -880,16 +880,14 @@ async function fetchDisplayConfig() {
 </template>
 
 <style scoped>
-/* ===== 流动光背景登录页 ===== */
+/* ===== 登录页（适配主题） ===== */
 .login-page {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 65%),
-    linear-gradient(180deg, #f5f7fb 0%, #e8ebf3 100%);
+  background: var(--theme-bg, #f5f7fb);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -904,25 +902,25 @@ async function fetchDisplayConfig() {
     'Hiragino Sans GB',
     'Microsoft YaHei',
     sans-serif;
-  color: #1f2937;
+  color: var(--theme-text, #1f2937);
   isolation: isolate;
 }
 
-/* ====== 简约背景：柔和 mesh 渐变 ====== */
+/* ====== 简约背景：柔和 mesh 渐变（使用主题色） ====== */
 .login-mesh {
   position: absolute;
   inset: -20%;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-    radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
-    radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
-    radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+    radial-gradient(at 20% 20%, color-mix(in srgb, var(--theme-primary, #4a8c3f) 15%, transparent) 0px, transparent 50%),
+    radial-gradient(at 80% 10%, color-mix(in srgb, var(--theme-secondary, #8b6914) 12%, transparent) 0px, transparent 50%),
+    radial-gradient(at 10% 80%, color-mix(in srgb, var(--theme-primary, #4a8c3f) 10%, transparent) 0px, transparent 50%),
+    radial-gradient(at 90% 70%, color-mix(in srgb, var(--theme-secondary, #8b6914) 10%, transparent) 0px, transparent 50%);
   filter: blur(80px) saturate(110%);
   animation: meshFlow 25s ease-in-out infinite alternate;
   will-change: transform, filter;
-  opacity: 0.8;
+  opacity: 0.5;
 }
 
 @keyframes meshFlow {
@@ -1027,7 +1025,7 @@ async function fetchDisplayConfig() {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.03) 1px, transparent 1.2px);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--theme-text, #111827) 8%, transparent) 1px, transparent 1.2px);
   background-size: 28px 28px;
   pointer-events: none;
   z-index: 0;
@@ -1047,14 +1045,14 @@ async function fetchDisplayConfig() {
   position: relative;
   z-index: 1;
   width: 100%;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: color-mix(in srgb, var(--theme-bg, #ffffff) 85%, white);
+  border: 1px solid color-mix(in srgb, var(--theme-text, #111827) 8%, transparent);
   border-radius: 16px;
   padding: 36px 32px;
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 24px -8px rgba(15, 23, 42, 0.08),
-    0 24px 48px -16px rgba(15, 23, 42, 0.06);
+    0 1px 2px color-mix(in srgb, var(--theme-text, #111827) 4%, transparent),
+    0 8px 24px -8px color-mix(in srgb, var(--theme-text, #111827) 8%, transparent),
+    0 24px 48px -16px color-mix(in srgb, var(--theme-text, #111827) 6%, transparent);
 }
 
 .login-card::before {
@@ -1064,7 +1062,7 @@ async function fetchDisplayConfig() {
   left: 12%;
   right: 12%;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, white 90%, transparent) 50%, transparent 100%);
   pointer-events: none;
   border-radius: 1px;
 }
@@ -1081,13 +1079,13 @@ async function fetchDisplayConfig() {
   justify-content: center;
   width: 52px;
   height: 52px;
-  background: linear-gradient(135deg, #1f2937 0%, #0f172a 100%);
+  background: var(--theme-gradient, linear-gradient(135deg, #4a8c3f 0%, #6dbf5b 100%));
   color: #ffffff;
   border-radius: 12px;
   margin-bottom: 16px;
   box-shadow:
-    0 4px 12px -2px rgba(15, 23, 42, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 4px 12px -2px color-mix(in srgb, var(--theme-primary, #4a8c3f) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .login-logo::after {
@@ -1095,7 +1093,7 @@ async function fetchDisplayConfig() {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 50%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -1106,20 +1104,20 @@ async function fetchDisplayConfig() {
   color: #ffffff;
   filter:
     drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25))
-    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
 }
 
 .login-title {
   font-size: 20px;
   font-weight: 600;
-  color: #111827;
+  color: var(--theme-text, #111827);
   margin: 0 0 6px;
   letter-spacing: 0.2px;
 }
 
 .login-subtitle {
   font-size: 13px;
-  color: #6b7280;
+  color: color-mix(in srgb, var(--theme-text, #6b7280) 60%, transparent);
   margin: 0;
   font-weight: 400;
 }
@@ -1138,31 +1136,31 @@ async function fetchDisplayConfig() {
 
 /* 高级感：让所有 input 与登录页的深灰主题对齐 */
 .login-field :deep(.base-input) {
-  background: #fbfcfd !important;
-  border-color: rgba(15, 23, 42, 0.1) !important;
-  color: #1f2937 !important;
-  -webkit-text-fill-color: #1f2937;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: color-mix(in srgb, var(--theme-bg, #fbfcfd) 50%, white) !important;
+  border-color: color-mix(in srgb, var(--theme-text, #111827) 10%, transparent) !important;
+  color: var(--theme-text, #1f2937) !important;
+  -webkit-text-fill-color: var(--theme-text, #1f2937);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--theme-text, #111827) 4%, transparent);
   transition: all 0.2s ease;
 }
 
 .login-field :deep(.base-input:hover) {
-  border-color: rgba(15, 23, 42, 0.18) !important;
+  border-color: color-mix(in srgb, var(--theme-text, #111827) 18%, transparent) !important;
 }
 
 .login-field :deep(.base-input:focus) {
-  border-color: #1f2937 !important;
-  background: #ffffff !important;
-  color: #1f2937 !important;
-  -webkit-text-fill-color: #1f2937;
+  border-color: var(--theme-primary, #1f2937) !important;
+  background: var(--theme-bg, #ffffff) !important;
+  color: var(--theme-text, #1f2937) !important;
+  -webkit-text-fill-color: var(--theme-text, #1f2937);
   box-shadow:
-    inset 0 1px 2px rgba(15, 23, 42, 0.04),
-    0 0 0 4px rgba(15, 23, 42, 0.06) !important;
+    inset 0 1px 2px color-mix(in srgb, var(--theme-text, #111827) 4%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--theme-primary, #1f2937) 10%, transparent) !important;
   transform: none !important;
 }
 
 .login-field :deep(.base-input:focus + button) {
-  color: #1f2937;
+  color: var(--theme-text, #1f2937);
 }
 
 /* 修复 iOS 自动填充后文字看不见的问题 */
@@ -1170,85 +1168,20 @@ async function fetchDisplayConfig() {
 .login-field :deep(.base-input:-webkit-autofill:hover),
 .login-field :deep(.base-input:-webkit-autofill:focus),
 .login-field :deep(.base-input:-webkit-autofill:active) {
-  -webkit-text-fill-color: #1f2937 !important;
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
-  box-shadow: 0 0 0 1000px #ffffff inset !important;
-  caret-color: #1f2937;
-}
-
-@media (prefers-color-scheme: dark) {
-  .login-field :deep(.base-input) {
-    background: rgba(15, 23, 42, 0.4) !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
-    color: #e2e8f0 !important;
-    -webkit-text-fill-color: #e2e8f0;
-  }
-
-  .login-field :deep(.base-input:hover) {
-    border-color: rgba(255, 255, 255, 0.15) !important;
-  }
-
-  .login-field :deep(.base-input:focus) {
-    border-color: #e2e8f0 !important;
-    background: rgba(15, 23, 42, 0.6) !important;
-    color: #f1f5f9 !important;
-    -webkit-text-fill-color: #f1f5f9;
-    box-shadow:
-      inset 0 1px 2px rgba(0, 0, 0, 0.3),
-      0 0 0 4px rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .login-field :deep(.base-input:-webkit-autofill),
-  .login-field :deep(.base-input:-webkit-autofill:hover),
-  .login-field :deep(.base-input:-webkit-autofill:focus),
-  .login-field :deep(.base-input:-webkit-autofill:active) {
-    -webkit-text-fill-color: #f1f5f9 !important;
-    -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
-    box-shadow: 0 0 0 1000px #1f2937 inset !important;
-    caret-color: #f1f5f9;
-  }
-}
-
-/* 同时支持通过 .dark class 切换的暗色模式（侧边栏主题切换会加 .dark 到 html） */
-:global(html.dark) .login-field :deep(.base-input) {
-  background: rgba(15, 23, 42, 0.4) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  color: #e2e8f0 !important;
-  -webkit-text-fill-color: #e2e8f0;
-}
-
-:global(html.dark) .login-field :deep(.base-input:hover) {
-  border-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-:global(html.dark) .login-field :deep(.base-input:focus) {
-  border-color: #e2e8f0 !important;
-  background: rgba(15, 23, 42, 0.6) !important;
-  color: #f1f5f9 !important;
-  -webkit-text-fill-color: #f1f5f9;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 0 0 4px rgba(255, 255, 255, 0.06) !important;
-}
-
-:global(html.dark) .login-field :deep(.base-input:-webkit-autofill),
-:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:hover),
-:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:focus),
-:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:active) {
-  -webkit-text-fill-color: #f1f5f9 !important;
-  -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
-  box-shadow: 0 0 0 1000px #1f2937 inset !important;
-  caret-color: #f1f5f9;
+  -webkit-text-fill-color: var(--theme-text, #1f2937) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--theme-bg, #ffffff) inset !important;
+  box-shadow: 0 0 0 1000px var(--theme-bg, #ffffff) inset !important;
+  caret-color: var(--theme-text, #1f2937);
 }
 
 .login-label {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: color-mix(in srgb, var(--theme-text, #374151) 85%, transparent);
 }
 
 .login-label-opt {
-  color: #9ca3af;
+  color: color-mix(in srgb, var(--theme-text, #9ca3af) 60%, transparent);
   font-weight: 400;
   font-size: 12px;
 }
@@ -1271,7 +1204,7 @@ async function fetchDisplayConfig() {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #4b5563;
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   cursor: pointer;
   user-select: none;
 }
@@ -1279,7 +1212,7 @@ async function fetchDisplayConfig() {
 .login-checkbox {
   width: 14px;
   height: 14px;
-  accent-color: #1f2937;
+  accent-color: var(--theme-primary, #1f2937);
   cursor: pointer;
 }
 
@@ -1292,9 +1225,9 @@ async function fetchDisplayConfig() {
 
 .login-link {
   background: none;
-  border: 1px solid #d1d5db;
+  border: 1px solid color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
   border-radius: 6px;
-  color: #4b5563;
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 10px;
@@ -1302,22 +1235,22 @@ async function fetchDisplayConfig() {
 }
 
 .login-link:hover {
-  color: #1f2937;
-  border-color: #1f2937;
+  color: var(--theme-primary, #1f2937);
+  border-color: var(--theme-primary, #1f2937);
 }
 
 .login-link-sep {
-  color: #d1d5db;
+  color: color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
   font-size: 12px;
 }
 
 .login-claim-btn {
   background: none;
-  border: 1px dashed #d1d5db;
+  border: 1px dashed color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 12px;
-  color: #4b5563;
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   cursor: pointer;
   align-self: flex-start;
   margin-top: 4px;
@@ -1325,8 +1258,8 @@ async function fetchDisplayConfig() {
 }
 
 .login-claim-btn:hover:not(:disabled) {
-  border-color: #1f2937;
-  color: #1f2937;
+  border-color: var(--theme-primary, #1f2937);
+  color: var(--theme-primary, #1f2937);
 }
 
 .login-claim-btn:disabled {
@@ -1340,22 +1273,22 @@ async function fetchDisplayConfig() {
   font-size: 14px;
   font-weight: 500;
   border-radius: 12px;
-  background: #1f2937;
+  background: var(--theme-gradient, linear-gradient(135deg, #4a8c3f 0%, #6dbf5b 100%));
   color: #ffffff !important;
   border: none;
   transition: all 0.2s ease;
   letter-spacing: 0.5px;
   box-shadow:
-    0 2px 4px rgba(15, 23, 42, 0.1),
-    0 4px 12px -2px rgba(15, 23, 42, 0.18);
+    0 2px 4px color-mix(in srgb, var(--theme-primary, #111827) 10%, transparent),
+    0 4px 12px -2px color-mix(in srgb, var(--theme-primary, #111827) 20%, transparent);
 }
 
 .login-submit:hover:not(:disabled) {
-  background: #111827;
+  filter: brightness(1.05);
   transform: translateY(-1px);
   box-shadow:
-    0 4px 8px rgba(15, 23, 42, 0.12),
-    0 8px 20px -4px rgba(15, 23, 42, 0.22);
+    0 4px 8px color-mix(in srgb, var(--theme-primary, #111827) 12%, transparent),
+    0 8px 20px -4px color-mix(in srgb, var(--theme-primary, #111827) 25%, transparent);
 }
 
 .login-submit:active:not(:disabled) {
@@ -1363,8 +1296,7 @@ async function fetchDisplayConfig() {
 }
 
 .login-submit:disabled {
-  background: #9ca3af !important;
-  color: #ffffff !important;
+  filter: grayscale(0.5) opacity(0.6);
   cursor: not-allowed;
 }
 
@@ -1378,7 +1310,7 @@ async function fetchDisplayConfig() {
 .login-strength-bar {
   flex: 1;
   height: 3px;
-  background: #f3f4f6;
+  background: color-mix(in srgb, var(--theme-text, #f3f4f6) 10%, transparent);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1393,6 +1325,7 @@ async function fetchDisplayConfig() {
   font-weight: 500;
   min-width: 36px;
   text-align: right;
+  color: color-mix(in srgb, var(--theme-text, #111827) 60%, transparent);
 }
 
 .login-alert {
@@ -1407,13 +1340,13 @@ async function fetchDisplayConfig() {
 }
 
 .login-alert-error {
-  background: #fef2f2;
+  background: color-mix(in srgb, #fef2f2 80%, var(--theme-bg, white));
   color: #b91c1c;
   border: 1px solid #fecaca;
 }
 
 .login-alert-success {
-  background: #f0fdf4;
+  background: color-mix(in srgb, #f0fdf4 80%, var(--theme-bg, white));
   color: #15803d;
   border: 1px solid #bbf7d0;
 }
@@ -1427,14 +1360,14 @@ async function fetchDisplayConfig() {
   text-align: center;
   margin-top: 20px;
   padding-top: 18px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid color-mix(in srgb, var(--theme-text, #f3f4f6) 10%, transparent);
 }
 
 .login-switch-btn {
   background: none;
-  border: 1px solid #d1d5db;
+  border: 1px solid color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
   border-radius: 6px;
-  color: #4b5563;
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   font-size: 13px;
   cursor: pointer;
   padding: 6px 14px;
@@ -1442,14 +1375,14 @@ async function fetchDisplayConfig() {
 }
 
 .login-switch-btn:hover {
-  color: #1f2937;
-  border-color: #1f2937;
+  color: var(--theme-primary, #1f2937);
+  border-color: var(--theme-primary, #1f2937);
 }
 
 .login-footer {
   margin-top: 24px;
   padding-top: 18px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid color-mix(in srgb, var(--theme-text, #f3f4f6) 10%, transparent);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1459,7 +1392,7 @@ async function fetchDisplayConfig() {
 
 .login-versions {
   font-size: 12px;
-  color: #9ca3af;
+  color: color-mix(in srgb, var(--theme-text, #9ca3af) 60%, transparent);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1467,19 +1400,19 @@ async function fetchDisplayConfig() {
 }
 
 .login-version-sep {
-  color: #d1d5db;
+  color: color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
 }
 
 .login-game-version {
   font-size: 11px;
-  color: #9ca3af;
+  color: color-mix(in srgb, var(--theme-text, #9ca3af) 60%, transparent);
 }
 
 .login-changelog {
   margin-top: 4px;
   background: none;
-  border: 1px solid #d1d5db;
-  color: #4b5563;
+  border: 1px solid color-mix(in srgb, var(--theme-text, #d1d5db) 50%, transparent);
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   font-size: 12px;
   cursor: pointer;
   padding: 5px 12px;
@@ -1488,8 +1421,8 @@ async function fetchDisplayConfig() {
 }
 
 .login-changelog:hover {
-  color: #1f2937;
-  border-color: #1f2937;
+  color: var(--theme-primary, #1f2937);
+  border-color: var(--theme-primary, #1f2937);
 }
 
 /* ===== 弹窗样式 ===== */
@@ -1506,7 +1439,7 @@ async function fetchDisplayConfig() {
 }
 
 .login-modal {
-  background: #ffffff;
+  background: var(--theme-bg, #ffffff);
   border-radius: 12px;
   max-width: 360px;
   width: 100%;
@@ -1514,6 +1447,7 @@ async function fetchDisplayConfig() {
   overflow-y: auto;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   animation: modalFadeIn 0.2s ease;
+  border: 1px solid color-mix(in srgb, var(--theme-text, #111827) 8%, transparent);
 }
 
 @keyframes modalFadeIn {
@@ -1538,7 +1472,7 @@ async function fetchDisplayConfig() {
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: #1f2937;
+  background: var(--theme-gradient, linear-gradient(135deg, #4a8c3f 0%, #6dbf5b 100%));
   color: #ffffff;
   border-radius: 50%;
   font-size: 20px;
@@ -1549,7 +1483,7 @@ async function fetchDisplayConfig() {
 .login-modal-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--theme-text, #111827);
   margin: 0;
 }
 
@@ -1560,14 +1494,14 @@ async function fetchDisplayConfig() {
 
 .login-modal-message {
   font-size: 13px;
-  color: #4b5563;
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   margin: 0 0 12px;
   line-height: 1.5;
 }
 
 .login-modal-cardcode {
-  background: #f9fafb;
-  border: 1px solid #f3f4f6;
+  background: color-mix(in srgb, var(--theme-text, #f9fafb) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--theme-text, #f3f4f6) 10%, transparent);
   border-radius: 6px;
   padding: 12px;
   margin-top: 8px;
@@ -1575,15 +1509,15 @@ async function fetchDisplayConfig() {
 
 .login-modal-cardcode-label {
   font-size: 12px;
-  color: #6b7280;
+  color: color-mix(in srgb, var(--theme-text, #6b7280) 60%, transparent);
   margin-bottom: 6px;
 }
 
 .login-modal-cardcode-value {
   font-family: 'SF Mono', Menlo, Consolas, monospace;
   font-size: 13px;
-  color: #1f2937;
-  background: #ffffff;
+  color: var(--theme-text, #1f2937);
+  background: var(--theme-bg, #ffffff);
   padding: 8px;
   border-radius: 4px;
   word-break: break-all;
@@ -1599,14 +1533,14 @@ async function fetchDisplayConfig() {
 .login-modal-btn {
   width: 100%;
   padding: 11px;
-  background: #1f2937;
+  background: var(--theme-gradient, linear-gradient(135deg, #4a8c3f 0%, #6dbf5b 100%));
   color: #ffffff;
   border: none;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: filter 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1614,19 +1548,19 @@ async function fetchDisplayConfig() {
 }
 
 .login-modal-btn:hover:not(:disabled) {
-  background: #111827;
+  filter: brightness(1.05);
 }
 
 .login-modal-btn:disabled {
-  background: #9ca3af;
+  filter: grayscale(0.5) opacity(0.6);
   cursor: not-allowed;
 }
 
 .login-modal-btn-secondary {
   width: 100%;
   padding: 10px;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: color-mix(in srgb, var(--theme-text, #f3f4f6) 10%, transparent);
+  color: color-mix(in srgb, var(--theme-text, #4b5563) 75%, transparent);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -1635,7 +1569,7 @@ async function fetchDisplayConfig() {
 }
 
 .login-modal-btn-secondary:hover {
-  background: #e5e7eb;
+  background: color-mix(in srgb, var(--theme-text, #e5e7eb) 15%, transparent);
 }
 
 /* 弹窗过渡 */
@@ -1647,224 +1581,6 @@ async function fetchDisplayConfig() {
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
-}
-
-/* 暗色模式 */
-@media (prefers-color-scheme: dark) {
-  .login-page {
-    background:
-      radial-gradient(ellipse 90% 55% at 50% 0%, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 65%),
-      linear-gradient(180deg, #0b1220 0%, #060912 100%);
-    color: #e2e8f0;
-  }
-
-  /* 暗色点阵肌理（更淡） */
-  .login-page::before {
-    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.025) 1px, transparent 1.2px);
-    background-size: 28px 28px;
-  }
-
-  /* 暗色 mesh 渐变：更柔和 */
-  .login-mesh {
-    background:
-      radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.2) 0px, transparent 50%),
-      radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
-      radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
-      radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.18) 0px, transparent 50%);
-    filter: blur(90px) saturate(120%);
-    opacity: 0.6;
-  }
-
-  .login-aurora {
-    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%);
-  }
-
-  .login-card {
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.92) 100%);
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.3),
-      0 8px 24px -8px rgba(0, 0, 0, 0.5),
-      0 24px 48px -16px rgba(0, 0, 0, 0.4);
-  }
-
-  .login-card::before {
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
-  }
-
-  .login-logo {
-    background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
-    color: #0f172a;
-    box-shadow:
-      0 4px 12px -2px rgba(0, 0, 0, 0.5),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-
-  .login-logo .i-carbon-sprout {
-    color: #0f172a;
-    filter:
-      drop-shadow(0 1px 1px rgba(255, 255, 255, 0.4))
-      drop-shadow(0 2px 3px rgba(0, 0, 0, 0.1));
-  }
-
-  .login-title {
-    color: #f1f5f9;
-  }
-
-  .login-subtitle {
-    color: #94a3b8;
-  }
-
-  .login-label {
-    color: #cbd5e1;
-  }
-
-  .login-remember {
-    color: #cbd5e1;
-  }
-
-  .login-link {
-    color: #94a3b8;
-    border-color: #475569;
-  }
-
-  .login-link:hover {
-    color: #e2e8f0;
-    border-color: #e2e8f0;
-  }
-
-  .login-claim-btn {
-    background: none;
-    border-color: #475569;
-    color: #cbd5e1;
-  }
-
-  .login-claim-btn:hover:not(:disabled) {
-    border-color: #e2e8f0;
-    color: #e2e8f0;
-  }
-
-  .login-submit {
-    background:
-      linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%) padding-box,
-      linear-gradient(135deg, #818cf8 0%, #7dd3fc 50%, #f472b6 100%) border-box !important;
-    color: #0f172a !important;
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.3),
-      0 4px 12px -2px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-
-  .login-submit:hover:not(:disabled) {
-    background:
-      linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%) padding-box,
-      linear-gradient(135deg, #a5b4fc 0%, #bae6fd 50%, #fbcfe8 100%) border-box !important;
-    transform: translateY(-1px);
-    box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.35),
-      0 8px 20px -4px rgba(0, 0, 0, 0.45),
-      0 0 0 4px rgba(129, 140, 248, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
-
-  .login-submit:disabled {
-    background:
-      #475569 padding-box,
-      #334155 border-box !important;
-    color: #94a3b8 !important;
-  }
-
-  .login-switch {
-    border-top-color: #334155;
-  }
-
-  .login-switch-btn {
-    color: #94a3b8;
-    border-color: #475569;
-  }
-
-  .login-switch-btn:hover {
-    color: #e2e8f0;
-    border-color: #e2e8f0;
-  }
-
-  .login-footer {
-    border-top-color: #334155;
-  }
-
-  .login-versions,
-  .login-game-version {
-    color: #64748b;
-  }
-
-  .login-version-sep {
-    color: #475569;
-  }
-
-  .login-changelog {
-    color: #94a3b8;
-    border-color: #475569;
-    background: none;
-  }
-
-  .login-changelog:hover {
-    color: #e2e8f0;
-    border-color: #e2e8f0;
-    background: none;
-  }
-
-  .login-strength-bar {
-    background: #334155;
-  }
-
-  .login-modal {
-    background: #1e293b;
-  }
-
-  .login-modal-icon {
-    background: #e2e8f0;
-    color: #0f172a;
-  }
-
-  .login-modal-title {
-    color: #f1f5f9;
-  }
-
-  .login-modal-message {
-    color: #cbd5e1;
-  }
-
-  .login-modal-cardcode {
-    background: #0f172a;
-    border-color: #334155;
-  }
-
-  .login-modal-cardcode-label {
-    color: #94a3b8;
-  }
-
-  .login-modal-cardcode-value {
-    background: #1e293b;
-    color: #e2e8f0;
-  }
-
-  .login-modal-btn {
-    background: #e2e8f0;
-    color: #0f172a;
-  }
-
-  .login-modal-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-  }
-
-  .login-modal-btn-secondary {
-    background: #334155;
-    color: #cbd5e1;
-  }
-
-  .login-modal-btn-secondary:hover {
-    background: #475569;
-  }
 }
 
 /* 移动端适配 */
