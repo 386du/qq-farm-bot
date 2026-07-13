@@ -908,43 +908,39 @@ async function fetchDisplayConfig() {
   isolation: isolate;
 }
 
-/* ====== 流动光层 1：mesh 多色流动 ====== */
+/* ====== 简约背景：柔和 mesh 渐变 ====== */
 .login-mesh {
   position: absolute;
   inset: -20%;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.45) 0px, transparent 50%),
-    radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.45) 0px, transparent 50%),
-    radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.4) 0px, transparent 50%),
-    radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.4) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(34, 197, 94, 0.3) 0px, transparent 50%);
-  filter: blur(60px) saturate(140%);
-  animation: meshFlow 18s ease-in-out infinite alternate;
+    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+    radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+    radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.08) 0px, transparent 50%),
+    radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+  filter: blur(80px) saturate(110%);
+  animation: meshFlow 25s ease-in-out infinite alternate;
   will-change: transform, filter;
+  opacity: 0.8;
 }
 
 @keyframes meshFlow {
   0% {
     transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-    filter: blur(60px) saturate(140%) hue-rotate(0deg);
+    filter: blur(80px) saturate(110%) hue-rotate(0deg);
   }
-  33% {
-    transform: translate3d(-4%, 3%, 0) scale(1.05) rotate(8deg);
-    filter: blur(70px) saturate(160%) hue-rotate(20deg);
-  }
-  66% {
-    transform: translate3d(4%, -2%, 0) scale(1.08) rotate(-6deg);
-    filter: blur(55px) saturate(150%) hue-rotate(-15deg);
+  50% {
+    transform: translate3d(-2%, 2%, 0) scale(1.02) rotate(3deg);
+    filter: blur(90px) saturate(120%) hue-rotate(10deg);
   }
   100% {
-    transform: translate3d(-2%, 4%, 0) scale(1.03) rotate(4deg);
-    filter: blur(65px) saturate(170%) hue-rotate(30deg);
+    transform: translate3d(2%, -1%, 0) scale(1.03) rotate(-2deg);
+    filter: blur(75px) saturate(115%) hue-rotate(-8deg);
   }
 }
 
-/* ====== 流动光层 2：横扫的高光带（斜向流光） ====== */
+/* ====== 简约背景：柔和高光带 ====== */
 .login-streak {
   position: absolute;
   z-index: 0;
@@ -957,34 +953,34 @@ async function fetchDisplayConfig() {
   background: linear-gradient(
     100deg,
     transparent 0%,
-    transparent 35%,
-    rgba(255, 255, 255, 0.55) 48%,
-    rgba(255, 255, 255, 0.85) 50%,
-    rgba(255, 255, 255, 0.55) 52%,
-    transparent 65%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.18) 48%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.18) 52%,
+    transparent 60%,
     transparent 100%
   );
-  filter: blur(20px);
-  mix-blend-mode: screen;
+  filter: blur(30px);
+  opacity: 0.5;
   will-change: transform, left;
 }
 
 .login-streak-1 {
-  animation: streakSweep 7s ease-in-out infinite;
+  animation: streakSweep 15s ease-in-out infinite;
 }
 
 .login-streak-2 {
-  animation: streakSweep 11s ease-in-out infinite;
-  animation-delay: -3.5s;
-  opacity: 0.55;
+  animation: streakSweep 20s ease-in-out infinite;
+  animation-delay: -7.5s;
+  opacity: 0.3;
   background: linear-gradient(
     100deg,
     transparent 0%,
-    transparent 40%,
-    rgba(186, 230, 253, 0.6) 48%,
-    rgba(196, 181, 253, 0.7) 50%,
-    rgba(186, 230, 253, 0.6) 52%,
-    transparent 60%,
+    transparent 45%,
+    rgba(186, 230, 253, 0.2) 48%,
+    rgba(196, 181, 253, 0.25) 50%,
+    rgba(186, 230, 253, 0.2) 52%,
+    transparent 55%,
     transparent 100%
   );
 }
@@ -998,7 +994,7 @@ async function fetchDisplayConfig() {
   }
 }
 
-/* ====== 流动光层 3：中央柔光（继承旧 .login-aurora 位置） ====== */
+/* ====== 简约背景：中央柔光 ====== */
 .login-aurora {
   position: absolute;
   top: -180px;
@@ -1007,31 +1003,32 @@ async function fetchDisplayConfig() {
   width: 720px;
   height: 360px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0) 70%);
-  filter: blur(80px);
+  background: radial-gradient(ellipse, rgba(56, 189, 248, 0.08) 0%, rgba(56, 189, 248, 0) 70%);
+  filter: blur(100px);
   pointer-events: none;
   z-index: 0;
-  animation: auroraPulse 8s ease-in-out infinite alternate;
+  animation: auroraPulse 12s ease-in-out infinite alternate;
+  opacity: 0.7;
 }
 
 @keyframes auroraPulse {
   0% {
     transform: translateX(-50%) scale(1);
-    opacity: 0.9;
+    opacity: 0.6;
   }
   100% {
-    transform: translateX(-50%) scale(1.15);
-    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+    opacity: 0.8;
   }
 }
 
-/* 细点阵网格作为肌理 */
+/* 细点阵网格作为肌理（更淡） */
 .login-page::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.06) 1px, transparent 1.2px);
-  background-size: 22px 22px;
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.03) 1px, transparent 1.2px);
+  background-size: 28px 28px;
   pointer-events: none;
   z-index: 0;
 }
@@ -1144,6 +1141,8 @@ async function fetchDisplayConfig() {
 .login-field :deep(.base-input) {
   background: #fbfcfd !important;
   border-color: rgba(15, 23, 42, 0.1) !important;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: all 0.2s ease;
 }
@@ -1155,6 +1154,8 @@ async function fetchDisplayConfig() {
 .login-field :deep(.base-input:focus) {
   border-color: #1f2937 !important;
   background: #ffffff !important;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937;
   box-shadow:
     inset 0 1px 2px rgba(15, 23, 42, 0.04),
     0 0 0 4px rgba(15, 23, 42, 0.06) !important;
@@ -1165,11 +1166,23 @@ async function fetchDisplayConfig() {
   color: #1f2937;
 }
 
+/* 修复 iOS 自动填充后文字看不见的问题 */
+.login-field :deep(.base-input:-webkit-autofill),
+.login-field :deep(.base-input:-webkit-autofill:hover),
+.login-field :deep(.base-input:-webkit-autofill:focus),
+.login-field :deep(.base-input:-webkit-autofill:active) {
+  -webkit-text-fill-color: #1f2937 !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  caret-color: #1f2937;
+}
+
 @media (prefers-color-scheme: dark) {
   .login-field :deep(.base-input) {
     background: rgba(15, 23, 42, 0.4) !important;
     border-color: rgba(255, 255, 255, 0.08) !important;
     color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0;
   }
 
   .login-field :deep(.base-input:hover) {
@@ -1180,9 +1193,20 @@ async function fetchDisplayConfig() {
     border-color: #e2e8f0 !important;
     background: rgba(15, 23, 42, 0.6) !important;
     color: #f1f5f9 !important;
+    -webkit-text-fill-color: #f1f5f9;
     box-shadow:
       inset 0 1px 2px rgba(0, 0, 0, 0.3),
       0 0 0 4px rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .login-field :deep(.base-input:-webkit-autofill),
+  .login-field :deep(.base-input:-webkit-autofill:hover),
+  .login-field :deep(.base-input:-webkit-autofill:focus),
+  .login-field :deep(.base-input:-webkit-autofill:active) {
+    -webkit-text-fill-color: #f1f5f9 !important;
+    -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
+    box-shadow: 0 0 0 1000px #1f2937 inset !important;
+    caret-color: #f1f5f9;
   }
 }
 
@@ -1191,6 +1215,7 @@ async function fetchDisplayConfig() {
   background: rgba(15, 23, 42, 0.4) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
   color: #e2e8f0 !important;
+  -webkit-text-fill-color: #e2e8f0;
 }
 
 :global(html.dark) .login-field :deep(.base-input:hover) {
@@ -1201,9 +1226,20 @@ async function fetchDisplayConfig() {
   border-color: #e2e8f0 !important;
   background: rgba(15, 23, 42, 0.6) !important;
   color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9;
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.3),
     0 0 0 4px rgba(255, 255, 255, 0.06) !important;
+}
+
+:global(html.dark) .login-field :deep(.base-input:-webkit-autofill),
+:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:hover),
+:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:focus),
+:global(html.dark) .login-field :deep(.base-input:-webkit-autofill:active) {
+  -webkit-text-fill-color: #f1f5f9 !important;
+  -webkit-box-shadow: 0 0 0 1000px #1f2937 inset !important;
+  box-shadow: 0 0 0 1000px #1f2937 inset !important;
+  caret-color: #f1f5f9;
 }
 
 .login-label {
@@ -1257,16 +1293,18 @@ async function fetchDisplayConfig() {
 
 .login-link {
   background: none;
-  border: none;
-  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #4b5563;
   font-size: 13px;
   cursor: pointer;
-  padding: 2px 0;
-  transition: color 0.15s ease;
+  padding: 4px 10px;
+  transition: all 0.15s ease;
 }
 
 .login-link:hover {
   color: #1f2937;
+  border-color: #1f2937;
 }
 
 .login-link-sep {
@@ -1409,16 +1447,18 @@ async function fetchDisplayConfig() {
 
 .login-switch-btn {
   background: none;
-  border: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   color: #4b5563;
   font-size: 13px;
   cursor: pointer;
-  padding: 4px 8px;
-  transition: color 0.15s ease;
+  padding: 6px 14px;
+  transition: all 0.15s ease;
 }
 
 .login-switch-btn:hover {
   color: #1f2937;
+  border-color: #1f2937;
 }
 
 .login-footer {
@@ -1453,18 +1493,18 @@ async function fetchDisplayConfig() {
 .login-changelog {
   margin-top: 4px;
   background: none;
-  border: none;
-  color: #6b7280;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
   font-size: 12px;
   cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 5px 12px;
+  border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .login-changelog:hover {
   color: #1f2937;
-  background: #f3f4f6;
+  border-color: #1f2937;
 }
 
 /* ===== 弹窗样式 ===== */
@@ -1633,25 +1673,25 @@ async function fetchDisplayConfig() {
     color: #e2e8f0;
   }
 
-  /* 暗色点阵肌理 */
+  /* 暗色点阵肌理（更淡） */
   .login-page::before {
-    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1.2px);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.025) 1px, transparent 1.2px);
+    background-size: 28px 28px;
   }
 
-  /* 暗色 mesh 流动光：更亮、对比更强 */
+  /* 暗色 mesh 渐变：更柔和 */
   .login-mesh {
     background:
-      radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.55) 0px, transparent 50%),
-      radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.5) 0px, transparent 50%),
-      radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.45) 0px, transparent 50%),
-      radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.5) 0px, transparent 50%),
-      radial-gradient(at 50% 50%, rgba(34, 197, 94, 0.35) 0px, transparent 50%);
-    filter: blur(70px) saturate(160%);
-    opacity: 0.7;
+      radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.2) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
+      radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.15) 0px, transparent 50%),
+      radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.18) 0px, transparent 50%);
+    filter: blur(90px) saturate(120%);
+    opacity: 0.6;
   }
 
   .login-aurora {
-    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.28) 0%, rgba(56, 189, 248, 0) 70%);
+    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.12) 0%, rgba(56, 189, 248, 0) 70%);
   }
 
   .login-card {
@@ -1700,10 +1740,12 @@ async function fetchDisplayConfig() {
 
   .login-link {
     color: #94a3b8;
+    border-color: #475569;
   }
 
   .login-link:hover {
     color: #e2e8f0;
+    border-color: #e2e8f0;
   }
 
   .login-claim-btn {
@@ -1753,10 +1795,12 @@ async function fetchDisplayConfig() {
 
   .login-switch-btn {
     color: #94a3b8;
+    border-color: #475569;
   }
 
   .login-switch-btn:hover {
     color: #e2e8f0;
+    border-color: #e2e8f0;
   }
 
   .login-footer {
@@ -1774,11 +1818,14 @@ async function fetchDisplayConfig() {
 
   .login-changelog {
     color: #94a3b8;
+    border-color: #475569;
+    background: none;
   }
 
   .login-changelog:hover {
     color: #e2e8f0;
-    background: #334155;
+    border-color: #e2e8f0;
+    background: none;
   }
 
   .login-strength-bar {
