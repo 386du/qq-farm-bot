@@ -10,6 +10,8 @@ import BaseSwitch from '@/components/ui/BaseSwitch.vue'
 import { useToastStore } from '@/stores/toast'
 import { useUserStore } from '@/stores/user'
 
+const version = __APP_VERSION__
+
 const userStore = useUserStore()
 const toast = useToastStore()
 
@@ -87,6 +89,76 @@ function closeChangelogModal() {
   showChangelogModal.value = false
   // 关闭后刷新摘要
   fetchChangelogSummary()
+}
+
+// ========== Web 展示版本号（侧边栏 / 登录页显示） ==========
+const displayConfig = ref<{ webVersion: string, updatedAt: string, updatedBy: string }>({
+  webVersion: '',
+  updatedAt: '',
+  updatedBy: '',
+})
+const displayConfigLoading = ref(false)
+const displayConfigSaving = ref(false)
+const webVersionDraft = ref('')
+
+async function fetchDisplayConfig() {
+  displayConfigLoading.value = true
+  try {
+    const res = await api.get('/api/display-config', { skipErrorToast: true } as any)
+    if (res.data?.ok && res.data?.data) {
+      displayConfig.value = {
+        webVersion: res.data.data.webVersion || '',
+        updatedAt: res.data.data.updatedAt || '',
+        updatedBy: res.data.data.updatedBy || '',
+      }
+      webVersionDraft.value = displayConfig.value.webVersion
+    }
+  }
+  catch (e) {
+    console.error('获取展示配置失败', e)
+  }
+  finally {
+    displayConfigLoading.value = false
+  }
+}
+
+async function handleSaveWebVersion() {
+  const value = String(webVersionDraft.value || '').trim()
+  if (value.length > 64) {
+    showAlert('版本号长度不能超过 64 个字符', 'danger')
+    return
+  }
+  displayConfigSaving.value = true
+  try {
+    const res = await api.put(
+      '/api/display-config',
+      { webVersion: value },
+      { skipErrorToast: true } as any,
+    )
+    if (res.data?.ok) {
+      displayConfig.value = {
+        webVersion: res.data.data.webVersion || '',
+        updatedAt: res.data.data.updatedAt || '',
+        updatedBy: res.data.data.updatedBy || '',
+      }
+      webVersionDraft.value = displayConfig.value.webVersion
+      showAlert('Web 版本号已保存', 'primary')
+    }
+    else {
+      showAlert(res.data?.error || '保存失败', 'danger')
+    }
+  }
+  catch (e: any) {
+    showAlert(`保存失败: ${e?.response?.data?.error || e?.message || '未知错误'}`, 'danger')
+  }
+  finally {
+    displayConfigSaving.value = false
+  }
+}
+
+async function handleResetWebVersion() {
+  webVersionDraft.value = ''
+  await handleSaveWebVersion()
 }
 
 function showAlert(message: string, type: 'primary' | 'danger' = 'primary') {
@@ -2037,6 +2109,7 @@ onMounted(() => {
   fetchInviteConfig()
   fetchInviteRecords()
   fetchChangelogSummary()
+  fetchDisplayConfig()
 })
 
 onUnmounted(() => {
@@ -2062,6 +2135,7 @@ watch(activeTab, (tab) => {
   if (tab === 'system') {
     fetchBackup()
     fetchIpBlacklist()
+    fetchDisplayConfig()
   }
   if (tab === 'session') {
     fetchSessions()
@@ -3607,6 +3681,77 @@ watch(activeTab, (tab) => {
                   📋 打开编辑面板
                 </BaseButton>
               </div>
+            </div>
+
+            <!-- 侧边栏 Web 版本号：管理员可在登录页 / 侧边栏显示自定义版本号 -->
+            <div class="farm-card-enhanced p-5">
+              <h4 class="mb-4 flex items-center gap-2 text-lg font-bold font-display" style="color: var(--theme-text)">
+                <div class="admin-section-icon">
+                  <div class="i-carbon-version" />
+                </div>
+                <span>侧边栏版本号</span>
+                <div class="admin-section-divider" />
+              </h4>
+
+              <div class="mb-4 border border-emerald-200 rounded-lg bg-emerald-50/70 p-3 text-xs text-emerald-700 leading-relaxed dark:border-emerald-800/60 dark:bg-emerald-900/20 dark:text-emerald-300">
+                <div class="mb-1 font-semibold">
+                  自定义 Web 版本号
+                </div>
+                <p>
+                  填写后，<strong>侧边栏底部</strong>和<strong>登录页底部</strong>显示的 Web 版本号将使用此值。
+                  留空则回退到构建版本号（<code class="px-1 rounded bg-emerald-100/60 dark:bg-emerald-900/40 font-mono">{{ version || 'unknown' }}</code>）。
+                  修改保存后立即生效，无需重启服务。
+                </p>
+              </div>
+
+              <div v-if="displayConfigLoading" class="py-3 text-center text-sm text-gray-500 dark:text-gray-400">
+                <div class="i-svg-spinners-90-ring-with-bg mx-auto text-xl" />
+              </div>
+
+              <template v-else>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <BaseInput
+                    v-model="webVersionDraft"
+                    label="Web 版本号（侧边栏显示）"
+                    type="text"
+                    :placeholder="`留空使用默认版本 ${version || ''}`"
+                    class="md:col-span-2"
+                    :disabled="displayConfigSaving"
+                  />
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-xs text-gray-500 dark:text-gray-400">
+                    当前侧边栏显示：
+                    <span class="font-mono font-semibold" style="color: var(--theme-text)">
+                      Web v{{ displayConfig.webVersion || version || '未设置' }}
+                    </span>
+                    <span v-if="displayConfig.updatedAt" class="ml-2">
+                      · 更新于 {{ new Date(displayConfig.updatedAt).toLocaleString('zh-CN') }}
+                      <span v-if="displayConfig.updatedBy"> · by {{ displayConfig.updatedBy }}</span>
+                    </span>
+                  </div>
+                  <div class="flex gap-2">
+                    <BaseButton
+                      variant="secondary"
+                      size="sm"
+                      :loading="displayConfigSaving"
+                      :disabled="!webVersionDraft"
+                      @click="handleResetWebVersion"
+                    >
+                      清空
+                    </BaseButton>
+                    <BaseButton
+                      variant="primary"
+                      size="sm"
+                      :loading="displayConfigSaving"
+                      @click="handleSaveWebVersion"
+                    >
+                      保存版本号
+                    </BaseButton>
+                  </div>
+                </div>
+              </template>
             </div>
 
             <!-- 启动行为:全局自动恢复总开关 -->

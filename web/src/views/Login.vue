@@ -6,13 +6,16 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import { useUserStore } from '@/stores/user'
 
-declare const __APP_VERSION__: string
-
 const userStore = useUserStore()
 const appVersion = __APP_VERSION__
+const customWebVersion = ref('') // 管理员在「侧边栏版本号」中配置的自定义版本号
 const gameVersion = ref('')
 const coreVersion = ref('')
 const showChangelog = ref(false)
+
+const displayWebVersion = computed(() => {
+  return (customWebVersion.value || String(appVersion || '')).trim()
+})
 
 function openChangelog() {
   showChangelog.value = true
@@ -484,6 +487,7 @@ onMounted(() => {
   checkCardClaimStatus()
   fetchGameVersion()
   fetchCoreVersion()
+  fetchDisplayConfig()
 
   // 从 URL 读取邀请码
   const urlParams = new URLSearchParams(window.location.search)
@@ -526,222 +530,161 @@ async function fetchCoreVersion() {
     console.error('获取核心版本失败:', e)
   }
 }
+
+async function fetchDisplayConfig() {
+  try {
+    const res = await api.get('/api/display-config', { skipErrorToast: true } as any)
+    if (res.data?.ok && res.data?.data) {
+      customWebVersion.value = String(res.data.data.webVersion || '').trim()
+    }
+  }
+  catch {
+    // 静默失败，使用默认版本号
+  }
+}
 </script>
 
 <template>
-  <div class="login-container">
-    <!-- 背景装饰 -->
-    <div class="bg-decoration">
-      <!-- 太阳 -->
-      <div class="sun" />
-      <!-- 云朵 -->
-      <div class="cloud cloud-1" />
-      <div class="cloud cloud-2" />
-      <div class="cloud cloud-3" />
-      <!-- 草地 -->
-      <div class="grass" />
-      <!-- 植物装饰 -->
-      <div class="plant plant-1">
-        🌱
-      </div>
-      <div class="plant plant-2">
-        🌻
-      </div>
-      <div class="plant plant-3">
-        🌾
-      </div>
-      <div class="plant plant-4">
-        🌿
-      </div>
-      <div class="plant plant-5">
-        🥕
-      </div>
-      <div class="plant plant-6">
-        🍅
-      </div>
-    </div>
-
-    <!-- 登录卡片 -->
-    <div class="login-card">
-      <!-- Logo 区域 -->
-      <div class="logo-area">
-        <div class="logo-icon">
-          <span class="text-5xl">🌾</span>
-        </div>
-        <h1 class="logo-title font-display">
-          QQ农场智能助手
-        </h1>
-        <p class="logo-subtitle font-body">
-          {{ isLogin ? '欢迎回来，开始你的农场之旅' : '加入我们，开启农场新生活' }}
-        </p>
-      </div>
-
-      <!-- 表单区域 -->
-      <form class="form-area" @submit.prevent="handleSubmit">
-        <!-- 消息提示（移到表单顶部） -->
-        <div v-if="error" class="message error-message">
-          <span class="message-icon">⚠️</span>
-          <div class="message-content">
-            {{ error }}
-            <span v-if="lockoutRemaining > 0" class="lockout-timer">
-              ({{ lockoutRemaining }} 分钟后解锁)
-            </span>
-            <span v-if="rateLimitRemaining > 0" class="lockout-timer">
-              ({{ rateLimitRemaining }} 秒后可重试)
-            </span>
+  <div class="login-page">
+    <div class="login-container">
+      <div class="login-card">
+        <div class="login-header">
+          <div class="login-logo">
+            <div class="i-carbon-sprout" />
           </div>
-        </div>
-        <div v-if="success" class="message success-message">
-          <span class="message-icon">✅</span>
-          {{ success }}
-        </div>
-
-        <div class="form-group">
-          <label class="form-label font-body">
-            <span class="label-icon">👤</span>
-            用户名
-          </label>
-          <BaseInput
-            id="username"
-            v-model="username"
-            type="text"
-            placeholder="请输入用户名（3-32位字母数字下划线）"
-            required
-          />
-          <p v-if="username && !usernameValid.valid" class="form-hint error">
-            {{ usernameValid.message }}
+          <h1 class="login-title">
+            QQ农场智能助手
+          </h1>
+          <p class="login-subtitle">
+            {{ isLogin ? '欢迎回来，请登录' : '创建新账户' }}
           </p>
         </div>
 
-        <div class="form-group">
-          <label class="form-label font-body">
-            <span class="label-icon">🔒</span>
-            密码
-          </label>
-          <BaseInput
-            id="password"
-            v-model="password"
-            type="password"
-            placeholder="请输入密码"
-            required
-          />
-          <div v-if="showPasswordStrength && password" class="password-strength">
-            <div class="strength-bar">
-              <div
-                class="strength-fill"
-                :style="{ width: `${Math.min(passwordStrength.score * 12.5, 100)}%`, backgroundColor: passwordStrength.color }"
-              />
+        <form class="login-form" @submit.prevent="handleSubmit">
+          <div v-if="error" class="login-alert login-alert-error">
+            <span>{{ error }}</span>
+            <span v-if="lockoutRemaining > 0" class="login-alert-meta">({{ lockoutRemaining }} 分钟后解锁)</span>
+            <span v-if="rateLimitRemaining > 0" class="login-alert-meta">({{ rateLimitRemaining }} 秒后可重试)</span>
+          </div>
+          <div v-if="success" class="login-alert login-alert-success">
+            <span>{{ success }}</span>
+          </div>
+
+          <div class="login-field">
+            <label for="username" class="login-label">用户名</label>
+            <BaseInput
+              id="username"
+              v-model="username"
+              type="text"
+              placeholder="3-32位字母数字下划线"
+              autocomplete="username"
+            />
+            <p v-if="username && !usernameValid.valid" class="login-hint">
+              {{ usernameValid.message }}
+            </p>
+          </div>
+
+          <div class="login-field">
+            <label for="password" class="login-label">密码</label>
+            <BaseInput
+              id="password"
+              v-model="password"
+              type="password"
+              placeholder="请输入密码"
+              autocomplete="current-password"
+            />
+            <div v-if="showPasswordStrength && password" class="login-strength">
+              <div class="login-strength-bar">
+                <div
+                  class="login-strength-fill"
+                  :style="{ width: `${Math.min(passwordStrength.score * 12.5, 100)}%`, backgroundColor: passwordStrength.color }"
+                />
+              </div>
+              <span class="login-strength-text" :style="{ color: passwordStrength.color }">
+                {{ passwordStrength.level }}
+              </span>
             </div>
-            <span class="strength-text" :style="{ color: passwordStrength.color }">
-              {{ passwordStrength.level }}
-            </span>
           </div>
-        </div>
 
-        <!-- 记住我 & 忘记密码 & 账号续费 -->
-        <div v-if="isLogin" class="form-options">
-          <label class="remember-me font-body">
-            <input
-              v-model="rememberMe"
-              type="checkbox"
-              class="remember-checkbox"
-            >
-            <span>记住我</span>
-          </label>
-          <div class="form-options-links">
-            <button type="button" class="forgot-password font-body" @click="openRenew">
-              账号续费
-            </button>
-            <button type="button" class="forgot-password font-body" @click="openForgotPassword">
-              忘记密码？
-            </button>
-          </div>
-        </div>
-
-        <div v-if="!isLogin" class="form-group">
-          <label class="form-label font-body">
-            <span class="label-icon">🎫</span>
-            卡密
-          </label>
-
-          <div v-if="cardClaimEnabled" class="mb-2">
+          <div v-if="!isLogin" class="login-field">
+            <label for="cardCode" class="login-label">卡密</label>
+            <BaseInput
+              id="cardCode"
+              v-model="cardCode"
+              type="text"
+              placeholder="请输入卡密"
+            />
             <button
+              v-if="cardClaimEnabled"
               type="button"
-              class="claim-card-btn font-body"
+              class="login-claim-btn"
               :disabled="cardClaimLoading"
               @click="claimFreeCard"
             >
               <span v-if="cardClaimLoading" class="i-svg-spinners-90-ring-with-bg" />
-              <span v-else>🎁 免费领取卡密</span>
+              <span v-else>免费领取卡密</span>
             </button>
           </div>
 
-          <BaseInput
-            id="cardCode"
-            v-model="cardCode"
-            type="text"
-            placeholder="请输入卡密"
-            :required="!isLogin"
-          />
+          <div v-if="!isLogin" class="login-field">
+            <label for="inviteCode" class="login-label">邀请码 <span class="login-label-opt">（选填）</span></label>
+            <BaseInput
+              id="inviteCode"
+              v-model="inviteCode"
+              type="text"
+              placeholder="有邀请码？填写可帮对方获得奖励"
+            />
+          </div>
+
+          <div v-if="isLogin" class="login-row">
+            <label class="login-remember">
+              <input
+                v-model="rememberMe"
+                type="checkbox"
+                class="login-checkbox"
+              >
+              <span>记住我</span>
+            </label>
+            <div class="login-links">
+              <button type="button" class="login-link" @click="openRenew">账号续费</button>
+              <span class="login-link-sep">·</span>
+              <button type="button" class="login-link" @click="openForgotPassword">忘记密码？</button>
+            </div>
+          </div>
+
+          <BaseButton
+            type="submit"
+            variant="primary"
+            block
+            :loading="loading"
+            class="login-submit"
+          >
+            {{ isLogin ? '登 录' : '注 册' }}
+          </BaseButton>
+        </form>
+
+        <div class="login-switch">
+          <button type="button" class="login-switch-btn" @click="toggleMode">
+            {{ isLogin ? '没有账号？立即注册' : '已有账号？立即登录' }}
+          </button>
         </div>
 
-        <div v-if="!isLogin" class="form-group">
-          <label class="form-label font-body">
-            <span class="label-icon">🎁</span>
-            邀请码（选填）
-          </label>
-          <BaseInput
-            id="inviteCode"
-            v-model="inviteCode"
-            type="text"
-            placeholder="有邀请码？填写可帮对方获得奖励"
-          />
+        <div class="login-footer">
+          <div class="login-versions">
+            <span>Web v{{ displayWebVersion }}</span>
+            <span v-if="coreVersion" class="login-version-sep">·</span>
+            <span v-if="coreVersion">Core v{{ coreVersion }}</span>
+          </div>
+          <div v-if="gameVersion" class="login-game-version">
+            游戏版本 {{ gameVersion }}
+          </div>
+          <button type="button" class="login-changelog" @click="openChangelog">
+            查看版本更新
+          </button>
         </div>
-
-        <BaseButton
-          type="submit"
-          variant="primary"
-          block
-          :loading="loading"
-          class="submit-btn"
-        >
-          <span v-if="!loading">{{ isLogin ? '🚀 立即登录' : '🎉 立即注册' }}</span>
-        </BaseButton>
-      </form>
-
-      <!-- 切换区域 -->
-      <div class="switch-area">
-        <button
-          type="button"
-          class="switch-btn font-body"
-          @click="toggleMode"
-        >
-          {{ isLogin ? '🌱 没有账号？立即注册' : '🌿 已有账号？立即登录' }}
-        </button>
-      </div>
-
-      <!-- 底部装饰 -->
-      <div class="card-footer font-body">
-        <span>🌻 愿你的农场丰收满满 🌻</span>
-        <div class="footer-info">
-          <span class="version">Web v{{ appVersion }}</span>
-          <span v-if="coreVersion" class="version-sep">·</span>
-          <span v-if="coreVersion" class="version">Core v{{ coreVersion }}</span>
-        </div>
-        <div v-if="gameVersion" class="game-version">
-          当前游戏版本：{{ gameVersion }}
-        </div>
-        <button
-          type="button"
-          class="changelog-btn font-body"
-          @click="openChangelog"
-        >
-          📋 查看版本更新
-        </button>
       </div>
     </div>
 
-    <!-- 版本更新弹窗 -->
     <ChangelogModal :show="showChangelog" @close="closeChangelog" />
 
     <!-- 卡密领取结果弹窗 -->
@@ -749,31 +692,33 @@ async function fetchCoreVersion() {
       <Transition name="modal">
         <div
           v-if="showClaimModal"
-          class="claim-modal-overlay"
+          class="login-modal-overlay"
           @click.self="closeClaimModal"
         >
-          <div class="claim-modal">
-            <div class="claim-modal-header">
-              <span class="claim-modal-icon">{{ claimModalContent.success ? '🎉' : '⚠️' }}</span>
-              <h3 class="claim-modal-title">
+          <div class="login-modal">
+            <div class="login-modal-header">
+              <div class="login-modal-icon">
+                {{ claimModalContent.success ? '✓' : '!' }}
+              </div>
+              <h3 class="login-modal-title">
                 {{ claimModalContent.title }}
               </h3>
             </div>
-            <div class="claim-modal-body">
-              <p class="claim-modal-message font-body">
+            <div class="login-modal-body">
+              <p class="login-modal-message">
                 {{ claimModalContent.message }}
               </p>
-              <div v-if="claimModalContent.success && claimModalContent.cardCode" class="claim-modal-card-info">
-                <div class="card-code-label">
+              <div v-if="claimModalContent.success && claimModalContent.cardCode" class="login-modal-cardcode">
+                <div class="login-modal-cardcode-label">
                   卡密已自动填入
                 </div>
-                <div class="card-code-value">
+                <div class="login-modal-cardcode-value">
                   {{ claimModalContent.cardCode }}
                 </div>
               </div>
             </div>
-            <div class="claim-modal-footer">
-              <button class="claim-modal-btn" @click="closeClaimModal">
+            <div class="login-modal-footer">
+              <button class="login-modal-btn" @click="closeClaimModal">
                 {{ claimModalContent.success ? '开始注册' : '我知道了' }}
               </button>
             </div>
@@ -787,105 +732,68 @@ async function fetchCoreVersion() {
       <Transition name="modal">
         <div
           v-if="showForgotPassword"
-          class="claim-modal-overlay"
+          class="login-modal-overlay"
           @click.self="closeForgotPassword"
         >
-          <div class="claim-modal forgot-modal">
-            <div class="claim-modal-header">
-              <span class="claim-modal-icon">🔑</span>
-              <h3 class="claim-modal-title">
+          <div class="login-modal">
+            <div class="login-modal-header">
+              <h3 class="login-modal-title">
                 忘记密码
               </h3>
             </div>
-            <div class="claim-modal-body">
-              <p class="claim-modal-message font-body">
+            <div class="login-modal-body">
+              <p class="login-modal-message">
                 输入用户名和你使用过的卡密来重置密码
               </p>
 
-              <div v-if="forgotError" class="message error-message mb-3">
-                <span class="message-icon">⚠️</span>
+              <div v-if="forgotError" class="login-alert login-alert-error">
                 {{ forgotError }}
               </div>
-              <div v-if="forgotSuccess" class="message success-message mb-3">
-                <span class="message-icon">✅</span>
+              <div v-if="forgotSuccess" class="login-alert login-alert-success">
                 {{ forgotSuccess }}
               </div>
 
-              <form @submit.prevent="handleResetPassword">
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">👤</span>
-                    用户名
-                  </label>
-                  <BaseInput
-                    v-model="forgotUsername"
-                    type="text"
-                    placeholder="请输入用户名"
-                    required
-                  />
-                </div>
+              <div class="login-field">
+                <label class="login-label">用户名</label>
+                <BaseInput v-model="forgotUsername" type="text" placeholder="请输入用户名" />
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">🎫</span>
-                    卡密
-                  </label>
-                  <BaseInput
-                    v-model="forgotCardCode"
-                    type="text"
-                    placeholder="请输入你使用过的卡密"
-                    required
-                  />
-                </div>
+              <div class="login-field">
+                <label class="login-label">卡密</label>
+                <BaseInput v-model="forgotCardCode" type="text" placeholder="请输入你使用过的卡密" />
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">🔒</span>
-                    新密码
-                  </label>
-                  <BaseInput
-                    v-model="forgotNewPassword"
-                    type="password"
-                    placeholder="请输入新密码"
-                    required
-                  />
-                  <div v-if="showForgotPasswordStrength && forgotNewPassword" class="password-strength">
-                    <div class="strength-bar">
-                      <div
-                        class="strength-fill"
-                        :style="{ width: `${Math.min(forgotPasswordStrength.score * 12.5, 100)}%`, backgroundColor: forgotPasswordStrength.color }"
-                      />
-                    </div>
-                    <span class="strength-text" :style="{ color: forgotPasswordStrength.color }">
-                      {{ forgotPasswordStrength.level }}
-                    </span>
+              <div class="login-field">
+                <label class="login-label">新密码</label>
+                <BaseInput v-model="forgotNewPassword" type="password" placeholder="请输入新密码" />
+                <div v-if="showForgotPasswordStrength && forgotNewPassword" class="login-strength">
+                  <div class="login-strength-bar">
+                    <div
+                      class="login-strength-fill"
+                      :style="{ width: `${Math.min(forgotPasswordStrength.score * 12.5, 100)}%`, backgroundColor: forgotPasswordStrength.color }"
+                    />
                   </div>
+                  <span class="login-strength-text" :style="{ color: forgotPasswordStrength.color }">
+                    {{ forgotPasswordStrength.level }}
+                  </span>
                 </div>
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">🔒</span>
-                    确认密码
-                  </label>
-                  <BaseInput
-                    v-model="forgotConfirmPassword"
-                    type="password"
-                    placeholder="请再次输入新密码"
-                    required
-                  />
-                </div>
-              </form>
+              <div class="login-field">
+                <label class="login-label">确认密码</label>
+                <BaseInput v-model="forgotConfirmPassword" type="password" placeholder="请再次输入新密码" />
+              </div>
             </div>
-            <div class="claim-modal-footer">
+            <div class="login-modal-footer">
               <button
-                class="claim-modal-btn"
+                class="login-modal-btn"
                 :disabled="forgotLoading"
                 @click="handleResetPassword"
               >
                 <span v-if="forgotLoading" class="i-svg-spinners-90-ring-with-bg" />
                 <span v-else>确认重置</span>
               </button>
-              <button class="claim-modal-btn-secondary" @click="closeForgotPassword">
+              <button class="login-modal-btn-secondary" @click="closeForgotPassword">
                 取消
               </button>
             </div>
@@ -899,68 +807,47 @@ async function fetchCoreVersion() {
       <Transition name="modal">
         <div
           v-if="showRenew"
-          class="claim-modal-overlay"
+          class="login-modal-overlay"
           @click.self="closeRenew"
         >
-          <div class="claim-modal forgot-modal">
-            <div class="claim-modal-header">
-              <span class="claim-modal-icon">🔄</span>
-              <h3 class="claim-modal-title">
+          <div class="login-modal">
+            <div class="login-modal-header">
+              <h3 class="login-modal-title">
                 账号续费
               </h3>
             </div>
-            <div class="claim-modal-body">
-              <p class="claim-modal-message font-body">
+            <div class="login-modal-body">
+              <p class="login-modal-message">
                 输入用户名和新卡密为账号续费
               </p>
 
-              <div v-if="renewError" class="message error-message mb-3">
-                <span class="message-icon">⚠️</span>
+              <div v-if="renewError" class="login-alert login-alert-error">
                 {{ renewError }}
               </div>
-              <div v-if="renewSuccess" class="message success-message mb-3">
-                <span class="message-icon">✅</span>
+              <div v-if="renewSuccess" class="login-alert login-alert-success">
                 {{ renewSuccess }}
               </div>
 
-              <form @submit.prevent="handleRenew">
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">👤</span>
-                    用户名
-                  </label>
-                  <BaseInput
-                    v-model="renewUsername"
-                    type="text"
-                    placeholder="请输入用户名"
-                    required
-                  />
-                </div>
+              <div class="login-field">
+                <label class="login-label">用户名</label>
+                <BaseInput v-model="renewUsername" type="text" placeholder="请输入用户名" />
+              </div>
 
-                <div class="form-group">
-                  <label class="form-label font-body">
-                    <span class="label-icon">🎫</span>
-                    卡密
-                  </label>
-                  <BaseInput
-                    v-model="renewCardCode"
-                    type="text"
-                    placeholder="请输入新卡密"
-                    required
-                  />
-                </div>
-              </form>
+              <div class="login-field">
+                <label class="login-label">卡密</label>
+                <BaseInput v-model="renewCardCode" type="text" placeholder="请输入新卡密" />
+              </div>
             </div>
-            <div class="claim-modal-footer">
+            <div class="login-modal-footer">
               <button
-                class="claim-modal-btn"
+                class="login-modal-btn"
                 :disabled="renewLoading"
                 @click="handleRenew"
               >
                 <span v-if="renewLoading" class="i-svg-spinners-90-ring-with-bg" />
                 <span v-else>确认续费</span>
               </button>
-              <button class="claim-modal-btn-secondary" @click="closeRenew">
+              <button class="login-modal-btn-secondary" @click="closeRenew">
                 取消
               </button>
             </div>
@@ -972,329 +859,357 @@ async function fetchCoreVersion() {
 </template>
 
 <style scoped>
-.login-container {
+/* ===== 简约风格登录页 ===== */
+.login-page {
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
+  background: #fafafa;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #b8e4f7 0%, #87ceeb 30%, #6dbf5b 60%, #4a8c3f 100%);
-  position: relative;
-  overflow: hidden;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 20px;
   box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
+  color: #1f2937;
 }
 
-/* 背景装饰 */
-.bg-decoration {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
+.login-container {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* 太阳 */
-.sun {
-  position: absolute;
-  top: 40px;
-  right: 80px;
-  width: 80px;
-  height: 80px;
-  background: radial-gradient(circle, #ffd700 0%, #ffa500 100%);
-  border-radius: 50%;
-  box-shadow: 0 0 60px 20px rgba(255, 215, 0, 0.4);
-  animation: sunPulse 4s ease-in-out infinite;
-}
-
-@keyframes sunPulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 60px 20px rgba(255, 215, 0, 0.4);
-  }
-  50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 80px 30px rgba(255, 215, 0, 0.5);
-  }
-}
-
-/* 云朵 */
-.cloud {
-  position: absolute;
-  background: white;
-  border-radius: 50px;
-  opacity: 0.9;
-}
-
-.cloud::before,
-.cloud::after {
-  content: '';
-  position: absolute;
-  background: white;
-  border-radius: 50%;
-}
-
-.cloud-1 {
-  top: 60px;
-  left: 10%;
-  width: 100px;
-  height: 40px;
-  animation: cloudFloat 20s linear infinite;
-}
-
-.cloud-1::before {
-  width: 50px;
-  height: 50px;
-  top: -25px;
-  left: 15px;
-}
-
-.cloud-1::after {
-  width: 35px;
-  height: 35px;
-  top: -15px;
-  right: 15px;
-}
-
-.cloud-2 {
-  top: 120px;
-  left: 60%;
-  width: 80px;
-  height: 32px;
-  animation: cloudFloat 25s linear infinite;
-  animation-delay: -5s;
-}
-
-.cloud-2::before {
-  width: 40px;
-  height: 40px;
-  top: -20px;
-  left: 10px;
-}
-
-.cloud-2::after {
-  width: 28px;
-  height: 28px;
-  top: -12px;
-  right: 10px;
-}
-
-.cloud-3 {
-  top: 200px;
-  left: 30%;
-  width: 60px;
-  height: 24px;
-  animation: cloudFloat 30s linear infinite;
-  animation-delay: -10s;
-}
-
-.cloud-3::before {
-  width: 30px;
-  height: 30px;
-  top: -15px;
-  left: 8px;
-}
-
-.cloud-3::after {
-  width: 22px;
-  height: 22px;
-  top: -10px;
-  right: 8px;
-}
-
-@keyframes cloudFloat {
-  0% {
-    transform: translateX(-100px);
-  }
-  100% {
-    transform: translateX(calc(100vw + 100px));
-  }
-}
-
-/* 草地 */
-.grass {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: linear-gradient(180deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 80%, #000) 100%);
-  border-radius: 100% 100% 0 0;
-}
-
-.grass::before {
-  content: '';
-  position: absolute;
-  top: -20px;
-  left: 0;
-  right: 0;
-  height: 40px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath fill='%237CB342' d='M0 20 Q25 0 50 20 Q75 0 100 20 V0 H0Z'/%3E%3C/svg%3E")
-    repeat-x;
-  background-size: 100px 20px;
-}
-
-/* 植物装饰 */
-.plant {
-  position: absolute;
-  font-size: 2rem;
-  animation: plantSway 3s ease-in-out infinite;
-}
-
-.plant-1 {
-  bottom: 100px;
-  left: 5%;
-  animation-delay: 0s;
-}
-.plant-2 {
-  bottom: 80px;
-  left: 15%;
-  animation-delay: 0.5s;
-  font-size: 2.5rem;
-}
-.plant-3 {
-  bottom: 110px;
-  left: 25%;
-  animation-delay: 1s;
-}
-.plant-4 {
-  bottom: 90px;
-  right: 25%;
-  animation-delay: 1.5s;
-}
-.plant-5 {
-  bottom: 100px;
-  right: 15%;
-  animation-delay: 2s;
-}
-.plant-6 {
-  bottom: 85px;
-  right: 5%;
-  animation-delay: 2.5s;
-  font-size: 2.5rem;
-}
-
-@keyframes plantSway {
-  0%,
-  100% {
-    transform: rotate(-5deg);
-  }
-  50% {
-    transform: rotate(5deg);
-  }
-}
-
-/* 聚焦弹跳动画 */
-@keyframes focusRingBounce {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--theme-primary) 50%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--theme-primary) 20%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 30%, transparent);
-  }
-}
-
-/* 登录卡片 — 木框风格 */
 .login-card {
   width: 100%;
-  max-width: 420px;
-  margin: 20px;
-  padding: 40px;
-  background: linear-gradient(145deg, rgba(254, 249, 239, 0.98) 0%, rgba(255, 245, 225, 0.97) 100%);
-  border-radius: 28px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.05) inset,
-    0 8px 0 #6b4f0e,
-    0 16px 48px rgba(0, 0, 0, 0.25);
-  position: relative;
-  z-index: 10;
-  backdrop-filter: blur(12px);
-  animation: cardBounceIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  transform: translateY(30px);
-  opacity: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 36px 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-@keyframes cardBounceIn {
-  0% {
-    opacity: 0;
-    transform: translateY(40px) scale(0.9);
-  }
-  60% {
-    transform: translateY(-8px) scale(1.02);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* 卡片顶部装饰线 */
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60px;
-  height: 5px;
-  background: linear-gradient(90deg, #8b6914 0%, #c4941a 50%, #8b6914 100%);
-  border-radius: 0 0 6px 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* 卡片四角装饰 */
-.login-card::after {
-  content: '🌾';
-  position: absolute;
-  top: -15px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 28px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-  animation: wheatSway 3s ease-in-out infinite;
-}
-
-@keyframes wheatSway {
-  0%,
-  100% {
-    transform: translateX(-50%) rotate(-5deg);
-  }
-  50% {
-    transform: translateX(-50%) rotate(5deg);
-  }
-}
-
-/* 农场风格输入框 */
-.login-card :deep(.base-input) {
-  border-radius: 0.75rem;
-  border: 2px solid #e5e7eb;
-  padding: 0.625rem 0.875rem;
-  font-size: 0.9375rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.login-card :deep(.base-input:focus) {
-  border-color: var(--theme-primary);
-  animation: focusRingBounce 0.4s ease forwards;
-  outline: none;
-}
-
-/* Logo 区域 */
-.logo-area {
+.login-header {
   text-align: center;
-  margin-bottom: 32px;
-  animation: fadeInUp 0.8s ease 0.2s both;
+  margin-bottom: 28px;
 }
 
-@keyframes fadeInUp {
+.login-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #1f2937;
+  color: #ffffff;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.login-logo .i-carbon-sprout {
+  font-size: 28px;
+}
+
+.login-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 6px;
+  letter-spacing: 0.2px;
+}
+
+.login-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 400;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.login-label-opt {
+  color: #9ca3af;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.login-hint {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+}
+
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -4px;
+}
+
+.login-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  cursor: pointer;
+  user-select: none;
+}
+
+.login-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #1f2937;
+  cursor: pointer;
+}
+
+.login-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.login-link {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s ease;
+}
+
+.login-link:hover {
+  color: #1f2937;
+}
+
+.login-link-sep {
+  color: #d1d5db;
+  font-size: 12px;
+}
+
+.login-claim-btn {
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #4b5563;
+  cursor: pointer;
+  align-self: flex-start;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+}
+
+.login-claim-btn:hover:not(:disabled) {
+  border-color: #1f2937;
+  color: #1f2937;
+}
+
+.login-claim-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-submit {
+  margin-top: 6px;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  background: #1f2937 !important;
+  color: #ffffff !important;
+  border: none;
+  transition: background 0.15s ease;
+  letter-spacing: 0.5px;
+}
+
+.login-submit:hover:not(:disabled) {
+  background: #111827 !important;
+}
+
+.login-submit:disabled {
+  background: #9ca3af !important;
+  cursor: not-allowed;
+}
+
+.login-strength {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.login-strength-bar {
+  flex: 1;
+  height: 3px;
+  background: #f3f4f6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.login-strength-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.login-strength-text {
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 36px;
+  text-align: right;
+}
+
+.login-alert {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  line-height: 1.5;
+}
+
+.login-alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.login-alert-success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.login-alert-meta {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.login-switch {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.login-switch-btn {
+  background: none;
+  border: none;
+  color: #4b5563;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.15s ease;
+}
+
+.login-switch-btn:hover {
+  color: #1f2937;
+}
+
+.login-footer {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #f3f4f6;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-versions {
+  font-size: 12px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.login-version-sep {
+  color: #d1d5db;
+}
+
+.login-game-version {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.login-changelog {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.login-changelog:hover {
+  color: #1f2937;
+  background: #f3f4f6;
+}
+
+/* ===== 弹窗样式 ===== */
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+.login-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  max-width: 360px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -1302,582 +1217,121 @@ async function fetchCoreVersion() {
   }
 }
 
-.logo-icon {
+.login-modal-header {
+  padding: 24px 20px 12px;
+  text-align: center;
+}
+
+.login-modal-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 88px;
-  height: 88px;
-  background: linear-gradient(135deg, #6dbf5b 0%, #4a8c3f 100%);
-  border-radius: 24px;
-  margin-bottom: 16px;
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.3) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.1) inset,
-    0 6px 0 #3a6b2e,
-    0 12px 28px rgba(74, 140, 63, 0.35);
-  animation: logoBounce 2.5s ease-in-out infinite;
-  border: 3px solid rgba(255, 255, 255, 0.4);
-  position: relative;
-}
-
-.logo-icon::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 21px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-@keyframes logoBounce {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  25% {
-    transform: translateY(-6px) rotate(-2deg);
-  }
-  75% {
-    transform: translateY(-3px) rotate(2deg);
-  }
-}
-
-.logo-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--theme-primary);
-  margin-bottom: 8px;
-  text-shadow: 0 2px 4px color-mix(in srgb, var(--theme-primary) 10%, transparent);
-}
-
-.logo-subtitle {
-  font-size: 0.9rem;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  font-weight: 500;
-}
-
-/* 表单区域 */
-.form-area {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
+  width: 40px;
+  height: 40px;
+  background: #1f2937;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 20px;
   font-weight: 600;
-  color: #37474f;
+  margin-bottom: 12px;
 }
 
-.label-icon {
-  font-size: 1rem;
-}
-
-.form-hint {
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  margin-top: 4px;
-}
-
-.form-hint.error {
-  color: #ef5350;
-}
-
-.password-strength {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.strength-bar {
-  flex: 1;
-  height: 4px;
-  background: #e0e0e0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.strength-fill {
-  height: 100%;
-  transition:
-    width 0.3s ease,
-    background-color 0.3s ease;
-}
-
-.strength-text {
-  font-size: 0.75rem;
-  font-weight: 500;
-  min-width: 50px;
-}
-
-.lockout-timer {
-  display: block;
-  font-size: 0.75rem;
-  opacity: 0.8;
-  margin-top: 2px;
-}
-
-.security-tips {
-  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-  border: 1px solid #ffe082;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-top: 8px;
-}
-
-.tip-title {
-  font-size: 0.8rem;
+.login-modal-title {
+  font-size: 16px;
   font-weight: 600;
-  color: #f57c00;
-  margin-bottom: 6px;
-}
-
-.tip-list {
-  margin: 0;
-  padding-left: 16px;
-  font-size: 0.75rem;
-  color: #ef6c00;
-}
-
-.tip-list li {
-  margin: 2px 0;
-}
-
-/* 消息提示 */
-.message {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 0.875rem;
-}
-
-.message-icon {
-  font-size: 1rem;
-}
-
-.error-message {
-  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-  color: #c62828;
-  border: 1px solid #ef9a9a;
-}
-
-.success-message {
-  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-  color: color-mix(in srgb, var(--theme-primary) 70%, #000);
-  border: 1px solid color-mix(in srgb, var(--theme-primary) 40%, white);
-}
-
-/* 提交按钮 — 3D按压效果 */
-.submit-btn {
-  margin-top: 8px;
-  height: 48px;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #6dbf5b 0%, #4a8c3f 100%);
-  box-shadow:
-    0 4px 0 #3a6b2e,
-    0 6px 16px rgba(74, 140, 63, 0.3);
-  transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-  border: 3px solid rgba(255, 255, 255, 0.2);
-}
-
-.submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 0 #3a6b2e,
-    0 8px 20px rgba(74, 140, 63, 0.35);
-}
-
-.submit-btn:active {
-  transform: translateY(3px);
-  box-shadow:
-    0 1px 0 #3a6b2e,
-    0 1px 4px rgba(74, 140, 63, 0.2);
-}
-
-/* 记住我 & 忘记密码 */
-.form-options {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: -4px;
-}
-
-.form-options-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8125rem;
-  color: #37474f;
-  cursor: pointer;
-  user-select: none;
-}
-
-.remember-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--theme-primary);
-  cursor: pointer;
-}
-
-.forgot-password {
-  background: none;
-  border: none;
-  font-size: 0.8125rem;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.forgot-password:hover {
-  background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
-  color: var(--theme-primary);
-}
-
-/* 切换区域 */
-.switch-area {
-  text-align: center;
-  margin-top: 24px;
-}
-
-.switch-btn {
-  background: none;
-  border: none;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 20px;
-  transition: all 0.3s ease;
-}
-
-.switch-btn:hover {
-  background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
-  color: var(--theme-primary);
-}
-
-/* 卡片底部 */
-.card-footer {
-  text-align: center;
-  margin-top: 24px;
-  padding-top: 20px;
-  padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid color-mix(in srgb, var(--theme-primary) 20%, transparent);
-  color: color-mix(in srgb, var(--theme-primary) 70%, white);
-  font-size: 0.8rem;
-}
-
-.footer-info {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--theme-primary) 50%, white);
-}
-
-.separator {
-  color: color-mix(in srgb, var(--theme-primary) 50%, white);
-}
-
-.game-version {
-  margin-top: 8px;
-  font-size: 0.7rem;
-  color: color-mix(in srgb, var(--theme-primary) 50%, white);
-  text-align: center;
-}
-
-.version-sep {
-  color: color-mix(in srgb, var(--theme-primary) 30%, white);
-  margin: 0 2px;
-}
-
-.changelog-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  padding: 6px 14px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  background: color-mix(in srgb, var(--theme-primary) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--theme-primary) 25%, transparent);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.changelog-btn:hover {
-  background: color-mix(in srgb, var(--theme-primary) 15%, transparent);
-  color: var(--theme-primary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--theme-primary) 20%, transparent);
-}
-
-.changelog-btn:active {
-  transform: translateY(0);
-}
-
-.claim-card-btn {
-  width: 100%;
-  padding: 10px 16px;
-  background: var(--theme-gradient);
-  border: none;
-  border-radius: 0.75rem;
-  color: white;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--theme-primary) 25%, transparent);
-}
-
-.claim-card-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-primary) 35%, transparent);
-}
-
-.claim-card-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 暗色模式适配 */
-@media (prefers-color-scheme: dark) {
-  .login-container {
-    background: linear-gradient(180deg, #1a2e1a 0%, #1e4d2b 50%, #0d2818 100%);
-  }
-
-  .login-card {
-    background: rgba(30, 50, 30, 0.97);
-    box-shadow:
-      0 6px 0 #0a1a0a,
-      0 12px 40px rgba(0, 0, 0, 0.4),
-      0 0 0 4px #4a6b3f;
-  }
-
-  .login-card :deep(.base-input) {
-    border-color: #4a6b3f;
-    background-color: rgba(0, 0, 0, 0.2);
-    color: #e2e8f0;
-  }
-
-  .login-card :deep(.base-input:focus) {
-    border-color: #6dbf5b;
-  }
-
-  .logo-subtitle {
-    color: #8bb67e;
-  }
-
-  .form-label {
-    color: #a5d6a7;
-  }
-
-  .remember-me {
-    color: #a5d6a7;
-  }
-
-  .card-footer {
-    border-top-color: rgba(74, 140, 63, 0.3);
-    color: #6dbf5b;
-  }
-
-  .changelog-btn {
-    background: color-mix(in srgb, var(--theme-primary) 12%, transparent);
-    border-color: color-mix(in srgb, var(--theme-primary) 35%, transparent);
-    color: color-mix(in srgb, var(--theme-primary) 70%, white);
-  }
-}
-
-/* 响应式适配 */
-@media (max-width: 480px) {
-  .login-card {
-    margin: 10px;
-    padding: 30px 24px;
-    border-radius: 20px;
-  }
-
-  .logo-icon {
-    width: 70px;
-    height: 70px;
-  }
-
-  .logo-title {
-    font-size: 1.5rem;
-  }
-
-  .sun {
-    width: 60px;
-    height: 60px;
-    top: 20px;
-    right: 40px;
-  }
-
-  .plant {
-    font-size: 1.5rem;
-  }
-
-  .plant-2,
-  .plant-6 {
-    font-size: 2rem;
-  }
-}
-
-/* 卡密领取结果弹窗样式 */
-.claim-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.claim-modal {
-  background: white;
-  border-radius: 20px;
-  max-width: 360px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-  animation: modalSlideIn 0.3s ease;
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.claim-modal-header {
-  text-align: center;
-  padding: 24px 20px 16px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--theme-primary) 15%, white) 0%,
-    color-mix(in srgb, var(--theme-primary) 25%, white) 100%
-  );
-}
-
-.claim-modal-icon {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 8px;
-}
-
-.claim-modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--theme-primary);
+  color: #111827;
   margin: 0;
 }
 
-.claim-modal-body {
-  padding: 20px;
+.login-modal-body {
+  padding: 0 20px 16px;
   text-align: center;
 }
 
-.claim-modal-message {
-  font-size: 1rem;
-  color: #37474f;
-  margin: 0 0 16px;
+.login-modal-message {
+  font-size: 13px;
+  color: #4b5563;
+  margin: 0 0 12px;
   line-height: 1.5;
 }
 
-.claim-modal-card-info {
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-  border-radius: 12px;
-  padding: 16px;
+.login-modal-cardcode {
+  background: #f9fafb;
+  border: 1px solid #f3f4f6;
+  border-radius: 6px;
+  padding: 12px;
   margin-top: 8px;
 }
 
-.card-code-label {
-  font-size: 0.75rem;
-  color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  margin-bottom: 8px;
+.login-modal-cardcode-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
 }
 
-.card-code-value {
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--theme-primary);
-  background: white;
-  padding: 8px 12px;
-  border-radius: 8px;
+.login-modal-cardcode-value {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: #1f2937;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 4px;
   word-break: break-all;
 }
 
-.claim-modal-footer {
+.login-modal-footer {
   padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.claim-modal-btn {
+.login-modal-btn {
   width: 100%;
-  padding: 14px;
-  background: var(--theme-gradient);
+  padding: 11px;
+  background: #1f2937;
+  color: #ffffff;
   border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 1rem;
-  font-weight: 700;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-.claim-modal-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--theme-primary) 40%, transparent);
+.login-modal-btn:hover:not(:disabled) {
+  background: #111827;
 }
 
-.claim-modal-btn:active {
-  transform: translateY(0);
+.login-modal-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }
 
-/* 弹窗过渡动画 */
+.login-modal-btn-secondary {
+  width: 100%;
+  padding: 10px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.login-modal-btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* 弹窗过渡 */
 .modal-enter-active,
 .modal-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 
 .modal-enter-from,
@@ -1885,208 +1339,169 @@ async function fetchCoreVersion() {
   opacity: 0;
 }
 
-.modal-enter-from .claim-modal,
-.modal-leave-to .claim-modal {
-  transform: translateY(-20px) scale(0.95);
-}
-
-/* 暗色模式适配弹窗 */
-@media (prefers-color-scheme: dark) {
-  .claim-modal {
-    background: #1e3c28;
-  }
-
-  .claim-modal-header {
-    background: linear-gradient(135deg, #1e4d2b 0%, #2e5a3a 100%);
-  }
-
-  .claim-modal-title {
-    color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  }
-
-  .claim-modal-message {
-    color: #a5d6a7;
-  }
-
-  .claim-modal-card-info {
-    background: linear-gradient(135deg, #1a3a2a 0%, #2a4a3a 100%);
-  }
-
-  .card-code-label {
-    color: color-mix(in srgb, var(--theme-primary) 70%, white);
-  }
-
-  .card-code-value {
-    background: #0d2818;
-    color: color-mix(in srgb, var(--theme-primary) 80%, white);
-  }
-}
-
-/* 移动端弹窗优化 */
-@media (max-width: 480px) {
-  .claim-modal-overlay {
-    padding: 16px;
-    align-items: flex-end;
-  }
-
-  .claim-modal {
-    border-radius: 20px 20px 0 0;
-    max-width: 100%;
-    animation: modalSlideUp 0.3s ease;
-  }
-
-  @keyframes modalSlideUp {
-    from {
-      opacity: 0;
-      transform: translateY(100%);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .claim-modal-header {
-    padding: 20px 16px 12px;
-  }
-
-  .claim-modal-icon {
-    font-size: 2.5rem;
-  }
-
-  .claim-modal-body {
-    padding: 16px;
-  }
-
-  .claim-modal-footer {
-    padding: 0 16px 16px;
-  }
-
-  .claim-modal-btn {
-    padding: 12px;
-  }
-}
-
-/* 忘记密码弹窗样式 */
-.forgot-modal .claim-modal-body {
-  padding: 16px 20px;
-}
-
-.forgot-modal .claim-modal-body .form-group {
-  margin-bottom: 16px;
-}
-
-.forgot-modal .claim-modal-body .form-group:last-child {
-  margin-bottom: 0;
-}
-
-.forgot-modal .claim-modal-body .form-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #37474f;
-  margin-bottom: 6px;
-}
-
-.forgot-modal .claim-modal-body .label-icon {
-  font-size: 1rem;
-}
-
-.forgot-modal .claim-modal-body :deep(.base-input) {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 2px solid #e5e7eb;
-  padding: 0.625rem 0.875rem;
-  font-size: 0.9375rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.forgot-modal .claim-modal-body :deep(.base-input:focus) {
-  border-color: var(--theme-primary);
-  outline: none;
-}
-
-.forgot-modal .claim-modal-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 20px 20px;
-}
-
-.forgot-modal .claim-modal-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--theme-gradient);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.forgot-modal .claim-modal-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px color-mix(in srgb, var(--theme-primary) 40%, transparent);
-}
-
-.forgot-modal .claim-modal-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.forgot-modal .claim-modal-btn-secondary {
-  width: 100%;
-  padding: 12px;
-  background: #f5f5f5;
-  border: none;
-  border-radius: 12px;
-  color: #666;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.forgot-modal .claim-modal-btn-secondary:hover {
-  background: #e8e8e8;
-}
-
-.mb-3 {
-  margin-bottom: 12px;
-}
-
 /* 暗色模式 */
 @media (prefers-color-scheme: dark) {
-  .forgot-modal .claim-modal-body .form-label {
-    color: #a5d6a7;
-  }
-
-  .forgot-modal .claim-modal-body :deep(.base-input) {
-    border-color: #4a6b3f;
-    background-color: rgba(0, 0, 0, 0.2);
+  .login-page {
+    background: #0f172a;
     color: #e2e8f0;
   }
 
-  .forgot-modal .claim-modal-body :deep(.base-input:focus) {
-    border-color: #6dbf5b;
+  .login-card {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  .forgot-modal .claim-modal-btn-secondary {
-    background: #2a4a3a;
-    color: #a5d6a7;
+  .login-logo {
+    background: #e2e8f0;
+    color: #0f172a;
   }
 
-  .forgot-modal .claim-modal-btn-secondary:hover {
-    background: #3a5a4a;
+  .login-title {
+    color: #f1f5f9;
+  }
+
+  .login-subtitle {
+    color: #94a3b8;
+  }
+
+  .login-label {
+    color: #cbd5e1;
+  }
+
+  .login-remember {
+    color: #cbd5e1;
+  }
+
+  .login-link {
+    color: #94a3b8;
+  }
+
+  .login-link:hover {
+    color: #e2e8f0;
+  }
+
+  .login-claim-btn {
+    background: none;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+
+  .login-claim-btn:hover:not(:disabled) {
+    border-color: #e2e8f0;
+    color: #e2e8f0;
+  }
+
+  .login-submit {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  .login-submit:hover:not(:disabled) {
+    background: #f1f5f9 !important;
+  }
+
+  .login-submit:disabled {
+    background: #475569 !important;
+    color: #94a3b8 !important;
+  }
+
+  .login-switch {
+    border-top-color: #334155;
+  }
+
+  .login-switch-btn {
+    color: #94a3b8;
+  }
+
+  .login-switch-btn:hover {
+    color: #e2e8f0;
+  }
+
+  .login-footer {
+    border-top-color: #334155;
+  }
+
+  .login-versions,
+  .login-game-version {
+    color: #64748b;
+  }
+
+  .login-version-sep {
+    color: #475569;
+  }
+
+  .login-changelog {
+    color: #94a3b8;
+  }
+
+  .login-changelog:hover {
+    color: #e2e8f0;
+    background: #334155;
+  }
+
+  .login-strength-bar {
+    background: #334155;
+  }
+
+  .login-modal {
+    background: #1e293b;
+  }
+
+  .login-modal-icon {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+
+  .login-modal-title {
+    color: #f1f5f9;
+  }
+
+  .login-modal-message {
+    color: #cbd5e1;
+  }
+
+  .login-modal-cardcode {
+    background: #0f172a;
+    border-color: #334155;
+  }
+
+  .login-modal-cardcode-label {
+    color: #94a3b8;
+  }
+
+  .login-modal-cardcode-value {
+    background: #1e293b;
+    color: #e2e8f0;
+  }
+
+  .login-modal-btn {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+
+  .login-modal-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+
+  .login-modal-btn-secondary {
+    background: #334155;
+    color: #cbd5e1;
+  }
+
+  .login-modal-btn-secondary:hover {
+    background: #475569;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 28px 22px;
+  }
+
+  .login-title {
+    font-size: 18px;
   }
 }
 </style>

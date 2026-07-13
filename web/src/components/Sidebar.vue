@@ -65,6 +65,7 @@ function getRoleBadgeClass(role: string): string {
 const systemConnected = ref(true)
 const serverUptimeBase = ref(0)
 const serverVersion = ref('')
+const customWebVersion = ref('') // 管理员在「系统版本更新管理」中配置的自定义 Web 版本号
 const lastPingTime = ref(Date.now())
 const now = useNow()
 const formattedTime = useDateFormat(now, 'YYYY-MM-DD HH:mm:ss')
@@ -89,6 +90,18 @@ async function checkConnection() {
   }
   catch {
     systemConnected.value = false
+  }
+}
+
+async function fetchDisplayConfig() {
+  try {
+    const res = await api.get('/api/display-config', { skipErrorToast: true } as any)
+    if (res.data?.ok && res.data?.data) {
+      customWebVersion.value = String(res.data.data.webVersion || '').trim()
+    }
+  }
+  catch {
+    // 静默失败，使用默认版本号
   }
 }
 
@@ -118,6 +131,7 @@ function openAccountEditModal(acc: any) {
 onMounted(() => {
   accountStore.fetchAccounts()
   checkConnection()
+  fetchDisplayConfig()
   // 获取当前用户信息和权限
   userStore.fetchUserInfo()
   userStore.fetchPermissions()
@@ -136,6 +150,7 @@ useIntervalFn(() => {
   refreshStatusFallback()
   accountStore.fetchAccounts()
 }, 10000)
+useIntervalFn(fetchDisplayConfig, 60000)
 
 watch(() => currentAccount.value?.id || currentAccount.value?.uin || '', () => {
   const accountRef = currentAccount.value?.id || currentAccount.value?.uin
@@ -255,6 +270,10 @@ function selectAccount(acc: any) {
 }
 
 const version = __APP_VERSION__
+
+const displayWebVersion = computed(() => {
+  return (customWebVersion.value || String(version || '')).trim()
+})
 
 watch(
   () => route.path,
@@ -865,7 +884,7 @@ async function copyToken() {
         </div>
         <div class="flex items-center justify-between opacity-50">
           <div class="flex items-center gap-2">
-            <span>Web v{{ version }}</span>
+            <span>Web v{{ displayWebVersion }}</span>
           </div>
           <span v-if="serverVersion">Core v{{ serverVersion }}</span>
         </div>
