@@ -546,6 +546,7 @@ async function fetchDisplayConfig() {
 
 <template>
   <div class="login-page">
+    <div class="login-aurora" />
     <div class="login-container">
       <div class="login-card">
         <div class="login-header">
@@ -861,10 +862,20 @@ async function fetchDisplayConfig() {
 <style scoped>
 /* ===== 简约风格登录页 ===== */
 .login-page {
+  position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
-  background: #fafafa;
+  overflow: hidden;
+  /* 三层背景叠加：
+     1) 顶部柔和的白色光晕（聚光感）
+     2) 22px 细点阵网格
+     3) 整体垂直渐变（微妙明暗过渡） */
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 65%),
+    radial-gradient(circle, rgba(15, 23, 42, 0.055) 1px, transparent 1.2px),
+    linear-gradient(180deg, #f7f8fb 0%, #eceef3 100%);
+  background-size: 100% 100%, 22px 22px, 100% 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -882,21 +893,95 @@ async function fetchDisplayConfig() {
   color: #1f2937;
 }
 
+/* 左上 / 右下两个超大半透明光晕（高级感来源） */
+.login-page::before,
+.login-page::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+
+.login-page::before {
+  width: 560px;
+  height: 560px;
+  top: -200px;
+  left: -180px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, rgba(99, 102, 241, 0) 70%);
+  animation: orbDrift 24s ease-in-out infinite alternate;
+}
+
+.login-page::after {
+  width: 520px;
+  height: 520px;
+  bottom: -200px;
+  right: -160px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, rgba(236, 72, 153, 0) 70%);
+  animation: orbDrift 28s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes orbDrift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(40px, -30px, 0) scale(1.08);
+  }
+}
+
+/* 第三层光晕（中央顶部，柔光），用伪元素包装避免与 ::before/::after 冲突 */
+.login-page > .login-aurora {
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 720px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(56, 189, 248, 0.18) 0%, rgba(56, 189, 248, 0) 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .login-container {
   width: 100%;
   max-width: 380px;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 
 .login-card {
+  position: relative;
   width: 100%;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
   padding: 36px 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -8px rgba(15, 23, 42, 0.08),
+    0 24px 48px -16px rgba(15, 23, 42, 0.06);
+  /* 卡片顶部一道高光线，模拟光线从上方打下来的反光 */
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, transparent 100%);
+  pointer-events: none;
+  border-radius: 1px;
 }
 
 .login-header {
@@ -905,19 +990,38 @@ async function fetchDisplayConfig() {
 }
 
 .login-logo {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: #1f2937;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #1f2937 0%, #0f172a 100%);
   color: #ffffff;
-  border-radius: 10px;
+  border-radius: 12px;
   margin-bottom: 16px;
+  box-shadow:
+    0 4px 12px -2px rgba(15, 23, 42, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.login-logo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 .login-logo .i-carbon-sprout {
   font-size: 28px;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .login-title {
@@ -945,6 +1049,50 @@ async function fetchDisplayConfig() {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* 高级感：让所有 input 与登录页的深灰主题对齐 */
+.login-field :deep(.base-input) {
+  background: #fbfcfd !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s ease;
+}
+
+.login-field :deep(.base-input:hover) {
+  border-color: rgba(15, 23, 42, 0.18) !important;
+}
+
+.login-field :deep(.base-input:focus) {
+  border-color: #1f2937 !important;
+  background: #ffffff !important;
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 0 0 4px rgba(15, 23, 42, 0.06) !important;
+  transform: none !important;
+}
+
+.login-field :deep(.base-input:focus + button) {
+  color: #1f2937;
+}
+
+@media (prefers-color-scheme: dark) {
+  .login-field :deep(.base-input) {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .login-field :deep(.base-input:hover) {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .login-field :deep(.base-input:focus) {
+    border-color: #e2e8f0 !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.3),
+      0 0 0 4px rgba(255, 255, 255, 0.06) !important;
+  }
 }
 
 .login-label {
@@ -1040,19 +1188,32 @@ async function fetchDisplayConfig() {
 
 .login-submit {
   margin-top: 6px;
-  height: 42px;
+  height: 44px;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 8px;
-  background: #1f2937 !important;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1f2937 0%, #0f172a 100%) !important;
   color: #ffffff !important;
   border: none;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
   letter-spacing: 0.5px;
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.1),
+    0 4px 12px -2px rgba(15, 23, 42, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .login-submit:hover:not(:disabled) {
-  background: #111827 !important;
+  background: linear-gradient(135deg, #111827 0%, #020617 100%) !important;
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 8px rgba(15, 23, 42, 0.12),
+    0 8px 20px -4px rgba(15, 23, 42, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.login-submit:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .login-submit:disabled {
@@ -1342,19 +1503,49 @@ async function fetchDisplayConfig() {
 /* 暗色模式 */
 @media (prefers-color-scheme: dark) {
   .login-page {
-    background: #0f172a;
+    background:
+      radial-gradient(ellipse 90% 55% at 50% 0%, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0) 65%),
+      radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1.2px),
+      linear-gradient(180deg, #0b1220 0%, #060912 100%);
+    background-size: 100% 100%, 22px 22px, 100% 100%;
     color: #e2e8f0;
   }
 
+  .login-page::before {
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.32) 0%, rgba(99, 102, 241, 0) 70%);
+  }
+
+  .login-page::after {
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, rgba(236, 72, 153, 0) 70%);
+  }
+
+  .login-page > .login-aurora {
+    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.18) 0%, rgba(56, 189, 248, 0) 70%);
+  }
+
   .login-card {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.92) 100%);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 8px 24px -8px rgba(0, 0, 0, 0.5),
+      0 24px 48px -16px rgba(0, 0, 0, 0.4);
+  }
+
+  .login-card::before {
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
   }
 
   .login-logo {
-    background: #e2e8f0;
+    background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
     color: #0f172a;
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .login-logo::after {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
   }
 
   .login-title {
@@ -1393,12 +1584,17 @@ async function fetchDisplayConfig() {
   }
 
   .login-submit {
-    background: #e2e8f0 !important;
+    background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%) !important;
     color: #0f172a !important;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 4px 12px -2px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .login-submit:hover:not(:disabled) {
-    background: #f1f5f9 !important;
+    background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%) !important;
+    transform: translateY(-1px);
   }
 
   .login-submit:disabled {
