@@ -546,6 +546,12 @@ async function fetchDisplayConfig() {
 
 <template>
   <div class="login-page">
+    <!-- 流动光：底层 mesh 渐变 -->
+    <div class="login-mesh" />
+    <!-- 流动光：横扫的高光带 -->
+    <div class="login-streak login-streak-1" />
+    <div class="login-streak login-streak-2" />
+    <!-- 流动光：漂浮的色斑 -->
     <div class="login-aurora" />
     <div class="login-container">
       <div class="login-card">
@@ -874,22 +880,16 @@ async function fetchDisplayConfig() {
 </template>
 
 <style scoped>
-/* ===== 简约风格登录页 ===== */
+/* ===== 流动光背景登录页 ===== */
 .login-page {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   width: 100%;
   overflow: hidden;
-  /* 三层背景叠加：
-     1) 顶部柔和的白色光晕（聚光感）
-     2) 22px 细点阵网格
-     3) 整体垂直渐变（微妙明暗过渡） */
   background:
-    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 65%),
-    radial-gradient(circle, rgba(15, 23, 42, 0.055) 1px, transparent 1.2px),
-    linear-gradient(180deg, #f7f8fb 0%, #eceef3 100%);
-  background-size: 100% 100%, 22px 22px, 100% 100%;
+    radial-gradient(ellipse 90% 55% at 50% 0%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 65%),
+    linear-gradient(180deg, #f5f7fb 0%, #e8ebf3 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -905,49 +905,101 @@ async function fetchDisplayConfig() {
     'Microsoft YaHei',
     sans-serif;
   color: #1f2937;
+  isolation: isolate;
 }
 
-/* 左上 / 右下两个超大半透明光晕（高级感来源） */
-.login-page::before,
-.login-page::after {
-  content: '';
+/* ====== 流动光层 1：mesh 多色流动 ====== */
+.login-mesh {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
+  inset: -20%;
   z-index: 0;
-  will-change: transform;
+  pointer-events: none;
+  background:
+    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.45) 0px, transparent 50%),
+    radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.45) 0px, transparent 50%),
+    radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.4) 0px, transparent 50%),
+    radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.4) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(34, 197, 94, 0.3) 0px, transparent 50%);
+  filter: blur(60px) saturate(140%);
+  animation: meshFlow 18s ease-in-out infinite alternate;
+  will-change: transform, filter;
 }
 
-.login-page::before {
-  width: 560px;
-  height: 560px;
-  top: -200px;
-  left: -180px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, rgba(99, 102, 241, 0) 70%);
-  animation: orbDrift 24s ease-in-out infinite alternate;
-}
-
-.login-page::after {
-  width: 520px;
-  height: 520px;
-  bottom: -200px;
-  right: -160px;
-  background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, rgba(236, 72, 153, 0) 70%);
-  animation: orbDrift 28s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes orbDrift {
+@keyframes meshFlow {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    filter: blur(60px) saturate(140%) hue-rotate(0deg);
+  }
+  33% {
+    transform: translate3d(-4%, 3%, 0) scale(1.05) rotate(8deg);
+    filter: blur(70px) saturate(160%) hue-rotate(20deg);
+  }
+  66% {
+    transform: translate3d(4%, -2%, 0) scale(1.08) rotate(-6deg);
+    filter: blur(55px) saturate(150%) hue-rotate(-15deg);
   }
   100% {
-    transform: translate3d(40px, -30px, 0) scale(1.08);
+    transform: translate3d(-2%, 4%, 0) scale(1.03) rotate(4deg);
+    filter: blur(65px) saturate(170%) hue-rotate(30deg);
   }
 }
 
-/* 第三层光晕（中央顶部，柔光），用伪元素包装避免与 ::before/::after 冲突 */
-.login-page > .login-aurora {
+/* ====== 流动光层 2：横扫的高光带（斜向流光） ====== */
+.login-streak {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  top: 0;
+  left: -50%;
+  width: 60%;
+  height: 100%;
+  transform: skewX(-20deg);
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 48%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.55) 52%,
+    transparent 65%,
+    transparent 100%
+  );
+  filter: blur(20px);
+  mix-blend-mode: screen;
+  will-change: transform, left;
+}
+
+.login-streak-1 {
+  animation: streakSweep 7s ease-in-out infinite;
+}
+
+.login-streak-2 {
+  animation: streakSweep 11s ease-in-out infinite;
+  animation-delay: -3.5s;
+  opacity: 0.55;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(186, 230, 253, 0.6) 48%,
+    rgba(196, 181, 253, 0.7) 50%,
+    rgba(186, 230, 253, 0.6) 52%,
+    transparent 60%,
+    transparent 100%
+  );
+}
+
+@keyframes streakSweep {
+  0% {
+    left: -60%;
+  }
+  100% {
+    left: 140%;
+  }
+}
+
+/* ====== 流动光层 3：中央柔光（继承旧 .login-aurora 位置） ====== */
+.login-aurora {
   position: absolute;
   top: -180px;
   left: 50%;
@@ -955,8 +1007,31 @@ async function fetchDisplayConfig() {
   width: 720px;
   height: 360px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(56, 189, 248, 0.18) 0%, rgba(56, 189, 248, 0) 70%);
+  background: radial-gradient(ellipse, rgba(56, 189, 248, 0.25) 0%, rgba(56, 189, 248, 0) 70%);
   filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: auroraPulse 8s ease-in-out infinite alternate;
+}
+
+@keyframes auroraPulse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* 细点阵网格作为肌理 */
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(15, 23, 42, 0.06) 1px, transparent 1.2px);
+  background-size: 22px 22px;
   pointer-events: none;
   z-index: 0;
 }
@@ -1227,24 +1302,34 @@ async function fetchDisplayConfig() {
   height: 44px;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #1f2937 0%, #0f172a 100%) !important;
+  border-radius: 12px;
+  /* 双层 background 实现"渐变描边"：
+     - border-box 槽位填渐变作为边框色
+     - padding-box 槽位填深色作为按钮底色
+     配合 transparent 边框，让中间只露出 2px 渐变边 */
+  background:
+    linear-gradient(135deg, #1f2937 0%, #0f172a 100%) padding-box,
+    linear-gradient(135deg, #6366f1 0%, #38bdf8 50%, #ec4899 100%) border-box;
   color: #ffffff !important;
-  border: none;
-  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  transition: all 0.25s ease;
   letter-spacing: 0.5px;
   box-shadow:
     0 2px 4px rgba(15, 23, 42, 0.1),
     0 4px 12px -2px rgba(15, 23, 42, 0.18),
+    0 0 0 0 rgba(99, 102, 241, 0),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .login-submit:hover:not(:disabled) {
-  background: linear-gradient(135deg, #111827 0%, #020617 100%) !important;
+  background:
+    linear-gradient(135deg, #111827 0%, #020617 100%) padding-box,
+    linear-gradient(135deg, #818cf8 0%, #7dd3fc 50%, #f472b6 100%) border-box;
   transform: translateY(-1px);
   box-shadow:
     0 4px 8px rgba(15, 23, 42, 0.12),
     0 8px 20px -4px rgba(15, 23, 42, 0.22),
+    0 0 0 4px rgba(99, 102, 241, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -1253,7 +1338,10 @@ async function fetchDisplayConfig() {
 }
 
 .login-submit:disabled {
-  background: #9ca3af !important;
+  background:
+    #9ca3af padding-box,
+    #d1d5db border-box !important;
+  color: #ffffff !important;
   cursor: not-allowed;
 }
 
@@ -1540,23 +1628,30 @@ async function fetchDisplayConfig() {
 @media (prefers-color-scheme: dark) {
   .login-page {
     background:
-      radial-gradient(ellipse 90% 55% at 50% 0%, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0) 65%),
-      radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1.2px),
+      radial-gradient(ellipse 90% 55% at 50% 0%, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 65%),
       linear-gradient(180deg, #0b1220 0%, #060912 100%);
-    background-size: 100% 100%, 22px 22px, 100% 100%;
     color: #e2e8f0;
   }
 
+  /* 暗色点阵肌理 */
   .login-page::before {
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.32) 0%, rgba(99, 102, 241, 0) 70%);
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1.2px);
   }
 
-  .login-page::after {
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.22) 0%, rgba(236, 72, 153, 0) 70%);
+  /* 暗色 mesh 流动光：更亮、对比更强 */
+  .login-mesh {
+    background:
+      radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.55) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, rgba(56, 189, 248, 0.5) 0px, transparent 50%),
+      radial-gradient(at 10% 80%, rgba(236, 72, 153, 0.45) 0px, transparent 50%),
+      radial-gradient(at 90% 70%, rgba(168, 85, 247, 0.5) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(34, 197, 94, 0.35) 0px, transparent 50%);
+    filter: blur(70px) saturate(160%);
+    opacity: 0.7;
   }
 
-  .login-page > .login-aurora {
-    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.18) 0%, rgba(56, 189, 248, 0) 70%);
+  .login-aurora {
+    background: radial-gradient(ellipse, rgba(56, 189, 248, 0.28) 0%, rgba(56, 189, 248, 0) 70%);
   }
 
   .login-card {
@@ -1623,7 +1718,9 @@ async function fetchDisplayConfig() {
   }
 
   .login-submit {
-    background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%) !important;
+    background:
+      linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%) padding-box,
+      linear-gradient(135deg, #818cf8 0%, #7dd3fc 50%, #f472b6 100%) border-box !important;
     color: #0f172a !important;
     box-shadow:
       0 2px 4px rgba(0, 0, 0, 0.3),
@@ -1632,12 +1729,21 @@ async function fetchDisplayConfig() {
   }
 
   .login-submit:hover:not(:disabled) {
-    background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%) !important;
+    background:
+      linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%) padding-box,
+      linear-gradient(135deg, #a5b4fc 0%, #bae6fd 50%, #fbcfe8 100%) border-box !important;
     transform: translateY(-1px);
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.35),
+      0 8px 20px -4px rgba(0, 0, 0, 0.45),
+      0 0 0 4px rgba(129, 140, 248, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
 
   .login-submit:disabled {
-    background: #475569 !important;
+    background:
+      #475569 padding-box,
+      #334155 border-box !important;
     color: #94a3b8 !important;
   }
 
