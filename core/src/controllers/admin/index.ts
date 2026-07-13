@@ -51,15 +51,16 @@ function startAdminServer(dataProvider: any): void {
         const allowedOrigins: string[] = CONFIG.ALLOWED_ORIGINS || ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
         const origin = req.headers.origin;
 
+        // 仅当 origin 在白名单中才回写 ACAO 与凭证头;
+        // 不要回写 Access-Control-Allow-Origin: *,否则与 Allow-Credentials: true 冲突,
+        // 且会被浏览器直接拒绝。工具类无 origin 请求不受 CORS 约束,无需处理。
         if (origin && allowedOrigins.includes(origin)) {
             res.header('Access-Control-Allow-Origin', origin);
-        } else if (!origin) {
-            res.header('Access-Control-Allow-Origin', '*');
+            res.header('Access-Control-Allow-Credentials', 'true');
         }
 
         res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS, PUT');
         res.header('Access-Control-Allow-Headers', 'Content-Type, x-account-id, x-admin-token, x-proxy-api-key, x-proxy-api-url, x-proxy-app-id');
-        res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Max-Age', '86400');
 
         if (req.method === 'OPTIONS') return res.sendStatus(200);

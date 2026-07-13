@@ -107,7 +107,7 @@ interface TaskEntry {
     retries: number;
     label: string;
     attempts: number;
-    priority?: number;
+    priority: number;
 }
 
 class RequestQueue {
@@ -130,7 +130,7 @@ class RequestQueue {
         const { priority = 0, retries = DEFAULT_CONFIG.maxRetries, label = 'request' } = options;
 
         return new Promise((resolve, reject) => {
-            const task: TaskEntry = { fn, resolve, reject, retries, label, attempts: 0 };
+            const task: TaskEntry = { fn, resolve, reject, retries, label, attempts: 0, priority };
             this.queue.enqueue(task, -priority);
             this.processQueue();
         });
@@ -158,7 +158,7 @@ class RequestQueue {
                         error: error.message,
                     });
                     await sleep(DEFAULT_CONFIG.retryDelay * task.attempts);
-                    this.queue.enqueue(task, -task.priority || 0);
+                    this.queue.enqueue(task, -(task.priority || 0));
                 } else {
                     task.reject(error);
                 }

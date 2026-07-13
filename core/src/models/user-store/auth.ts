@@ -7,7 +7,8 @@ const LOGIN_ATTEMPTS_FILE: string = getDataFile('login-attempts.json');
 const LOGIN_LOGS_FILE: string = getDataFile('login-logs.json');
 
 const SALT_LENGTH: number = 32;
-const ITERATIONS: number = 100000;
+// OWASP 2023 推荐 PBKDF2-SHA512 至少 210000 次迭代
+const ITERATIONS: number = 210000;
 const KEY_LENGTH: number = 64;
 const DIGEST: string = 'sha512';
 
@@ -296,7 +297,11 @@ function verifyPassword(password: string, storedPassword: string): boolean {
     if (storedPassword.includes(':')) {
         const [salt, hash] = storedPassword.split(':');
         const newHash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString('hex');
-        return hash === newHash;
+        // 使用 timingSafeEqual 防止时序攻击;长度不等时先比一次 dummy
+        const a = Buffer.from(newHash, 'hex');
+        const b = Buffer.from(hash, 'hex');
+        if (a.length !== b.length) return false;
+        return crypto.timingSafeEqual(a, b);
     } else {
         const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
         return storedPassword === legacyHash;

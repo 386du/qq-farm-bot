@@ -21,11 +21,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "axios": "^1.6.0",
+    "axios": "^1.7.0",
     "express": "^4.21.0",
     "long": "^5.3.2",
     "multer": "^2.1.1",
-    "node-fetch": "^2.7.0",
     "protobufjs": "^8.0.0",
     "pushoo": "^0.1.11",
     "qrcode": "^1.5.4",
@@ -35,7 +34,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.4.3",
-    "@types/express": "^5.0.6",
+    "@types/express": "^4.17.21",
     "@types/multer": "^2.1.0",
     "@types/node": "^24.10.1",
     "@types/ws": "^8.18.1",
@@ -47,8 +46,6 @@
   "pkg": {
     "assets": [
       "../web/dist/**/*",
-      "dist/gameConfig/**/*",
-      "dist/proto/**/*",
       "src/gameConfig/**/*",
       "src/proto/**/*"
     ]

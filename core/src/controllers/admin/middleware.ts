@@ -12,13 +12,16 @@ const store = require('../../models/store');
 const tokenStore = require('../../models/user-store/token-store');
 const { normalizeAccountRef, resolveAccountId } = require('../../services/account-resolver');
 const { hasPermission } = require('./permissions');
+const { createModuleLogger } = require('../../services/logger');
+
+const middlewareLogger = createModuleLogger('admin-middleware');
 
 interface AuthenticatedRequest extends Request {
     adminToken?: string;
     currentUser?: any;
 }
 
-const hashPassword = (pwd: unknown): string => crypto.createHash('sha256').update(String(pwd || '')).digest('hex');
+const issueToken = (): string => crypto.randomBytes(24).toString('hex');
 
 function getClientIp(req: Request): string {
     const cfIp = req.headers['cf-connecting-ip'];
@@ -47,8 +50,6 @@ function getClientIp(req: Request): string {
 
     return 'unknown';
 }
-
-const issueToken = (): string => crypto.randomBytes(24).toString('hex');
 
 function createAuthRequired(ctx: AdminContext) {
     return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
@@ -81,7 +82,7 @@ function createAuthRequired(ctx: AdminContext) {
             if (req.currentUser.card) {
                 // 检查是否被封禁
                 if (req.currentUser.card.enabled === false) {
-                    console.log('[请求拒绝] 用户已被封禁:', req.currentUser.username);
+                    middlewareLogger.warn('[请求拒绝] 用户已被封禁', { username: req.currentUser.username });
                     ctx.tokens.delete(token);
                     ctx.tokenUserMap.delete(token);
                     tokenStore.removeToken(token);
@@ -93,7 +94,7 @@ function createAuthRequired(ctx: AdminContext) {
                 if (req.currentUser.card.expiresAt) {
                     const now = Date.now();
                     if (req.currentUser.card.expiresAt < now) {
-                        console.log('[请求拒绝] 用户已过期:', req.currentUser.username);
+                        middlewareLogger.warn('[请求拒绝] 用户已过期', { username: req.currentUser.username });
                         ctx.tokens.delete(token);
                         ctx.tokenUserMap.delete(token);
                         tokenStore.removeToken(token);
@@ -158,14 +159,14 @@ function createCleanupExpiredUsers(ctx: AdminContext): () => void {
 
             // 检查是否被封禁
             if (user.card && user.card.enabled === false) {
-                console.log(`[自动检查] 用户 ${user.username} 已被封禁，执行清理...`);
+                middlewareLogger.info('[自动检查] 用户已被封禁，执行清理', { username: user.username });
                 usersToCleanup.push({ token, username: user.username, reason: 'banned' });
                 continue;
             }
 
             // 检查是否过期
             if (user.card && user.card.expiresAt && user.card.expiresAt < now) {
-                console.log(`[自动检查] 用户 ${user.username} 已过期，执行清理...`);
+                middlewareLogger.info('[自动检查] 用户已过期，执行清理', { username: user.username });
                 usersToCleanup.push({ token, username: user.username, reason: 'expired' });
             }
         }
@@ -182,7 +183,7 @@ function createCleanupExpiredUsers(ctx: AdminContext): () => void {
                     }
                 }
             }
-            console.log(`[自动清理] 用户 ${username} 已${reason === 'banned' ? '被封禁' : '过期'}，已强制下线`);
+            middlewareLogger.info(`[自动清理] 用户已${reason === 'banned' ? '被封禁' : '过期'}，已强制下线`, { username });
         }
     };
 }
@@ -297,7 +298,6 @@ function buildKnownFriendGidSettings(accountId: string): {
 }
 
 module.exports = {
-    hashPassword,
     getClientIp,
     issueToken,
     createAuthRequired,
