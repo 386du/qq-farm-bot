@@ -1045,9 +1045,9 @@ async function fetchDisplayConfig() {
 
 .login-card {
   position: relative;
+  z-index: 1;
   width: 100%;
-  background:
-    linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+  background: #ffffff;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 16px;
   padding: 36px 32px;
@@ -1055,7 +1055,6 @@ async function fetchDisplayConfig() {
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 8px 24px -8px rgba(15, 23, 42, 0.08),
     0 24px 48px -16px rgba(15, 23, 42, 0.06);
-  /* 卡片顶部一道高光线，模拟光线从上方打下来的反光 */
 }
 
 .login-card::before {
@@ -1341,34 +1340,22 @@ async function fetchDisplayConfig() {
   font-size: 14px;
   font-weight: 500;
   border-radius: 12px;
-  /* 双层 background 实现"渐变描边"：
-     - border-box 槽位填渐变作为边框色
-     - padding-box 槽位填深色作为按钮底色
-     配合 transparent 边框，让中间只露出 2px 渐变边 */
-  background:
-    linear-gradient(135deg, #1f2937 0%, #0f172a 100%) padding-box,
-    linear-gradient(135deg, #6366f1 0%, #38bdf8 50%, #ec4899 100%) border-box;
+  background: #1f2937;
   color: #ffffff !important;
-  border: 2px solid transparent;
-  transition: all 0.25s ease;
+  border: none;
+  transition: all 0.2s ease;
   letter-spacing: 0.5px;
   box-shadow:
     0 2px 4px rgba(15, 23, 42, 0.1),
-    0 4px 12px -2px rgba(15, 23, 42, 0.18),
-    0 0 0 0 rgba(99, 102, 241, 0),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 4px 12px -2px rgba(15, 23, 42, 0.18);
 }
 
 .login-submit:hover:not(:disabled) {
-  background:
-    linear-gradient(135deg, #111827 0%, #020617 100%) padding-box,
-    linear-gradient(135deg, #818cf8 0%, #7dd3fc 50%, #f472b6 100%) border-box;
+  background: #111827;
   transform: translateY(-1px);
   box-shadow:
     0 4px 8px rgba(15, 23, 42, 0.12),
-    0 8px 20px -4px rgba(15, 23, 42, 0.22),
-    0 0 0 4px rgba(99, 102, 241, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 8px 20px -4px rgba(15, 23, 42, 0.22);
 }
 
 .login-submit:active:not(:disabled) {
@@ -1376,9 +1363,7 @@ async function fetchDisplayConfig() {
 }
 
 .login-submit:disabled {
-  background:
-    #9ca3af padding-box,
-    #d1d5db border-box !important;
+  background: #9ca3af !important;
   color: #ffffff !important;
   cursor: not-allowed;
 }
