@@ -1015,13 +1015,13 @@ async function fetchDisplayConfig() {
 }
 
 .login-logo .i-carbon-sprout {
-  font-size: 28px;
+  font-size: 30px;
   position: relative;
   z-index: 1;
-  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffffff;
+  filter:
+    drop-shadow(0 1px 1px rgba(255, 255, 255, 0.25))
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
 }
 
 .login-title {
@@ -1544,8 +1544,11 @@ async function fetchDisplayConfig() {
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
-  .login-logo::after {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 50%);
+  .login-logo .i-carbon-sprout {
+    color: #0f172a;
+    filter:
+      drop-shadow(0 1px 1px rgba(255, 255, 255, 0.4))
+      drop-shadow(0 2px 3px rgba(0, 0, 0, 0.1));
   }
 
   .login-title {
