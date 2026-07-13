@@ -561,7 +561,13 @@ async function fetchDisplayConfig() {
           </p>
         </div>
 
-        <form class="login-form" @submit.prevent="handleSubmit">
+        <!-- 关闭整张表单的 autofill，避免 iOS 登录成功后弹"储存密码"弹窗 -->
+        <form
+          class="login-form"
+          autocomplete="off"
+          data-form-type="other"
+          @submit.prevent="handleSubmit"
+        >
           <div v-if="error" class="login-alert login-alert-error">
             <span>{{ error }}</span>
             <span v-if="lockoutRemaining > 0" class="login-alert-meta">({{ lockoutRemaining }} 分钟后解锁)</span>
@@ -578,7 +584,11 @@ async function fetchDisplayConfig() {
               v-model="username"
               type="text"
               placeholder="3-32位字母数字下划线"
-              autocomplete="username"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              data-form-type="other"
             />
             <p v-if="username && !usernameValid.valid" class="login-hint">
               {{ usernameValid.message }}
@@ -592,7 +602,11 @@ async function fetchDisplayConfig() {
               v-model="password"
               type="password"
               placeholder="请输入密码"
-              autocomplete="current-password"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              data-form-type="other"
             />
             <div v-if="showPasswordStrength && password" class="login-strength">
               <div class="login-strength-bar">
@@ -1080,6 +1094,7 @@ async function fetchDisplayConfig() {
   .login-field :deep(.base-input) {
     background: rgba(15, 23, 42, 0.4) !important;
     border-color: rgba(255, 255, 255, 0.08) !important;
+    color: #e2e8f0 !important;
   }
 
   .login-field :deep(.base-input:hover) {
@@ -1089,10 +1104,31 @@ async function fetchDisplayConfig() {
   .login-field :deep(.base-input:focus) {
     border-color: #e2e8f0 !important;
     background: rgba(15, 23, 42, 0.6) !important;
+    color: #f1f5f9 !important;
     box-shadow:
       inset 0 1px 2px rgba(0, 0, 0, 0.3),
       0 0 0 4px rgba(255, 255, 255, 0.06) !important;
   }
+}
+
+/* 同时支持通过 .dark class 切换的暗色模式（侧边栏主题切换会加 .dark 到 html） */
+:global(html.dark) .login-field :deep(.base-input) {
+  background: rgba(15, 23, 42, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+:global(html.dark) .login-field :deep(.base-input:hover) {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+:global(html.dark) .login-field :deep(.base-input:focus) {
+  border-color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  color: #f1f5f9 !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(255, 255, 255, 0.06) !important;
 }
 
 .login-label {
