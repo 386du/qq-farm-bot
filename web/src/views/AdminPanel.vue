@@ -3694,6 +3694,13 @@ watch(activeTab, (tab) => {
                   <div class="i-svg-spinners-90-ring-with-bg mx-auto text-xl" />
                 </div>
 
+                <div
+                  v-else-if="!userStore.hasPermission('system:config')"
+                  class="rounded-md border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-300"
+                >
+                  当前账号没有 <code class="font-mono">system:config</code> 权限，无法修改版本号。
+                </div>
+
                 <template v-else>
                   <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <BaseInput

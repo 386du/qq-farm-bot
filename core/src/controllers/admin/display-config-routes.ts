@@ -20,7 +20,7 @@ const path = require('node:path');
 
 const { ensureDataDir } = require('../../config/runtime-paths');
 const { createModuleLogger } = require('../../services/logger');
-const { adminRequired } = require('./middleware');
+const { requirePermission } = require('./middleware');
 
 const displayConfigLogger = createModuleLogger('display-config');
 
@@ -96,8 +96,8 @@ function mountDisplayConfigRoutes(app: Application, _ctx: AdminContext): void {
         }
     });
 
-    // 管理员写入
-    app.put('/api/display-config', adminRequired, (req: any, res: Response) => {
+    // 拥有 system:config 权限的用户可写入（不再强制要求 role === 'admin'，与 UI 侧 system:* 权限对齐）
+    app.put('/api/display-config', requirePermission('system:config'), (req: any, res: Response) => {
         const body = req.body || {};
         const updatedBy = (req.currentUser && req.currentUser.username) || 'admin';
         const result = writeDisplayConfig(body, updatedBy);

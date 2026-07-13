@@ -121,17 +121,6 @@ onUnmounted(() => {
 
 <template>
   <div class="w-screen flex overflow-hidden" style="height: 100dvh; background-color: var(--theme-bg)">
-    <!-- 背景漂浮装饰 -->
-    <div class="bg-decorations">
-      <span class="bg-cloud animate-float-slow" style="top: 5%; left: 10%; animation-delay: 0s; font-size: 50px;">☁️</span>
-      <span class="bg-cloud animate-float-medium" style="top: 12%; left: 75%; animation-delay: 1s; font-size: 40px;">☁️</span>
-      <span class="bg-cloud animate-float-slow" style="top: 25%; left: 45%; animation-delay: 2s; font-size: 35px;">☁️</span>
-      <span class="bg-petal animate-float-fast" style="top: 8%; left: 25%; animation-delay: 0.5s;">🌸</span>
-      <span class="bg-petal animate-float-medium" style="top: 20%; left: 60%; animation-delay: 1.5s;">🍃</span>
-      <span class="bg-petal animate-float-slow" style="top: 35%; left: 85%; animation-delay: 2.5s;">✨</span>
-      <span class="bg-petal animate-float-fast" style="top: 15%; left: 90%; animation-delay: 3s;">🌾</span>
-    </div>
-
     <!-- Mobile Sidebar Overlay -->
     <div
       v-if="sidebarOpen"
@@ -145,20 +134,12 @@ onUnmounted(() => {
       <!-- Top Bar (Mobile/Tablet only or for additional actions) -->
       <header
         class="h-16 flex shrink-0 items-center justify-between px-4 lg:hidden"
-        :style="{
-          background: `color-mix(in srgb, var(--theme-bg) 35%, transparent)`,
-          backdropFilter: 'blur(24px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-          borderBottom: '1px solid color-mix(in srgb, var(--theme-primary) 12%, transparent)',
-          boxShadow: '0 2px 20px color-mix(in srgb, var(--theme-primary) 5%, transparent)',
-        }"
+        style="background-color: var(--theme-bg); border-bottom: 1px solid color-mix(in srgb, var(--theme-text) 8%, transparent);"
       >
         <div class="flex items-center gap-2">
-          <span class="title-wheat text-2xl">🌾</span>
-          <div class="text-lg font-bold font-display" style="color: var(--theme-primary)">
+          <div class="text-lg font-semibold font-display" style="color: var(--theme-text)">
             QQ农场智能助手
           </div>
-          <span class="animate-sparkle text-sm" style="animation-delay: 0.5s">✨</span>
         </div>
         <div class="flex items-center gap-2">
           <div
