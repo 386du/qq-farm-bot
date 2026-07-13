@@ -7,6 +7,9 @@ const ipBlacklist = require('../ip-blacklist');
 const tokenStore = require('./token-store');
 const invite = require('./invite');
 const { isValidRole } = require('../../controllers/admin/permissions');
+const { createModuleLogger } = require('../../services/logger');
+
+const usersLogger = createModuleLogger('users');
 
 const USERS_FILE: string = getDataFile('users.json');
 const CARDS_FILE: string = getDataFile('cards.json');
@@ -251,7 +254,7 @@ function validateUser(username: string, password: string, ip: string = 'unknown'
     if (auth.needsRehash(user.password)) {
         user.password = auth.hashPassword(password);
         saveUsers();
-        console.log(`[安全] 用户 ${username} 密码已升级为新哈希算法`);
+        usersLogger.info('用户密码哈希已升级到新算法', { username });
     }
 
     return {

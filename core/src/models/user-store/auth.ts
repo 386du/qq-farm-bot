@@ -289,27 +289,57 @@ function hashPassword(password: string, salt: string | null = null): string {
         salt = crypto.randomBytes(SALT_LENGTH).toString('hex');
     }
 
+    // 格式: salt:iterations:hash —— 迭代数跟着 hash 一起存,
+    // 验证时按存时的迭代数算,避免全局提升迭代数后老用户被锁外面。
     const hash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString('hex');
-    return `${salt}:${hash}`;
+    return `${salt}:${ITERATIONS}:${hash}`;
 }
 
 function verifyPassword(password: string, storedPassword: string): boolean {
-    if (storedPassword.includes(':')) {
-        const [salt, hash] = storedPassword.split(':');
-        const newHash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString('hex');
+    if (!storedPassword) return false;
+
+    // 解析 salt:iterations:hash
+    const parts = storedPassword.split(':');
+    if (parts.length === 3) {
+        const [salt, iterStr, hash] = parts;
+        const iterations = parseInt(iterStr, 10);
+        if (!salt || !Number.isFinite(iterations) || iterations < 1 || !hash) return false;
+
+        const newHash = crypto.pbkdf2Sync(password, salt, iterations, KEY_LENGTH, DIGEST).toString('hex');
         // 使用 timingSafeEqual 防止时序攻击;长度不等时先比一次 dummy
         const a = Buffer.from(newHash, 'hex');
         const b = Buffer.from(hash, 'hex');
         if (a.length !== b.length) return false;
         return crypto.timingSafeEqual(a, b);
-    } else {
+    }
+
+    // 老格式 salt:hash —— 沿用最初的 100000 迭代数(向下兼容)
+    if (parts.length === 2) {
+        const [salt, hash] = parts;
+        if (!salt || !hash) return false;
+        const legacyIterations = 100000;
+        const newHash = crypto.pbkdf2Sync(password, salt, legacyIterations, KEY_LENGTH, DIGEST).toString('hex');
+        const a = Buffer.from(newHash, 'hex');
+        const b = Buffer.from(hash, 'hex');
+        if (a.length !== b.length) return false;
+        return crypto.timingSafeEqual(a, b);
+    }
+
+    // 最老格式: 64 字符纯 SHA256
+    if (storedPassword.length === 64) {
         const legacyHash = crypto.createHash('sha256').update(password).digest('hex');
         return storedPassword === legacyHash;
     }
+
+    return false;
 }
 
 function needsRehash(storedPassword: string): boolean {
-    return !storedPassword.includes(':');
+    if (!storedPassword) return true;
+    const parts = storedPassword.split(':');
+    if (parts.length !== 3) return true; // 老格式一律需要升级
+    const iterations = parseInt(parts[1], 10);
+    return !Number.isFinite(iterations) || iterations < ITERATIONS;
 }
 
 module.exports = {
