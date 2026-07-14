@@ -32,7 +32,7 @@ const path = require('node:path');
 
 const { ensureDataDir } = require('../../config/runtime-paths');
 const { createModuleLogger } = require('../../services/logger');
-const { adminRequired } = require('./middleware');
+const { createAuthRequired, adminRequired } = require('./middleware');
 
 const changelogLogger = createModuleLogger('changelog');
 
@@ -256,8 +256,9 @@ function writeChangelog(data: any, updatedBy: string): { ok: boolean; error?: st
     }
 }
 
-function mountChangelogRoutes(app: Application, _ctx: AdminContext): void {
-    // 公开读取
+function mountChangelogRoutes(app: Application, ctx: AdminContext): void {
+    const authRequired = createAuthRequired(ctx);
+
     app.get('/api/changelog', (_req: Request, res: Response) => {
         try {
             const data = readChangelog();
@@ -267,8 +268,7 @@ function mountChangelogRoutes(app: Application, _ctx: AdminContext): void {
         }
     });
 
-    // 管理员写入
-    app.put('/api/changelog', adminRequired, (req: any, res: Response) => {
+    app.put('/api/changelog', authRequired, adminRequired, (req: any, res: Response) => {
         const body = req.body || {};
         const updatedBy = (req.currentUser && req.currentUser.username) || 'admin';
         const result = writeChangelog(body, updatedBy);
@@ -278,8 +278,7 @@ function mountChangelogRoutes(app: Application, _ctx: AdminContext): void {
         res.json(result);
     });
 
-    // 管理员重置为初始内容
-    app.post('/api/changelog/reset', adminRequired, (req: any, res: Response) => {
+    app.post('/api/changelog/reset', authRequired, adminRequired, (req: any, res: Response) => {
         const initial = getInitialChangelog();
         const updatedBy = (req.currentUser && req.currentUser.username) || 'admin';
         initial.updatedBy = updatedBy;
