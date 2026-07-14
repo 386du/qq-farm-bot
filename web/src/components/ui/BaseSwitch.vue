@@ -63,21 +63,7 @@ const d = () => dims[props.size]
       <span
         class="base-switch-thumb pointer-events-none absolute top-1/2 left-0.5 flex -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-[0_2px_4px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
         :class="[d().thumb, model ? d().translate : 'translate-x-0']"
-      >
-        <svg
-          v-if="model"
-          class="base-switch-check h-full w-full p-0.5"
-          :style="{ color: 'var(--theme-primary)' }"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="5 10 9 14 15 6" />
-        </svg>
-      </span>
+      />
     </button>
 
     <span v-if="label || description || $slots.default" class="flex min-w-0 flex-col">
@@ -101,23 +87,13 @@ const d = () => dims[props.size]
 </template>
 
 <style scoped>
-/* 滑块颜色变化（激活时更白，未激活时略带灰） */
+/* 滑块颜色（暗色主题下用更亮的白） */
 .base-switch-thumb {
   background-color: #ffffff;
 }
 
 .dark .base-switch-thumb {
   background-color: #f9fafb;
-}
-
-/* 按下时滑块更扁，模拟真实按压感 */
-.base-switch-track:active .base-switch-thumb {
-  width: calc(var(--thumb-size, 1.25rem) + 0.15rem);
-}
-
-/* 选中时滑块轻微缩放 */
-.base-switch-track[aria-checked="true"] .base-switch-thumb {
-  transform: translateY(-50%) var(--tw-translate-x, 0) scale(1.02);
 }
 
 /* focus ring 偏移色跟主题 */

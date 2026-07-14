@@ -16,7 +16,7 @@ const f = ref(false)
       BaseSwitch 新版预览
     </h1>
     <p class="mb-8 text-sm opacity-60">
-      改动了：跟主题色 / 三档大小 / hover+focus 反馈 / 按压缩放 / ✓ 图标 / disabled 半透明 / 可选描述 / 键盘可达
+      改动了：跟主题色 / 三档大小 / hover+focus 反馈 / 按压缩放 / disabled 半透明 / 可选描述 / 键盘可达
     </p>
 
     <section class="mb-8 rounded-2xl p-6" style="background: color-mix(in srgb, var(--theme-text) 4%, transparent)">
