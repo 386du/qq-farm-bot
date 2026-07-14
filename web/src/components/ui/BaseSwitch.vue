@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 const props = withDefaults(defineProps<{
   label?: string
   description?: string
@@ -20,18 +22,9 @@ const model = defineModel<boolean>({ default: false })
 const rippleKey = ref(0)
 let rippleTimer: ReturnType<typeof setTimeout> | null = null
 
-function toggle(e: MouseEvent) {
+function flip() {
   if (props.disabled || props.readonly)
     return
-  // 触发涟漪：从点击点扩散
-  if (e.currentTarget instanceof HTMLElement) {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const style = e.currentTarget.style
-    style.setProperty('--ripple-x', `${x}px`)
-    style.setProperty('--ripple-y', `${y}px`)
-  }
   rippleKey.value++
   if (rippleTimer)
     clearTimeout(rippleTimer)
@@ -39,6 +32,24 @@ function toggle(e: MouseEvent) {
     rippleKey.value = 0
   }, 500)
   model.value = !model.value
+}
+
+function toggle(e: MouseEvent) {
+  if (props.disabled || props.readonly)
+    return
+  // 触发涟漪：从点击点扩散
+  if (e.currentTarget instanceof HTMLElement) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const style = e.currentTarget.style
+    style.setProperty('--ripple-x', `${e.clientX - rect.left}px`)
+    style.setProperty('--ripple-y', `${e.clientY - rect.top}px`)
+  }
+  flip()
+}
+
+function onKeydown() {
+  // 键盘触发时不带坐标，涟漪从中心扩散
+  flip()
 }
 
 const dims: Record<NonNullable<typeof props.size>, { track: string, thumb: string, inner: string, translate: string }> = {
@@ -72,8 +83,8 @@ const d = () => dims[props.size]
       ]"
       :style="{ '--tw-ring-color': 'var(--theme-primary)' }"
       @click="toggle"
-      @keydown.space.prevent="toggle"
-      @keydown.enter.prevent="toggle"
+      @keydown.space.prevent="onKeydown"
+      @keydown.enter.prevent="onKeydown"
     >
       <!-- 点击涟漪层 -->
       <span
