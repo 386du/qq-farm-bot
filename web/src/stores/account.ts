@@ -7,13 +7,13 @@ export interface Account {
   id: string
   name: string
   nick?: string
-  uin?: number
+  uin?: number | string
   platform?: string
   running?: boolean
   level?: number
   openid?: string
   loginType?: string
-  // Add other fields as discovered
+  avatar?: string
 }
 
 export interface AccountLog {

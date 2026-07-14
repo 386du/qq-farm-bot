@@ -300,18 +300,33 @@ function createWorkerManager(options: WorkerManagerOptions) {
 
             if (msg.data && msg.data.status && msg.data.status.name) {
                 const newNick = String(msg.data.status.name).trim();
+                const newAvatar = String(msg.data.status.avatar || '').trim();
+                const updates: any = {};
+                let needUpdate = false;
+
                 if (newNick && newNick !== '未知' && newNick !== '未登录') {
                     if (worker.nick !== newNick) {
-                        const oldNick = worker.nick;
                         worker.nick = newNick;
-                        addOrUpdateAccount({
-                            id: accountId,
-                            nick: newNick,
-                        });
-                        if (oldNick !== newNick) {
-                            log('系统', `已同步账号昵称: ${oldNick || 'None'} -> ${newNick}`, { accountId, accountName: worker.name });
-                        }
+                        updates.nick = newNick;
+                        needUpdate = true;
                     }
+                }
+
+                if (newAvatar) {
+                    if (worker.avatar !== newAvatar) {
+                        worker.avatar = newAvatar;
+                        updates.avatar = newAvatar;
+                        needUpdate = true;
+                    }
+                }
+
+                if (needUpdate) {
+                    updates.id = accountId;
+                    addOrUpdateAccount(updates);
+                    const changes: string[] = [];
+                    if (updates.nick) changes.push(`昵称: ${worker.nick || 'None'} -> ${updates.nick}`);
+                    if (updates.avatar) changes.push('头像已更新');
+                    log('系统', `已同步账号信息: ${changes.join(', ')}`, { accountId, accountName: worker.name });
                 }
             }
 

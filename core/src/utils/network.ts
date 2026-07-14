@@ -53,6 +53,7 @@ const userState = {
     exp: 0,
     coupon: 0,
     goldBean: 0,
+    avatarUrl: '',
 };
 
 function getUserState() { return userState; }
@@ -542,6 +543,7 @@ async function sendLogin(onLoginSuccess?: () => void): Promise<void> {
                 userState.level = toNum(reply.basic.level);
                 userState.gold = toNum(reply.basic.gold);
                 userState.exp = toNum(reply.basic.exp);
+                userState.avatarUrl = reply.basic.avatar_url || '';
 
                 updateStatusFromLogin({
                     name: userState.name,

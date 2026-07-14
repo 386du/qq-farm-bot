@@ -664,8 +664,8 @@ async function copyToken() {
           <div class="flex items-center gap-3 overflow-hidden">
             <div class="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 shadow-sm ring-2 ring-green-300/50 dark:bg-gray-600 dark:ring-green-700/50">
               <img
-                v-if="currentAccount?.uin"
-                :src="`https://q1.qlogo.cn/g?b=qq&nk=${currentAccount.uin}&s=100`"
+                v-if="currentAccount?.avatar || currentAccount?.uin"
+                :src="currentAccount?.avatar || `https://q1.qlogo.cn/g?b=qq&nk=${currentAccount.uin}&s=100`"
                 class="h-full w-full object-cover"
                 @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
               >
@@ -712,8 +712,8 @@ async function copyToken() {
               >
                 <div class="h-6 w-6 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 shadow-sm dark:bg-gray-600">
                   <img
-                    v-if="acc.uin"
-                    :src="`https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`"
+                    v-if="acc.avatar || acc.uin"
+                    :src="acc.avatar || `https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`"
                     class="h-full w-full object-cover"
                     @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
                   >
