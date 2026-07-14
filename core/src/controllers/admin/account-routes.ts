@@ -13,6 +13,7 @@ const userStore = require('../../models/user-store');
 const auditLog = require('../../models/audit-log');
 
 const {
+    createAuthRequired,
     getAccId,
     checkAccountAccess,
     getAccessibleAccountIds,
@@ -23,6 +24,7 @@ const {
 } = require('./middleware');
 
 function mountAccountRoutes(app: Application, ctx: AdminContext): void {
+    const authRequired = createAuthRequired(ctx);
 
     function audit(event: string, req: Request, details?: Record<string, any>): void {
         const username = (req as any).currentUser?.username || 'unknown';
@@ -30,7 +32,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     }
 
     // API: 账号管理
-    app.get('/api/accounts', (req: Request, res: Response) => {
+    app.get('/api/accounts', authRequired, (req: Request, res: Response) => {
         try {
             const currentUser = (req as any).currentUser;
             let data: any;
@@ -58,7 +60,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 更新账号备注（兼容旧接口）
-    app.post('/api/account/remark', (req: Request, res: Response) => {
+    app.post('/api/account/remark', authRequired, (req: Request, res: Response) => {
         try {
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
             const rawRef = body.id || body.accountId || body.uin || req.headers['x-account-id'];
@@ -88,7 +90,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    app.post('/api/accounts', (req: Request, res: Response) => {
+    app.post('/api/accounts', authRequired, (req: Request, res: Response) => {
         try {
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
             const currentUser = (req as any).currentUser;
@@ -176,7 +178,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    app.delete('/api/accounts/:id', (req: Request, res: Response) => {
+    app.delete('/api/accounts/:id', authRequired, (req: Request, res: Response) => {
         try {
             const resolvedId = resolveAccId(ctx, req.params.id) || String(req.params.id || '');
 
@@ -207,7 +209,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     // - true:  下次容器启动时会被自动拉起
     // - false: 容器启动时不会自动启动（需要手动点）
     // 用户在管理后台点"启动/停止"按钮时也会自动同步这个标记
-    app.post('/api/accounts/:id/auto-start', (req: Request, res: Response) => {
+    app.post('/api/accounts/:id/auto-start', authRequired, (req: Request, res: Response) => {
         try {
             const resolvedId = resolveAccId(ctx, req.params.id) || String(req.params.id || '');
             if (!checkAccountAccess(ctx, req as any, resolvedId)) {
@@ -224,7 +226,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 账号日志
-    app.get('/api/account-logs', (req: Request, res: Response) => {
+    app.get('/api/account-logs', authRequired, (req: Request, res: Response) => {
         try {
             const limit = Number.parseInt(req.query.limit as string) || 100;
             const currentUser = (req as any).currentUser;
@@ -249,7 +251,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 日志
-    app.get('/api/logs', (req: Request, res: Response) => {
+    app.get('/api/logs', authRequired, (req: Request, res: Response) => {
         const queryAccountIdRaw = (req.query.accountId || '').toString().trim();
         const id = queryAccountIdRaw ? (queryAccountIdRaw === 'all' ? '' : resolveAccId(ctx, queryAccountIdRaw)) : getAccId(ctx, req);
         const currentUser = (req as any).currentUser;
@@ -311,7 +313,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 清空当前账号运行日志
-    app.delete('/api/logs', (req: Request, res: Response) => {
+    app.delete('/api/logs', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -344,7 +346,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 设置页统一保存（单次写入+单次广播）
-    app.post('/api/settings/save', async (req: Request, res: Response) => {
+    app.post('/api/settings/save', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) {
             return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
@@ -365,7 +367,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 设置面板主题
-    app.post('/api/settings/theme', async (req: Request, res: Response) => {
+    app.post('/api/settings/theme', authRequired, async (req: Request, res: Response) => {
         try {
             const theme = String((req.body || {}).theme || '');
             const data = await ctx.provider.setUITheme(theme);
@@ -377,7 +379,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 保存下线提醒配置
-    app.post('/api/settings/offline-reminder', async (req: Request, res: Response) => {
+    app.post('/api/settings/offline-reminder', authRequired, async (req: Request, res: Response) => {
         try {
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
             const currentUser = (req as any).currentUser;
@@ -398,7 +400,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 测试下线提醒推送（不落盘）
-    app.post('/api/settings/offline-reminder/test', async (req: Request, res: Response) => {
+    app.post('/api/settings/offline-reminder/test', authRequired, async (req: Request, res: Response) => {
         try {
             const currentUser = (req as any).currentUser;
             const saved = store.getOfflineReminder && currentUser
@@ -451,7 +453,7 @@ function mountAccountRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 获取配置
-    app.get('/api/settings', async (req: Request, res: Response) => {
+    app.get('/api/settings', authRequired, async (req: Request, res: Response) => {
         try {
             const id = getAccId(ctx, req);
             const currentUser = (req as any).currentUser;

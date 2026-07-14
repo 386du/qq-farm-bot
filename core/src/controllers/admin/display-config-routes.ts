@@ -20,7 +20,7 @@ const path = require('node:path');
 
 const { ensureDataDir } = require('../../config/runtime-paths');
 const { createModuleLogger } = require('../../services/logger');
-const { requirePermission } = require('./middleware');
+const { createAuthRequired, requirePermission } = require('./middleware');
 
 const displayConfigLogger = createModuleLogger('display-config');
 
@@ -84,8 +84,9 @@ function writeDisplayConfig(data: any, updatedBy: string): { ok: boolean, error?
     }
 }
 
-function mountDisplayConfigRoutes(app: Application, _ctx: AdminContext): void {
-    // 公开读取（登录页 / 侧边栏用于显示自定义版本号）
+function mountDisplayConfigRoutes(app: Application, ctx: AdminContext): void {
+    const authRequired = createAuthRequired(ctx);
+
     app.get('/api/display-config', (_req: Request, res: Response) => {
         try {
             const data = readDisplayConfig();
@@ -96,8 +97,7 @@ function mountDisplayConfigRoutes(app: Application, _ctx: AdminContext): void {
         }
     });
 
-    // 拥有 system:config 权限的用户可写入（不再强制要求 role === 'admin'，与 UI 侧 system:* 权限对齐）
-    app.put('/api/display-config', requirePermission('system:config'), (req: any, res: Response) => {
+    app.put('/api/display-config', authRequired, requirePermission('system:config'), (req: any, res: Response) => {
         const body = req.body || {};
         const updatedBy = (req.currentUser && req.currentUser.username) || 'admin';
         const result = writeDisplayConfig(body, updatedBy);

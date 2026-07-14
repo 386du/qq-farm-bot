@@ -7,9 +7,10 @@ export {};
  */
 
 const gamif = require('../../services/gamification');
-const { handleApiError } = require('./middleware');
+const { createAuthRequired, adminRequired, handleApiError } = require('./middleware');
 
 function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
+    const authRequired = createAuthRequired(ctx);
     /**
      * 拉取所有运行中账号的最新统计到磁盘（不等 1s 防抖）
      * 用于日报强制刷新时确保数据最新
@@ -109,7 +110,7 @@ function mountGamificationRoutes(app: Application, ctx: AdminContext): void {
      * 手动重新生成日报(不推送, 仅落盘 + 返回)
      * POST /api/admin/report/regenerate
      */
-    app.post('/api/admin/report/regenerate', async (req: Request, res: Response) => {
+    app.post('/api/admin/report/regenerate', authRequired, adminRequired, async (req: Request, res: Response) => {
         try {
             // 先 flush 所有 worker 内存中的最新统计
             await flushAllStats();

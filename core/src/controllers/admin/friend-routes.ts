@@ -10,6 +10,7 @@ export {};
 const store = require('../../models/store');
 
 const {
+    createAuthRequired,
     getAccId,
     checkAccountAccess,
     handleApiError,
@@ -17,9 +18,10 @@ const {
 } = require('./middleware');
 
 function mountFriendRoutes(app: Application, ctx: AdminContext): void {
+    const authRequired = createAuthRequired(ctx);
 
     // API: 好友列表
-    app.get('/api/friends', async (req: Request, res: Response) => {
+    app.get('/api/friends', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -48,7 +50,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 清除好友列表缓存
-    app.post('/api/friends/clear-cache', async (req: Request, res: Response) => {
+    app.post('/api/friends/clear-cache', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -66,7 +68,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 访客
-    app.get('/api/interact-records', async (req: Request, res: Response) => {
+    app.get('/api/interact-records', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         try {
@@ -78,7 +80,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 好友农田详情
-    app.get('/api/friend/:gid/lands', async (req: Request, res: Response) => {
+    app.get('/api/friend/:gid/lands', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -96,7 +98,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 对指定好友执行单次操作（偷菜/浇水/除草/捣乱）
-    app.post('/api/friend/:gid/op', async (req: Request, res: Response) => {
+    app.post('/api/friend/:gid/op', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -117,7 +119,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     // ============ 好友申请管理 API ============
 
     // 获取好友申请列表
-    app.get('/api/friend-applications', async (req: Request, res: Response) => {
+    app.get('/api/friend-applications', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -134,7 +136,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 批量同意好友申请
-    app.post('/api/friend-applications/accept', async (req: Request, res: Response) => {
+    app.post('/api/friend-applications/accept', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -156,7 +158,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 批量拒绝好友申请
-    app.post('/api/friend-applications/reject', async (req: Request, res: Response) => {
+    app.post('/api/friend-applications/reject', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -178,7 +180,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 切换"屏蔽加好友申请"全局开关（游戏 FriendService 唯一支持的屏蔽维度）
-    app.post('/api/friend-block-applications', async (req: Request, res: Response) => {
+    app.post('/api/friend-block-applications', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -194,7 +196,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 在游戏内拉黑好友（游戏服务端实现了 BlockFriend RPC，proto 未声明但可用）
-    app.post('/api/friend-block', async (req: Request, res: Response) => {
+    app.post('/api/friend-block', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -211,7 +213,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 好友黑名单
-    app.get('/api/friend-blacklist', async (req: Request, res: Response) => {
+    app.get('/api/friend-blacklist', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -261,7 +263,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-blacklist/toggle', async (req: Request, res: Response) => {
+    app.post('/api/friend-blacklist/toggle', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -360,7 +362,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         });
     }
 
-    app.post('/api/friend-blacklist/batch-add', async (req: Request, res: Response) => {
+    app.post('/api/friend-blacklist/batch-add', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -386,7 +388,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: saved });
     });
 
-    app.post('/api/friend-blacklist/batch-remove', async (req: Request, res: Response) => {
+    app.post('/api/friend-blacklist/batch-remove', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -444,7 +446,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         });
     }
 
-    app.get('/api/friend-guard-dog-gids', async (req: Request, res: Response) => {
+    app.get('/api/friend-guard-dog-gids', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -455,7 +457,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-gids/add', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-gids/add', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -473,7 +475,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, added, data: list });
     });
 
-    app.post('/api/friend-guard-dog-gids/remove', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-gids/remove', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -491,7 +493,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, removed, data: list });
     });
 
-    app.post('/api/friend-guard-dog-gids/batch-add', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-gids/batch-add', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -513,7 +515,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-gids/scan', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-gids/scan', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -547,7 +549,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    app.get('/api/friend-guard-dog-gids/scan-status', (req: Request, res: Response) => {
+    app.get('/api/friend-guard-dog-gids/scan-status', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -559,7 +561,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: status });
     });
 
-    app.post('/api/friend-guard-dog-gids/clear', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-gids/clear', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -575,7 +577,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     // ============ 护主犬帮忙黑/白名单 API ============
 
     // 护主犬帮忙黑名单
-    app.get('/api/friend-guard-dog-blacklist', async (req: Request, res: Response) => {
+    app.get('/api/friend-guard-dog-blacklist', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -586,7 +588,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-blacklist/toggle', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-blacklist/toggle', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -610,7 +612,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-blacklist/batch-add', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-blacklist/batch-add', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -633,7 +635,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-blacklist/batch-remove', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-blacklist/batch-remove', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -655,7 +657,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-blacklist/clear', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-blacklist/clear', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -669,7 +671,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 护主犬帮忙白名单
-    app.get('/api/friend-guard-dog-whitelist', async (req: Request, res: Response) => {
+    app.get('/api/friend-guard-dog-whitelist', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -680,7 +682,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-whitelist/toggle', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-whitelist/toggle', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -702,7 +704,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-whitelist/batch-add', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-whitelist/batch-add', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -724,7 +726,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-whitelist/batch-remove', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-whitelist/batch-remove', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -746,7 +748,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
         res.json({ ok: true, data: list });
     });
 
-    app.post('/api/friend-guard-dog-whitelist/clear', async (req: Request, res: Response) => {
+    app.post('/api/friend-guard-dog-whitelist/clear', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -762,7 +764,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     // ============ 好友GID管理 API ============
 
     // 获取已知好友GID设置
-    app.get('/api/friend-known-gids', (req: Request, res: Response) => {
+    app.get('/api/friend-known-gids', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -779,7 +781,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 保存已知好友GID设置
-    app.post('/api/friend-known-gids', (req: Request, res: Response) => {
+    app.post('/api/friend-known-gids', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -810,7 +812,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 移除单个好友GID
-    app.post('/api/friend-known-gids/remove', (req: Request, res: Response) => {
+    app.post('/api/friend-known-gids/remove', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -841,7 +843,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 批量添加好友GID
-    app.post('/api/friend-known-gids/batch-add', (req: Request, res: Response) => {
+    app.post('/api/friend-known-gids/batch-add', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -886,7 +888,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 批量删除未同步的好友GID
-    app.post('/api/friend-known-gids/batch-remove', (req: Request, res: Response) => {
+    app.post('/api/friend-known-gids/batch-remove', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -923,7 +925,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     // ============ 被好友删除记录 API ============
 
     // 获取被好友删除记录列表
-    app.get('/api/friend-deleted-records', (req: Request, res: Response) => {
+    app.get('/api/friend-deleted-records', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -938,7 +940,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 清空被好友删除记录
-    app.post('/api/friend-deleted-records/clear', (req: Request, res: Response) => {
+    app.post('/api/friend-deleted-records/clear', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -953,7 +955,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 删除单条被好友删除记录
-    app.post('/api/friend-deleted-records/remove', (req: Request, res: Response) => {
+    app.post('/api/friend-deleted-records/remove', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -978,7 +980,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     // ============ "无护主犬" 负缓存管理 API ============
 
     // 获取负缓存统计信息
-    app.get('/api/friend-no-guard-dog-cache/stats', (req: Request, res: Response) => {
+    app.get('/api/friend-no-guard-dog-cache/stats', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -995,7 +997,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 清空负缓存(可指定 gid 或全部清空)
-    app.post('/api/friend-no-guard-dog-cache/clear', (req: Request, res: Response) => {
+    app.post('/api/friend-no-guard-dog-cache/clear', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {
@@ -1020,7 +1022,7 @@ function mountFriendRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // 调整负缓存 TTL(秒)
-    app.post('/api/friend-no-guard-dog-cache/ttl', (req: Request, res: Response) => {
+    app.post('/api/friend-no-guard-dog-cache/ttl', authRequired, (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
         if (!checkAccountAccess(ctx, req as any, id)) {

@@ -17,6 +17,7 @@ const store = require('../../models/store');
 
 const {
     createAuthRequired,
+    adminRequired,
     getAccId,
     checkAccountAccess,
     handleApiError,
@@ -27,7 +28,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     const authRequired = createAuthRequired(ctx);
 
     // API: 完整状态
-    app.get('/api/status', async (req: Request, res: Response) => {
+    app.get('/api/status', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.json({ ok: false, error: 'Missing x-account-id' });
 
@@ -49,7 +50,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    app.post('/api/automation', async (req: Request, res: Response) => {
+    app.post('/api/automation', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) {
             return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
@@ -90,7 +91,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
         }
     });
 
-    app.post('/api/fertilizer/buy', async (req: Request, res: Response) => {
+    app.post('/api/fertilizer/buy', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) {
             return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
@@ -111,7 +112,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 检测化肥容器并自动购买
-    app.post('/api/fertilizer/check-and-buy', async (req: Request, res: Response) => {
+    app.post('/api/fertilizer/check-and-buy', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) {
             return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
@@ -144,7 +145,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 农田详情
-    app.get('/api/lands', async (req: Request, res: Response) => {
+    app.get('/api/lands', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -303,7 +304,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 种子列表
-    app.get('/api/seeds', async (req: Request, res: Response) => {
+    app.get('/api/seeds', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -321,7 +322,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 背包物品
-    app.get('/api/bag', async (req: Request, res: Response) => {
+    app.get('/api/bag', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -339,7 +340,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 使用背包物品
-    app.post('/api/bag/use', async (req: Request, res: Response) => {
+    app.post('/api/bag/use', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -359,7 +360,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 出售背包物品
-    app.post('/api/bag/sell', async (req: Request, res: Response) => {
+    app.post('/api/bag/sell', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -381,7 +382,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 获取背包种子列表
-    app.get('/api/bag/seeds', async (req: Request, res: Response) => {
+    app.get('/api/bag/seeds', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false, error: 'Missing x-account-id' });
 
@@ -399,7 +400,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 每日礼包状态总览
-    app.get('/api/daily-gifts', async (req: Request, res: Response) => {
+    app.get('/api/daily-gifts', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -417,7 +418,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 启动账号
-    app.post('/api/accounts/:id/start', (req: Request, res: Response) => {
+    app.post('/api/accounts/:id/start', authRequired, (req: Request, res: Response) => {
         try {
             const accountId = resolveAccId(ctx, req.params.id);
 
@@ -437,7 +438,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 停止账号
-    app.post('/api/accounts/:id/stop', (req: Request, res: Response) => {
+    app.post('/api/accounts/:id/stop', authRequired, (req: Request, res: Response) => {
         try {
             const accountId = resolveAccId(ctx, req.params.id);
 
@@ -457,7 +458,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     });
 
     // API: 农场一键操作
-    app.post('/api/farm/operate', async (req: Request, res: Response) => {
+    app.post('/api/farm/operate', authRequired, async (req: Request, res: Response) => {
         const id = getAccId(ctx, req);
         if (!id) return res.status(400).json({ ok: false });
 
@@ -503,7 +504,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
         },
     });
 
-    app.post('/api/seed', seedImageUpload.single('image'), async (req: Request, res: Response) => {
+    app.post('/api/seed', authRequired, adminRequired, seedImageUpload.single('image'), async (req: Request, res: Response) => {
         try {
             const body = req.body;
 
@@ -871,7 +872,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     /**
      * POST /api/config/fruit — 录入果实（关联已有植物）
      */
-    app.post('/api/config/fruit', configImageUpload.single('image'), async (req: Request, res: Response) => {
+    app.post('/api/config/fruit', authRequired, adminRequired, configImageUpload.single('image'), async (req: Request, res: Response) => {
         try {
             const body = req.body;
             const plantId = Number(body.plantId);
@@ -977,7 +978,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     /**
      * POST /api/config/item — 录入道具
      */
-    app.post('/api/config/item', configImageUpload.single('image'), async (req: Request, res: Response) => {
+    app.post('/api/config/item', authRequired, adminRequired, configImageUpload.single('image'), async (req: Request, res: Response) => {
         try {
             const body = req.body;
             const itemId = Number(body.id);
@@ -1073,7 +1074,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     /**
      * DELETE /api/config/seed/:id — 删除种子（同时删除关联的植物和果实）
      */
-    app.delete('/api/config/seed/:id', async (req: Request, res: Response) => {
+    app.delete('/api/config/seed/:id', authRequired, adminRequired, async (req: Request, res: Response) => {
         try {
             const seedId = Number(req.params.id);
             if (!seedId || seedId <= 0) {
@@ -1122,7 +1123,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     /**
      * PUT /api/config/seed/:id — 修改种子
      */
-    app.put('/api/config/seed/:id', configImageUpload.single('image'), async (req: Request, res: Response) => {
+    app.put('/api/config/seed/:id', authRequired, adminRequired, configImageUpload.single('image'), async (req: Request, res: Response) => {
         try {
             const seedId = Number(req.params.id);
             if (!seedId || seedId <= 0) {
@@ -1215,7 +1216,7 @@ function mountFarmRoutes(app: Application, ctx: AdminContext): void {
     /**
      * DELETE /api/config/fruit/:id — 删除果实
      */
-    app.delete('/api/config/fruit/:id', async (req: Request, res: Response) => {
+    app.delete('/api/config/fruit/:id', authRequired, adminRequired, async (req: Request, res: Response) => {
         try {
             const fruitId = Number(req.params.id);
             if (!fruitId || fruitId <= 0) {
