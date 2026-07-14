@@ -23,10 +23,10 @@ function toggle() {
   model.value = !model.value
 }
 
-const dims: Record<NonNullable<typeof props.size>, { track: string, thumb: string, dot: string, translate: string }> = {
-  sm: { track: 'h-5 w-9',  thumb: 'h-4 w-4', dot: 'h-1.5 w-1.5', translate: 'translate-x-4' },
-  md: { track: 'h-6 w-11', thumb: 'h-5 w-5', dot: 'h-2 w-2',   translate: 'translate-x-5' },
-  lg: { track: 'h-7 w-13', thumb: 'h-6 w-6', dot: 'h-2.5 w-2.5', translate: 'translate-x-6' },
+const dims: Record<NonNullable<typeof props.size>, { track: string, thumb: string, translate: string }> = {
+  sm: { track: 'h-5 w-9',  thumb: 'h-4 w-4', translate: 'translate-x-4' },
+  md: { track: 'h-6 w-11', thumb: 'h-5 w-5', translate: 'translate-x-5' },
+  lg: { track: 'h-7 w-13', thumb: 'h-6 w-6', translate: 'translate-x-6' },
 }
 const d = () => dims[props.size]
 </script>
@@ -49,7 +49,7 @@ const d = () => dims[props.size]
       :class="[
         d().track,
         model ? 'base-switch-on' : 'base-switch-off',
-        !disabled && !readonly && 'active:scale-[0.95]',
+        !disabled && !readonly && 'active:scale-[0.96]',
         disabled && 'opacity-50',
       ]"
       :style="{ '--tw-ring-color': 'var(--theme-primary)' }"
@@ -57,32 +57,15 @@ const d = () => dims[props.size]
       @keydown.space.prevent="toggle"
       @keydown.enter.prevent="toggle"
     >
-      <!-- 能量流光层（开启时显示） -->
       <span
-        v-if="model"
-        class="base-switch-energy pointer-events-none absolute inset-0 overflow-hidden rounded-full"
-      >
-        <span class="base-switch-energy-strip" />
-      </span>
-
-      <span
-        class="base-switch-thumb pointer-events-none absolute top-1/2 left-0.5 flex -translate-y-1/2 items-center justify-center rounded-full bg-white/90 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+        class="base-switch-thumb pointer-events-none absolute top-1/2 left-0.5 flex -translate-y-1/2 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
         :class="[d().thumb, model ? d().translate : 'translate-x-0']"
-        :style="{
-          backdropFilter: 'blur(6px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(6px) saturate(180%)',
-        }"
       >
-        <!-- 内部 LED：开启=主题色脉冲，关闭=浅灰 -->
+        <!-- 内部小圆点：开启=主题色，关闭=无 -->
         <span
-          class="rounded-full transition-all duration-300"
-          :class="[d().dot, model ? 'base-switch-led' : 'scale-75']"
-          :style="{
-            backgroundColor: model ? 'var(--theme-primary)' : '#cbd5e1',
-            boxShadow: model
-              ? '0 0 4px var(--theme-primary), 0 0 8px color-mix(in srgb, var(--theme-primary) 70%, transparent)'
-              : 'inset 0 1px 1px rgba(0,0,0,0.15)',
-          }"
+          v-if="model"
+          class="h-1.5 w-1.5 rounded-full"
+          style="background-color: var(--theme-primary);"
         />
       </span>
     </button>
@@ -108,152 +91,60 @@ const d = () => dims[props.size]
 </template>
 
 <style scoped>
-/* ============ 关闭态：凹陷、深邃、带扫描纹理 ============ */
+/* 关闭态：浅灰渐变 + 内阴影（凹槽） */
 .base-switch-off {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
-    linear-gradient(180deg, #4b5563 0%, #1f2937 100%);
+  background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.5),
-    inset 0 -1px 1px rgba(255, 255, 255, 0.08),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.4),
-    0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.base-switch-off::before {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  border-radius: inherit;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0px,
-    transparent 3px,
-    rgba(0, 0, 0, 0.12) 3px,
-    rgba(0, 0, 0, 0.12) 4px
-  );
-  pointer-events: none;
-  opacity: 0.6;
+.dark .base-switch-off {
+  background: linear-gradient(180deg, #4b5563 0%, #374151 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* ============ 开启态：凸起、主题色渐变 + 三层霓虹光晕 ============ */
+/* 开启态：主题色 + 一层柔光 */
 .base-switch-on {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 50%),
-    linear-gradient(180deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 60%, #000) 100%);
+  background: linear-gradient(180deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 70%, #000) 100%);
   box-shadow:
-    /* 顶层高光 */
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    /* 底层阴影 */
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-    /* 边缘描边 */
-    inset 0 0 0 1px color-mix(in srgb, var(--theme-primary) 40%, transparent),
-    /* 三层霓虹光晕：近 / 中 / 远 */
-    0 0 4px 0 color-mix(in srgb, var(--theme-primary) 80%, transparent),
-    0 0 12px 2px color-mix(in srgb, var(--theme-primary) 50%, transparent),
-    0 0 24px 4px color-mix(in srgb, var(--theme-primary) 25%, transparent);
-  animation: switch-breathe 2.4s ease-in-out infinite;
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
+    0 0 12px 0 color-mix(in srgb, var(--theme-primary) 30%, transparent);
 }
 
 .base-switch-on:hover {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
-    inset 0 0 0 1px color-mix(in srgb, var(--theme-primary) 50%, transparent),
-    0 0 6px 1px color-mix(in srgb, var(--theme-primary) 90%, transparent),
-    0 0 18px 4px color-mix(in srgb, var(--theme-primary) 60%, transparent),
-    0 0 36px 8px color-mix(in srgb, var(--theme-primary) 35%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 0 18px 2px color-mix(in srgb, var(--theme-primary) 45%, transparent);
 }
 
-/* ============ 能量流光：开启时一道光从左扫到右 ============ */
-.base-switch-energy-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.55) 50%,
-    transparent 100%
-  );
-  filter: blur(2px);
-  animation: switch-energy-sweep 2.2s ease-in-out infinite;
-}
-
-@keyframes switch-energy-sweep {
-  0% {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(200%);
-    opacity: 0;
-  }
-}
-
-/* ============ 呼吸光晕 ============ */
-@keyframes switch-breathe {
-  0%, 100% {
-    filter: brightness(1) saturate(1);
-  }
-  50% {
-    filter: brightness(1.08) saturate(1.15);
-  }
-}
-
-/* ============ 拇指：液态玻璃 + 主题色光晕阴影 ============ */
+/* 液态玻璃拇指 */
 .base-switch-thumb {
   background: linear-gradient(
     135deg,
     rgba(255, 255, 255, 0.98) 0%,
-    rgba(255, 255, 255, 0.75) 100%
+    rgba(255, 255, 255, 0.82) 100%
   );
   box-shadow:
-    /* 顶部高光（液态玻璃反光） */
     inset 0 1px 0 rgba(255, 255, 255, 1),
-    /* 底部内阴影 */
-    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
-    /* 描边 */
-    0 0 0 1px rgba(0, 0, 0, 0.06),
-    /* 主投影 */
-    0 2px 6px rgba(0, 0, 0, 0.18),
-    /* 主题色光晕 */
-    0 0 10px 1px color-mix(in srgb, var(--theme-primary) 50%, transparent);
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .dark .base-switch-thumb {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(229, 231, 235, 0.7) 100%
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(229, 231, 235, 0.8) 100%
   );
 }
 
-/* ============ LED 脉冲 ============ */
-.base-switch-led {
-  animation: switch-led-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes switch-led-pulse {
-  0%, 100% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-  50% {
-    transform: scale(1.15);
-    filter: brightness(1.3);
-  }
-}
-
-/* ============ focus ring 偏移色跟主题 ============ */
+/* focus ring 偏移色跟主题 */
 .base-switch-track:focus-visible {
   --tw-ring-offset-color: var(--theme-bg, #ffffff);
 }
