@@ -54,11 +54,22 @@ const router = createRouter({
       name: 'login',
       component: () => import('@/views/Login.vue'),
     },
+    {
+      path: '/switch-demo',
+      name: 'switch-demo',
+      component: () => import('@/views/SwitchDemo.vue'),
+    },
   ],
 })
 
 router.beforeEach(async (to, _from) => {
   NProgress.start()
+
+  // 临时预览页无需登录
+  if (to.name === 'switch-demo') {
+    NProgress.done()
+    return true
+  }
 
   if (to.name === 'login') {
     if (!adminToken.value) {
