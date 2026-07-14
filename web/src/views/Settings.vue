@@ -1178,7 +1178,7 @@ async function handleTestOffline() {
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div class="min-w-0 flex flex-1 items-center gap-3">
                   <div class="h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 sm:h-12 sm:w-12 dark:bg-gray-700">
-                    <img v-if="acc.uin" :src="`https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`" class="h-full w-full object-cover">
+                    <img v-if="acc.avatar || acc.uin" :src="acc.avatar || `https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`" class="h-full w-full object-cover">
                     <span v-else class="text-xl text-gray-400 sm:text-2xl">👤</span>
                   </div>
                   <div class="min-w-0 flex-1">

@@ -158,8 +158,8 @@ onUnmounted(() => {
               :style="{ backgroundColor: 'color-mix(in srgb, var(--theme-primary) 18%, transparent)' }"
             >
               <img
-                v-if="currentAccount.uin"
-                :src="`https://q1.qlogo.cn/g?b=qq&nk=${currentAccount.uin}&s=100`"
+                v-if="currentAccount?.avatar || currentAccount?.uin"
+                :src="currentAccount?.avatar || `https://q1.qlogo.cn/g?b=qq&nk=${currentAccount.uin}&s=100`"
                 class="h-full w-full object-cover"
                 @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
               >
@@ -219,8 +219,8 @@ onUnmounted(() => {
                         :style="{ backgroundColor: 'color-mix(in srgb, var(--theme-primary) 10%, transparent)' }"
                       >
                         <img
-                          v-if="acc.uin"
-                          :src="`https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`"
+                          v-if="acc.avatar || acc.uin"
+                          :src="acc.avatar || `https://q1.qlogo.cn/g?b=qq&nk=${acc.uin}&s=100`"
                           class="h-full w-full object-cover"
                           @error="(e) => (e.target as HTMLImageElement).style.display = 'none'"
                         >
