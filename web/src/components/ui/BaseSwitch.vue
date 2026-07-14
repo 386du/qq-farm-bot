@@ -17,16 +17,34 @@ const props = withDefaults(defineProps<{
 
 const model = defineModel<boolean>({ default: false })
 
-function toggle() {
+const rippleKey = ref(0)
+let rippleTimer: ReturnType<typeof setTimeout> | null = null
+
+function toggle(e: MouseEvent) {
   if (props.disabled || props.readonly)
     return
+  // 触发涟漪：从点击点扩散
+  if (e.currentTarget instanceof HTMLElement) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const style = e.currentTarget.style
+    style.setProperty('--ripple-x', `${x}px`)
+    style.setProperty('--ripple-y', `${y}px`)
+  }
+  rippleKey.value++
+  if (rippleTimer)
+    clearTimeout(rippleTimer)
+  rippleTimer = setTimeout(() => {
+    rippleKey.value = 0
+  }, 500)
   model.value = !model.value
 }
 
-const dims: Record<NonNullable<typeof props.size>, { track: string, thumb: string, translate: string }> = {
-  sm: { track: 'h-5 w-9',  thumb: 'h-4 w-4', translate: 'translate-x-4' },
-  md: { track: 'h-6 w-11', thumb: 'h-5 w-5', translate: 'translate-x-5' },
-  lg: { track: 'h-7 w-13', thumb: 'h-6 w-6', translate: 'translate-x-6' },
+const dims: Record<NonNullable<typeof props.size>, { track: string, thumb: string, inner: string, translate: string }> = {
+  sm: { track: 'h-5 w-9',  thumb: 'h-4 w-4', inner: 'h-1.5 w-1.5', translate: 'translate-x-4' },
+  md: { track: 'h-6 w-11', thumb: 'h-5 w-5', inner: 'h-2 w-2',   translate: 'translate-x-5' },
+  lg: { track: 'h-7 w-13', thumb: 'h-6 w-6', inner: 'h-2.5 w-2.5', translate: 'translate-x-6' },
 }
 const d = () => dims[props.size]
 </script>
@@ -57,15 +75,24 @@ const d = () => dims[props.size]
       @keydown.space.prevent="toggle"
       @keydown.enter.prevent="toggle"
     >
+      <!-- 点击涟漪层 -->
+      <span
+        v-if="rippleKey"
+        :key="rippleKey"
+        class="base-switch-ripple pointer-events-none"
+      />
+
       <span
         class="base-switch-thumb pointer-events-none absolute top-1/2 left-0.5 flex -translate-y-1/2 items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
         :class="[d().thumb, model ? d().translate : 'translate-x-0']"
       >
-        <!-- 内部小圆点：开启=主题色，关闭=无 -->
+        <!-- 内部符号：开=实心圆点（主题色），关=空心圆环（灰色） -->
         <span
-          v-if="model"
-          class="h-1.5 w-1.5 rounded-full"
-          style="background-color: var(--theme-primary);"
+          class="rounded-full transition-all duration-300"
+          :class="[d().inner, model ? 'scale-100' : 'scale-90']"
+          :style="model
+            ? { backgroundColor: 'var(--theme-primary)' }
+            : { backgroundColor: 'transparent', boxShadow: 'inset 0 0 0 1.5px #94a3b8' }"
         />
       </span>
     </button>
@@ -91,7 +118,7 @@ const d = () => dims[props.size]
 </template>
 
 <style scoped>
-/* 关闭态：浅灰渐变 + 内阴影（凹槽） */
+/* ============ 关闭态：浅灰 + 凹槽 + 顶部高光线 ============ */
 .base-switch-off {
   background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%);
   box-shadow:
@@ -106,45 +133,73 @@ const d = () => dims[props.size]
     inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* 开启态：主题色 + 一层柔光 */
+/* ============ 开启态：主题色渐变 + 顶部高光 + 柔光 ============ */
 .base-switch-on {
   background: linear-gradient(180deg, var(--theme-primary) 0%, color-mix(in srgb, var(--theme-primary) 70%, #000) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.1),
-    0 0 12px 0 color-mix(in srgb, var(--theme-primary) 30%, transparent);
+    /* 顶部镜面高光线（特色 1：高端产品感） */
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    /* 底部阴影 */
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    /* 主题色柔光 */
+    0 0 14px 0 color-mix(in srgb, var(--theme-primary) 35%, transparent);
 }
 
 .base-switch-on:hover {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
-    0 0 18px 2px color-mix(in srgb, var(--theme-primary) 45%, transparent);
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14),
+    0 0 20px 2px color-mix(in srgb, var(--theme-primary) 50%, transparent);
 }
 
-/* 液态玻璃拇指 */
+/* ============ 液态玻璃拇指 ============ */
 .base-switch-thumb {
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(255, 255, 255, 0.82) 100%
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.78) 100%
   );
+  /* 主高光（左上角，模拟自然光） */
+  background-image:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95) 0%, transparent 35%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.75) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0, 0, 0, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
     0 2px 4px rgba(0, 0, 0, 0.12);
 }
 
 .dark .base-switch-thumb {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(229, 231, 235, 0.8) 100%
-  );
+  background-image:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.85) 0%, transparent 35%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(229, 231, 235, 0.75) 100%);
 }
 
-/* focus ring 偏移色跟主题 */
+/* ============ 点击涟漪（特色 3） ============ */
+.base-switch-ripple {
+  position: absolute;
+  top: var(--ripple-y, 50%);
+  left: var(--ripple-x, 50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.7);
+  transform: translate(-50%, -50%) scale(0);
+  animation: switch-ripple 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes switch-ripple {
+  to {
+    transform: translate(-50%, -50%) scale(15);
+    opacity: 0;
+  }
+}
+
+/* ============ focus ring 偏移色跟主题 ============ */
 .base-switch-track:focus-visible {
   --tw-ring-offset-color: var(--theme-bg, #ffffff);
 }
