@@ -15,7 +15,7 @@ const { createScheduler } = require('./scheduler');
 const { log, logWarn } = require('../utils/utils');
 const { fetchFarmCode } = require('./yyb-login');
 
-const DEFAULT_REFRESH_MS = 2.5 * 60 * 1000;  // 默认 2.5 分钟(给 3 分钟 TTL 留缓冲)
+const DEFAULT_REFRESH_MS = 2.5 * 60 * 1000;
 const TASK_NAME = 'yyb_session_renew';
 
 interface YybContext {
@@ -41,7 +41,6 @@ async function refreshAndReconnect(accountName: string): Promise<void> {
 
     let reconnectFn: ((code: string) => void) | null = null;
     try {
-        // 延迟 require 避免循环依赖
         const network = require('../utils/network');
         reconnectFn = typeof network.reconnect === 'function' ? network.reconnect : null;
     } catch {
@@ -57,7 +56,6 @@ async function refreshAndReconnect(accountName: string): Promise<void> {
             openid: ctx.openid,
         });
     } catch (e: any) {
-        // API 抽风:静默,等下一轮再试,绝对不重连
         logWarn('YYB', `续期 API 调用异常: ${e && e.message ? e.message : String(e)}`, {
             module: 'yyb',
             event: 'session_renew_error',
@@ -66,7 +64,6 @@ async function refreshAndReconnect(accountName: string): Promise<void> {
     }
 
     if (!result.ok || !result.code) {
-        // 拿不到新 code:保持当前连接继续工作,等下一轮
         logWarn('YYB', `续期失败,保持当前连接: ${result.error || '未知错误'}`, {
             module: 'yyb',
             event: 'session_renew_failed',
