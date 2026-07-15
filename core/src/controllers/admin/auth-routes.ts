@@ -13,7 +13,7 @@ const { getSchedulerRegistrySnapshot } = require('../../services/scheduler');
 const { createModuleLogger } = require('../../services/logger');
 const { MiniProgramLoginSession } = require('../../services/qrlogin');
 const { fetchFarmCode } = require('../../services/yyb-login');
-const { fetchGoQR, checkGoStatus, fetchGoCode } = require('../../services/go-login');
+const { fetchGoQR, checkGoStatus, fetchGoCode, clearPathCache } = require('../../services/go-login');
 const store = require('../../models/store');
 const userStore = require('../../models/user-store');
 const tokenStore = require('../../models/user-store/token-store');
@@ -624,6 +624,14 @@ function mountAuthRoutes(app: Application, ctx: AdminContext): void {
         try {
             const username = (req as any).currentUser?.username;
             const body = (req.body && typeof req.body === 'object') ? req.body : {};
+            // 配置变更后清空路径缓存,下次取二维码会重新探测端点
+            const oldCfg = store.getGoConfig ? store.getGoConfig(username) : null;
+            if (oldCfg && oldCfg.apiBase && String(body.apiBase || '') !== oldCfg.apiBase) {
+                clearPathCache(oldCfg.apiBase);
+            }
+            if (body && body.apiBase) {
+                clearPathCache(String(body.apiBase));
+            }
             const cfg = store.setGoConfig
                 ? store.setGoConfig(body, username)
                 : {};

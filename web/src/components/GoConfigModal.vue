@@ -116,7 +116,7 @@ function close() {
           <BaseInput
             v-model="form.apiBase"
             label="Go 服务地址"
-            placeholder="例如: http://192.168.1.10:8000"
+            placeholder="例如: http://192.168.1.10:8000 或 https://xxx.trycloudflare.com"
             class="farm-input"
           />
 
@@ -154,7 +154,11 @@ function close() {
             class="rounded-xl p-3 text-xs space-y-1"
             style="background: color-mix(in srgb, var(--theme-primary) 8%, transparent); color: var(--theme-text)"
           >
-            <div>· 接口路径与微信本地 API 兼容: <code class="font-mono">/Login/LoginGetQRCar</code> · <code class="font-mono">/Login/LoginCheckQR</code> · <code class="font-mono">/Wxapp/JSLogin</code></div>
+            <div>· 只需填写 Go 服务根地址(无需带 <code class="font-mono">/api</code>),后端会自动探测以下端点:</div>
+            <div>· 取二维码: <code class="font-mono">/api/Login/GetQrCode</code>(兼容 <code class="font-mono">GetQRx</code> / 旧 <code class="font-mono">LoginGetQRCar</code>)</div>
+            <div>· 检查扫码: <code class="font-mono">/api/Login/CheckLogin/{uuid}</code>(兼容 <code class="font-mono">CheckQR?uuid=</code> / 旧 <code class="font-mono">LoginCheckQR</code>)</div>
+            <div>· 取登录 Code: <code class="font-mono">/api/Wxapp/JSLogin</code></div>
+            <div>· 命中后端点会缓存,改地址后重新保存配置即重新探测</div>
             <div>· 扫码成功后将以 <code class="font-mono">loginType=go_scan</code> 添加账号</div>
             <div>· 若该账号设置了「Code 刷新间隔 &gt; 0」,将按设定定时刷新 Code 并触发内部重连</div>
           </div>
